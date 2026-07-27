@@ -1,0 +1,213 @@
+
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #eef4ef;
+    color: #333;
+}
+
+
+
+.encabezado {
+    background-color: #2e7d32;
+    padding: 15px 0;
+}
+
+.menu {
+    width: 90%;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    color: white;
+    margin: 0;
+}
+
+.menu nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+    font-weight: bold;
+}
+
+.menu nav a:hover {
+    text-decoration: underline;
+}
+
+/* ---------- PORTADA ---------- */
+
+.principal {
+    background: linear-gradient(#43a047, #2e7d32);
+    color: white;
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.contenido {
+    max-width: 800px;
+    margin: auto;
+}
+
+.contenido h2 {
+    font-size: 35px;
+    margin-bottom: 20px;
+}
+
+.contenido p {
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+/* ---------- BOTONES ---------- */
+
+.botones {
+    margin-top: 30px;
+}
+
+.boton {
+    display: inline-block;
+    background-color: white;
+    color: #2e7d32;
+    padding: 12px 25px;
+    margin: 5px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.boton:hover {
+    background-color: #dcedc8;
+}
+
+.boton2 {
+    background-color: transparent;
+    color: white;
+    border: 2px solid white;
+}
+
+.boton2:hover {
+    background-color: white;
+    color: #2e7d32;
+}
+
+/* ---------- SECCIONES ---------- */
+
+.seccion {
+    width: 90%;
+    margin: 50px auto;
+}
+
+.seccion h2 {
+    text-align: center;
+    color: #2e7d32;
+    margin-bottom: 30px;
+}
+
+/* ---------- TARJETAS ---------- */
+
+.tarjetas {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.tarjeta {
+    width: 280px;
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.15);
+}
+
+.tarjeta h3 {
+    color: #2e7d32;
+    margin-top: 0;
+}
+
+.tarjeta ul {
+    padding-left: 20px;
+}
+
+.tarjeta li {
+    margin-bottom: 8px;
+}
+
+/* ---------- INFORMACIÓN ---------- */
+
+.info {
+    max-width: 900px;
+    margin: auto;
+    background-color: white;
+    padding: 25px;
+    border-left: 6px solid #2e7d32;
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+.info p {
+    line-height: 1.8;
+}
+
+/* ---------- FORMULARIO ---------- */
+
+.formulario {
+    max-width: 600px;
+    margin: auto;
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.15);
+}
+
+.formulario label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.formulario input,
+.formulario textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 15px;
+}
+
+.formulario textarea {
+    height: 120px;
+    resize: vertical;
+}
+
+.formulario button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.formulario button:hover {
+    background-color: #256428;
+}
+
+/* ---------- PIE ---------- */
+
+.pie {
+    background-color: #1b4332;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    margin-top: 50px;
+}

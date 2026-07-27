@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "nombre": "ajejeje",
+        "apellido": "ejejeje",
+        "correo": "alvestomas@gmail.com",
+        "password": "$2y$10$3.B9ZcDLuAQ98vw5SSz5..40AkBQrsd6naXGcykXcuSjwyQyWV8La"
+    },
+    {
+        "id": 2,
+        "nombre": "Tomas",
+        "apellido": "Larrosa",
+        "correo": "alvestomaslarrosa@gmail.com",
+        "password": "$2y$10$t9ONiZVDGPzyWeG2vQGHw.M8fXDRty23wxWfe0TbPZZiFivhAju9C"
+    }
+]
