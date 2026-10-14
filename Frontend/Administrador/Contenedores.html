@@ -199,8 +199,8 @@
     <script src="../js/municipios-montevideo.js"></script>
     <script src="../js/geo-montevideo.js"></script>
     <script>
-        const contenedoresApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
-        const municipiosApi = 'http://localhost/DESIPROYECTO/Backend/get_municipios.php';
+        const contenedoresApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+        const municipiosApi = '../../Backend/get_municipios.php';
         const containerForm = document.getElementById('container-form');
         let contenedorEditando = null;
         let municipiosPorId = {};
@@ -277,7 +277,7 @@
                     button.addEventListener('click', () => eliminarContenedor(datos[index].Id_Contenedor));
                 });
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="8" class="empty-table-message">Error de conexión</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-table-message">${escapeHtml(error.message || 'No se pudieron cargar los contenedores.')}</td></tr>`;
             }
         }
 
