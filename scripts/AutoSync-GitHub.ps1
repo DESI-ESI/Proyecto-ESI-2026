@@ -22,8 +22,14 @@ function Write-AutoSyncLog {
 function Invoke-Git {
     param([string[]]$Arguments)
 
-    $output = & git -C $projectRoot @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & git -C $projectRoot @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
     if ($output) {
         $output | ForEach-Object { Write-AutoSyncLog ([string]$_) }
     }
@@ -81,8 +87,14 @@ try {
             $pendingSince = $null
             Sync-Project
         } elseif (((Get-Date) - $lastPushAttempt).TotalSeconds -ge $retrySeconds) {
-            $ahead = & git -C $projectRoot rev-list --count origin/main..HEAD 2>&1
-            $aheadExit = $LASTEXITCODE
+            $previousPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $ahead = & git -C $projectRoot rev-list --count origin/main..HEAD 2>&1
+                $aheadExit = $LASTEXITCODE
+            } finally {
+                $ErrorActionPreference = $previousPreference
+            }
             if ($aheadExit -eq 0) {
                 if ([int]$ahead -gt 0) {
                     Sync-Project
