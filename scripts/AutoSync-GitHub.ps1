@@ -3,12 +3,14 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $logDirectory = Join-Path $env:LOCALAPPDATA 'SIGERU'
 $logPath = Join-Path $logDirectory 'auto-sync.log'
+$pidPath = Join-Path $logDirectory 'auto-sync.pid'
 $debounceSeconds = 10
 $retrySeconds = 120
 $pendingSince = $null
 $lastPushAttempt = Get-Date
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+Set-Content -LiteralPath $pidPath -Value $PID -Encoding ASCII
 
 function Write-AutoSyncLog {
     param([string]$Message)
@@ -98,4 +100,7 @@ try {
 } finally {
     $watcher.EnableRaisingEvents = $false
     $watcher.Dispose()
+    if ((Test-Path -LiteralPath $pidPath) -and (Get-Content -LiteralPath $pidPath -Raw).Trim() -eq [string]$PID) {
+        Remove-Item -LiteralPath $pidPath -Force
+    }
 }
