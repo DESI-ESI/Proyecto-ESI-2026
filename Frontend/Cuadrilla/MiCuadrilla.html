@@ -98,7 +98,7 @@
                         <tbody>${cuadrilla.Integrantes.map(i => `<tr><td>${escapar(i.Nombre)}</td><td>${escapar(i.Apellido)}</td><td>${escapar(i.cedula)}</td></tr>`).join('')}</tbody>
                     </table>`;
             } catch (error) {
-                contenedor.innerHTML = '<p>No se pudo cargar tu cuadrilla.</p>';
+                contenedor.innerHTML = `<p>No se pudo cargar tu cuadrilla: ${escapar(error.message || 'error de conexión')}.</p>`;
             }
         })();
     </script>

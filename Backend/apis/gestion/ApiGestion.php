@@ -116,28 +116,10 @@ if ($resource === 'micuadrilla' && $method === 'GET') {
         respond(['status' => 'error', 'message' => 'Acceso denegado: solo personal de cuadrilla (chofer o limpiador) o administradores pueden acceder a este recurso.'], 403);
     }
 
-    $stmt = $pdo->prepare(
-        'SELECT c.Id_Cuadrilla, c.Turno, c.Num_integrantes
-         FROM empleado yo
-         JOIN empleado e ON e.cedula = yo.cedula
-         JOIN integrante_cuadrilla ic ON ic.Id_Empleado = e.Id
-         JOIN cuadrilla c ON c.Id_Cuadrilla = ic.Id_Cuadrilla
-         WHERE yo.Id = :id AND yo.cedula <> ""
-         LIMIT 1'
-    );
-    $stmt->execute([':id' => $_SESSION['empleado_id']]);
-    $cuadrilla = $stmt->fetch(PDO::FETCH_ASSOC);
+    $cuadrilla = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
 
     if ($cuadrilla) {
-        $companeros = $pdo->prepare(
-            'SELECT e.Nombre, e.Apellido, e.cedula
-             FROM integrante_cuadrilla ic
-             JOIN empleado e ON e.Id = ic.Id_Empleado
-             WHERE ic.Id_Cuadrilla = :cuadrilla
-             ORDER BY e.Nombre, e.Apellido'
-        );
-        $companeros->execute([':cuadrilla' => $cuadrilla['Id_Cuadrilla']]);
-        $cuadrilla['Integrantes'] = $companeros->fetchAll(PDO::FETCH_ASSOC);
+        $cuadrilla['Integrantes'] = cuadrilla::integrantes($pdo, (int) $cuadrilla['Id_Cuadrilla']);
     }
 
     respond(['status' => 'success', 'data' => $cuadrilla ?: null]);
@@ -150,21 +132,7 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
         respond(['status' => 'error', 'message' => 'Acceso denegado: solo personal de cuadrilla (chofer o limpiador) o administradores pueden acceder a este recurso.'], 403);
     }
 
-    $stmt = $pdo->prepare(
-        'SELECT c.Id_Cuadrilla, c.Turno, r.Id_Ruta, r.Recorrido, r.Horario_Inicio, r.Horario_Fin,
-                r.Frecuencia, r.Distancia, r.Estado, m.Nombre AS Municipio
-         FROM empleado yo
-         JOIN empleado e ON e.cedula = yo.cedula
-         JOIN integrante_cuadrilla ic ON ic.Id_Empleado = e.Id
-         JOIN cuadrilla c ON c.Id_Cuadrilla = ic.Id_Cuadrilla
-         LEFT JOIN realiza re ON re.Id_Cuadrilla = c.Id_Cuadrilla
-         LEFT JOIN ruta r ON r.Id_Ruta = re.Id_Ruta
-         LEFT JOIN municipio m ON m.Id_Municipio = r.Id_Municipio
-         WHERE yo.Id = :id AND yo.cedula <> ""
-         LIMIT 1'
-    );
-    $stmt->execute([':id' => $_SESSION['empleado_id']]);
-    $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+    $fila = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
 
     if ($method === 'POST') {
         if (!in_array($action, ['completar', 'no_completado', 'reportar_contenedor'], true)) {
@@ -187,12 +155,11 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             if ($repetido->fetchColumn()) {
                 respond(['status' => 'error', 'message' => 'El recorrido de hoy ya fue registrado.'], 409);
             }
-            $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla, Id_Empleado) VALUES (:descripcion, :ruta, :cuadrilla, :empleado)')
+            $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
                 ->execute([
                     ':descripcion' => sprintf('Recorrido NO completado: ruta #%d (%s), turno %s. Motivo: %s', $fila['Id_Ruta'], $fila['Recorrido'], $fila['Turno'], $motivo),
                     ':ruta' => $fila['Id_Ruta'],
                     ':cuadrilla' => $fila['Id_Cuadrilla'],
-                    ':empleado' => $_SESSION['empleado_id'],
                 ]);
             respond(['status' => 'success', 'message' => 'Se registró que el recorrido no se pudo completar.'], 201);
         }
@@ -232,12 +199,11 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             substr((string) $fila['Horario_Fin'], 0, 5)
         );
 
-        $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla, Id_Empleado) VALUES (:descripcion, :ruta, :cuadrilla, :empleado)')
+        $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
             ->execute([
                 ':descripcion' => $descripcion,
                 ':ruta' => $fila['Id_Ruta'],
                 ':cuadrilla' => $fila['Id_Cuadrilla'],
-                ':empleado' => $_SESSION['empleado_id'],
             ]);
         respond(['status' => 'success', 'message' => 'Recorrido completado. Se generó el informe automáticamente.'], 201);
     }
@@ -284,25 +250,14 @@ if ($resource === 'informes') {
     }
 
     try {
-        $stmt = $pdo->prepare(
-            'SELECT c.Id_Cuadrilla, c.Turno, re.Id_Ruta, r.Recorrido
-             FROM empleado yo
-             JOIN empleado e ON e.cedula = yo.cedula
-             JOIN integrante_cuadrilla ic ON ic.Id_Empleado = e.Id
-             JOIN cuadrilla c ON c.Id_Cuadrilla = ic.Id_Cuadrilla
-             LEFT JOIN realiza re ON re.Id_Cuadrilla = c.Id_Cuadrilla
-             LEFT JOIN ruta r ON r.Id_Ruta = re.Id_Ruta
-             WHERE yo.Id = :id AND yo.cedula <> ""
-             LIMIT 1'
-        );
-        $stmt->execute([':id' => $_SESSION['empleado_id']]);
-        $contexto = $stmt->fetch(PDO::FETCH_ASSOC);
+        $contexto = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
 
         if ($method === 'GET') {
             $informes = [];
             $consulta = $pdo->query(
-                'SELECT i.Id_Informe, i.Fecha, i.Descripcion, i.Id_Ruta, i.Id_Cuadrilla, CONCAT(e.Nombre, " ", e.Apellido) AS Autor
-                 FROM informe i LEFT JOIN empleado e ON e.Id = i.Id_Empleado
+                'SELECT i.Id_Informe, i.Fecha, i.Descripcion, i.Id_Ruta, i.Id_Cuadrilla,
+                        CONCAT("Cuadrilla #", i.Id_Cuadrilla) AS Autor
+                 FROM informe i
                  ORDER BY i.Fecha DESC, i.Id_Informe DESC LIMIT 200'
             );
             $informes = $consulta->fetchAll(PDO::FETCH_ASSOC);
@@ -320,12 +275,11 @@ if ($resource === 'informes') {
             if ($descripcion === '' || mb_strlen($descripcion, 'UTF-8') > 2000) {
                 respond(['status' => 'error', 'message' => 'Escribí una descripción de hasta 2000 caracteres.'], 400);
             }
-            $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla, Id_Empleado) VALUES (:descripcion, :ruta, :cuadrilla, :empleado)')
+            $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
                 ->execute([
                     ':descripcion' => $descripcion,
                     ':ruta' => $contexto['Id_Ruta'],
-                    ':cuadrilla' => $contexto['Id_Cuadrilla'],
-                    ':empleado' => $_SESSION['empleado_id']
+                    ':cuadrilla' => $contexto['Id_Cuadrilla']
                 ]);
             respond(['status' => 'success', 'message' => 'Informe registrado correctamente.'], 201);
         }

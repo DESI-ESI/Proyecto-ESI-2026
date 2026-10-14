@@ -49,14 +49,57 @@ class cuadrilla {
     public static function listar(PDO $pdo): array {
         $stmt = $pdo->query(
             "SELECT c.Id_Cuadrilla, c.Turno, c.Num_integrantes,
-                    COALESCE(GROUP_CONCAT(e.cedula ORDER BY e.cedula SEPARATOR ', '), '') AS Cedulas,
+                    COALESCE(GROUP_CONCAT(miembros.cedula ORDER BY miembros.cedula SEPARATOR ', '), '') AS Cedulas,
                     (SELECT r.Id_Ruta FROM realiza r WHERE r.Id_Cuadrilla = c.Id_Cuadrilla LIMIT 1) AS Id_Ruta
              FROM cuadrilla c
-             LEFT JOIN integrante_cuadrilla ic ON ic.Id_Cuadrilla = c.Id_Cuadrilla
-             LEFT JOIN empleado e ON e.Id = ic.Id_Empleado
+             LEFT JOIN (
+                 SELECT e.cedula, ch.idCuadrilla
+                 FROM chofer ch JOIN empleado e ON e.Id = ch.Id
+                 UNION ALL
+                 SELECT e.cedula, l.idCuadrilla
+                 FROM limpiador l JOIN empleado e ON e.Id = l.Id
+             ) miembros ON miembros.idCuadrilla = c.Id_Cuadrilla
              GROUP BY c.Id_Cuadrilla, c.Turno, c.Num_integrantes
              ORDER BY c.Id_Cuadrilla DESC"
         );
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public static function buscarDeEmpleado(PDO $pdo, int $idEmpleado): ?array {
+        $stmt = $pdo->prepare(
+            'SELECT c.Id_Cuadrilla, c.Turno, c.Num_integrantes, r.Id_Ruta,
+                    r.Recorrido, r.Horario_Inicio, r.Horario_Fin, r.Frecuencia,
+                    r.Distancia, r.Estado, m.Nombre AS Municipio
+             FROM empleado e
+             LEFT JOIN chofer ch ON ch.Id = e.Id
+             LEFT JOIN limpiador l ON l.Id = e.Id
+             JOIN cuadrilla c ON c.Id_Cuadrilla = COALESCE(ch.idCuadrilla, l.idCuadrilla)
+             LEFT JOIN realiza re ON re.Id_Cuadrilla = c.Id_Cuadrilla
+             LEFT JOIN ruta r ON r.Id_Ruta = re.Id_Ruta
+             LEFT JOIN municipio m ON m.Id_Municipio = r.Id_Municipio
+             WHERE e.Id = :id
+             LIMIT 1'
+        );
+        $stmt->execute([':id' => $idEmpleado]);
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $fila ?: null;
+    }
+
+    public static function integrantes(PDO $pdo, int $idCuadrilla): array {
+        $stmt = $pdo->prepare(
+            'SELECT e.Nombre, e.Apellido, e.cedula
+             FROM (
+                 SELECT Id, idCuadrilla FROM chofer
+                 UNION ALL
+                 SELECT Id, idCuadrilla FROM limpiador
+             ) miembros
+             JOIN empleado e ON e.Id = miembros.Id
+             WHERE miembros.idCuadrilla = :id
+             ORDER BY e.Nombre, e.Apellido'
+        );
+        $stmt->execute([':id' => $idCuadrilla]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -137,36 +180,53 @@ class cuadrilla {
     private function sincronizarIntegrantes(PDO $pdo, int $idCuadrilla): bool {
         $ids = [];
         foreach ($this->cedulas as $cedula) {
-            $stmt = $pdo->prepare('SELECT Id FROM empleado WHERE cedula = :cedula LIMIT 1');
+            $stmt = $pdo->prepare(
+                'SELECT e.Id, ch.idCuadrilla AS Id_Cuadrilla, "chofer" AS tipo
+                 FROM empleado e JOIN chofer ch ON ch.Id = e.Id
+                 WHERE e.cedula = :cedula
+                 UNION ALL
+                 SELECT e.Id, l.idCuadrilla AS Id_Cuadrilla, "limpiador" AS tipo
+                 FROM empleado e JOIN limpiador l ON l.Id = e.Id
+                 WHERE e.cedula = :cedula
+                 LIMIT 1'
+            );
             $stmt->execute([':cedula' => $cedula]);
-            $idEmpleado = $stmt->fetchColumn();
-            if ($idEmpleado === false) {
-                throw new InvalidArgumentException("No existe ningún empleado con la cédula $cedula.");
+            $empleado = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$empleado) {
+                throw new InvalidArgumentException("La cédula $cedula no corresponde a un chofer o limpiador.");
             }
 
-            $otra = $pdo->prepare('SELECT Id_Cuadrilla FROM integrante_cuadrilla WHERE Id_Empleado = :id AND Id_Cuadrilla <> :cuadrilla');
-            $otra->execute([':id' => $idEmpleado, ':cuadrilla' => $idCuadrilla]);
-            $otraCuadrilla = $otra->fetchColumn();
-            if ($otraCuadrilla !== false) {
+            $idEmpleado = (int) $empleado['Id'];
+            $otraCuadrilla = $empleado['Id_Cuadrilla'];
+            if ($otraCuadrilla !== null && (int) $otraCuadrilla !== $idCuadrilla) {
                 throw new InvalidArgumentException("La cédula $cedula ya pertenece a la cuadrilla $otraCuadrilla.");
             }
-            $ids[] = (int) $idEmpleado;
+            $ids[] = ['id' => $idEmpleado, 'tipo' => $empleado['tipo']];
         }
 
-        $actuales = $pdo->prepare('SELECT Id_Empleado FROM integrante_cuadrilla WHERE Id_Cuadrilla = :id');
-        $actuales->execute([':id' => $idCuadrilla]);
+        $actuales = $pdo->prepare(
+            'SELECT Id FROM chofer WHERE idCuadrilla = :chofer
+             UNION
+             SELECT Id FROM limpiador WHERE idCuadrilla = :limpiador'
+        );
+        $actuales->execute([':chofer' => $idCuadrilla, ':limpiador' => $idCuadrilla]);
         $antes = array_map('intval', $actuales->fetchAll(PDO::FETCH_COLUMN));
+        $despues = array_column($ids, 'id');
 
-        $borrar = $pdo->prepare('DELETE FROM integrante_cuadrilla WHERE Id_Cuadrilla = :id');
-        $borrar->execute([':id' => $idCuadrilla]);
-        $insertar = $pdo->prepare('INSERT INTO integrante_cuadrilla (Id_Cuadrilla, Id_Empleado) VALUES (:cuadrilla, :empleado)');
-        foreach ($ids as $idEmpleado) {
-            $insertar->execute([':cuadrilla' => $idCuadrilla, ':empleado' => $idEmpleado]);
+        $pdo->prepare('UPDATE chofer SET idCuadrilla = NULL WHERE idCuadrilla = :id')
+            ->execute([':id' => $idCuadrilla]);
+        $pdo->prepare('UPDATE limpiador SET idCuadrilla = NULL WHERE idCuadrilla = :id')
+            ->execute([':id' => $idCuadrilla]);
+        $asignarChofer = $pdo->prepare('UPDATE chofer SET idCuadrilla = :cuadrilla WHERE Id = :empleado');
+        $asignarLimpiador = $pdo->prepare('UPDATE limpiador SET idCuadrilla = :cuadrilla WHERE Id = :empleado');
+        foreach ($ids as $empleado) {
+            $asignacion = $empleado['tipo'] === 'chofer' ? $asignarChofer : $asignarLimpiador;
+            $asignacion->execute([':cuadrilla' => $idCuadrilla, ':empleado' => $empleado['id']]);
         }
 
         sort($antes);
-        sort($ids);
-        return $antes !== $ids;
+        sort($despues);
+        return $antes !== $despues;
     }
     public static function eliminar(PDO $pdo, int $id): bool {
         $asignaciones = $pdo->prepare(
