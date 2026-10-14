@@ -183,14 +183,17 @@ class cuadrilla {
             $stmt = $pdo->prepare(
                 'SELECT e.Id, ch.idCuadrilla AS Id_Cuadrilla, "chofer" AS tipo
                  FROM empleado e JOIN chofer ch ON ch.Id = e.Id
-                 WHERE e.cedula = :cedula
+                WHERE e.cedula = :cedula_chofer
                  UNION ALL
                  SELECT e.Id, l.idCuadrilla AS Id_Cuadrilla, "limpiador" AS tipo
                  FROM empleado e JOIN limpiador l ON l.Id = e.Id
-                 WHERE e.cedula = :cedula
+                WHERE e.cedula = :cedula_limpiador
                  LIMIT 1'
             );
-            $stmt->execute([':cedula' => $cedula]);
+            $stmt->execute([
+                ':cedula_chofer' => $cedula,
+                ':cedula_limpiador' => $cedula
+            ]);
             $empleado = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$empleado) {
                 throw new InvalidArgumentException("La cédula $cedula no corresponde a un chofer o limpiador.");
