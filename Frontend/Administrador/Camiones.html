@@ -64,7 +64,7 @@
                 </div>
                 
                 <div class="search">
-                    <input type="number" id="capacidad" placeholder="Capacidad (kg)" required>
+                    <input type="number" id="capacidad" min="0.01" step="0.01" placeholder="Capacidad (kg)" required>
                 </div>
                 
                 <select id="estado" required>
@@ -133,11 +133,12 @@
         let camionesOriginales = [];
         let municipiosPorId = {};
         let camionEditando = null;
+        const API = '../../Backend/apis/gestion/ApiGestion.php';
 
         document.addEventListener('DOMContentLoaded', () => {
-            cargarCamiones();
-            cargarMunicipios();
-            cargarRutas();
+            Promise.all([cargarMunicipios(), cargarRutas()])
+                .then(cargarCamiones)
+                .catch(error => mostrarErrorTabla(error.message));
 
             const formulario = document.getElementById('form-camion');
             if (formulario) {
@@ -190,81 +191,122 @@
                 let idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
                 let nombreMunicipio = municipiosPorId[String(idMunicipio)] || idMunicipio || '-';
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${camion.matricula}</strong></td>
-                        <td>${camion.capacidad} kg</td>
-                        <td><span class="${estadoClase}">${camion.estado}</span></td>
-                        <td>${nombreMunicipio}</td>
-                        <td>${camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-'}</td>
-                        <td>
-                            <button class="edit" onclick="prepararEdicion('${camion.matricula}', '${camion.capacidad}', '${camion.estado}', '${idMunicipio}', '${camion.Id_Ruta || ''}')">Editar</button>
-                            <button class="delete" onclick="eliminarCamion('${camion.matricula}')">Eliminar</button>
-                        </td>
-                    </tr>
-                `;
+                const fila = document.createElement('tr');
+                const valores = [
+                    camion.matricula,
+                    `${camion.capacidad} kg`,
+                    camion.estado,
+                    nombreMunicipio,
+                    camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-'
+                ];
+                valores.forEach((valor, indice) => {
+                    const celda = document.createElement('td');
+                    celda.textContent = valor ?? '';
+                    if (indice === 0) {
+                        const texto = document.createElement('strong');
+                        texto.textContent = valor ?? '';
+                        celda.replaceChildren(texto);
+                    }
+                    if (indice === 2) {
+                        const estado = document.createElement('span');
+                        estado.className = estadoClase;
+                        estado.textContent = valor ?? '';
+                        celda.replaceChildren(estado);
+                    }
+                    fila.appendChild(celda);
+                });
+
+                const acciones = document.createElement('td');
+                const editar = document.createElement('button');
+                editar.type = 'button';
+                editar.className = 'edit';
+                editar.textContent = 'Editar';
+                editar.addEventListener('click', () => prepararEdicion(camion));
+                const eliminar = document.createElement('button');
+                eliminar.type = 'button';
+                eliminar.className = 'delete';
+                eliminar.textContent = 'Eliminar';
+                eliminar.addEventListener('click', () => eliminarCamion(camion.matricula));
+                acciones.append(editar, eliminar);
+                fila.appendChild(acciones);
+                tbody.appendChild(fila);
             });
         }
 
-        function cargarMunicipios() {
-            fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php')
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === 'success') {
-                        const selectMunicipio = document.getElementById('id_municipio');
-                        const filtroMunicipio = document.getElementById('filter-municipio');
-                        selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
-                        municipiosPorId = {};
-                        if (filtroMunicipio) {
-                            filtroMunicipio.innerHTML = '<option value="todos">Todos los municipios</option>';
-                        }
-                        
-                        res.data.forEach(muni => {
-                            municipiosPorId[String(muni.id_municipio)] = muni.nombre;
-                            selectMunicipio.innerHTML += `<option value="${muni.id_municipio}">${muni.nombre}</option>`;
-                            if (filtroMunicipio) {
-                                filtroMunicipio.innerHTML += `<option value="${muni.id_municipio}">${muni.nombre}</option>`;
-                            }
-                        });
-                        if (camionesOriginales.length > 0) {
-                            filtrarCamiones();
-                        }
-                    } else {
-                        console.error('Error al cargar municipios:', res.message);
+        async function leerRespuesta(response) {
+            const res = await response.json();
+            if (!response.ok || res.status !== 'success') {
+                throw new Error(res.message || `Error HTTP ${response.status}`);
+            }
+            return res;
+        }
+
+        async function cargarMunicipios() {
+            try {
+                const res = await leerRespuesta(await fetch('../../Backend/get_municipios.php'));
+                const selectMunicipio = document.getElementById('id_municipio');
+                const filtroMunicipio = document.getElementById('filter-municipio');
+                selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
+                municipiosPorId = {};
+                if (filtroMunicipio) {
+                    filtroMunicipio.innerHTML = '<option value="todos">Todos los municipios</option>';
+                }
+
+                res.data.forEach(muni => {
+                    municipiosPorId[String(muni.id_municipio)] = muni.nombre;
+                    const option = document.createElement('option');
+                    option.value = muni.id_municipio;
+                    option.textContent = muni.nombre;
+                    selectMunicipio.appendChild(option);
+                    if (filtroMunicipio) {
+                        filtroMunicipio.appendChild(option.cloneNode(true));
                     }
-                })
-                .catch(err => console.error('Error de red al cargar municipios:', err));
+                });
+                if (camionesOriginales.length > 0) {
+                    filtrarCamiones();
+                }
+            } catch (error) {
+                console.error('Error al cargar municipios:', error);
+                throw new Error(`No se pudieron cargar los municipios: ${error.message}`);
+            }
         }
 
-        function cargarRutas() {
-            fetch('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas')
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status !== 'success') return;
-                    const select = document.getElementById('id_ruta');
-                    select.innerHTML = '<option value="">Sin ruta asignada</option>';
-                    (res.data || []).forEach(ruta => {
-                        const id = ruta.Id_Ruta ?? ruta.id_ruta;
-                        const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
-                        select.innerHTML += `<option value="${id}">#${id} - ${recorrido}</option>`;
-                    });
-                })
-                .catch(err => console.error('Error al cargar rutas:', err));
+        async function cargarRutas() {
+            try {
+                const res = await leerRespuesta(await fetch(`${API}?recurso=rutas`));
+                const select = document.getElementById('id_ruta');
+                select.innerHTML = '<option value="">Sin ruta asignada</option>';
+                (res.data || []).forEach(ruta => {
+                    const id = ruta.Id_Ruta ?? ruta.id_ruta;
+                    const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `#${id} - ${recorrido}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error al cargar rutas:', error);
+                throw new Error(`No se pudieron cargar las rutas: ${error.message}`);
+            }
         }
 
-        function cargarCamiones() {
-            fetch('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=listar')
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === 'success') {
-                        camionesOriginales = Array.isArray(res.data) ? res.data : [];
-                        renderCamiones(camionesOriginales);
-                    }
-                })
-            .catch(err => console.error('Error al cargar la tabla:', err));
+        async function cargarCamiones() {
+            try {
+                const res = await leerRespuesta(await fetch(`${API}?recurso=camiones&accion=listar`));
+                camionesOriginales = Array.isArray(res.data) ? res.data : [];
+                renderCamiones(camionesOriginales);
+            } catch (error) {
+                console.error('Error al cargar la tabla:', error);
+                mostrarErrorTabla(`No se pudieron cargar los camiones: ${error.message}`);
+            }
         }
 
-        function prepararEdicion(matricula, capacidad, estado, idMunicipio, idRuta) {
+        function prepararEdicion(camion) {
+            const matricula = camion.matricula ?? camion.Matricula ?? '';
+            const capacidad = camion.capacidad ?? camion.Capacidad ?? '';
+            const estado = camion.estado ?? camion.Estado ?? '';
+            const idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
+            const idRuta = camion.Id_Ruta ?? camion.id_ruta ?? '';
             camionEditando = {
                 matricula,
                 capacidad,
@@ -324,24 +366,20 @@
             }
 
             const accion = modoEdicion ? 'editar' : 'crear';
-            const url = `http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=${accion}`;
+            const url = `${API}?recurso=camiones&accion=${accion}`;
 
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(datos)
             })
-            .then(res => res.json())
+            .then(leerRespuesta)
             .then(res => {
-                if (res.status === 'success') {
-                    alert(modoEdicion ? '¡Camión actualizado!' : '¡Camión registrado!');
-                    resetearFormulario();
-                    cargarCamiones(); 
-                } else {
-                    alert('Error: ' + res.message);
-                }
+                alert(res.message || (modoEdicion ? '¡Camión actualizado!' : '¡Camión registrado!'));
+                resetearFormulario();
+                cargarCamiones();
             })
-            .catch(err => console.error('Error en el envío:', err));
+            .catch(err => alert('No se pudo guardar el camión: ' + err.message));
         }
 
         function eliminarCamion(matricula) {
@@ -349,23 +387,31 @@
                 return; 
             }
 
-            const url = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=eliminar';
+            const url = `${API}?recurso=camiones&accion=eliminar`;
 
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ matricula: matricula })
             })
-            .then(res => res.json())
+            .then(leerRespuesta)
             .then(res => {
-                if (res.status === 'success') {
-                    alert('Camión eliminado.');
-                    cargarCamiones();
-                } else {
-                    alert('Error al eliminar: ' + res.message);
-                }
+                alert(res.message || 'Camión eliminado.');
+                cargarCamiones();
             })
-            .catch(err => console.error('Error:', err));
+            .catch(err => alert('No se pudo eliminar el camión: ' + err.message));
+        }
+
+        function mostrarErrorTabla(mensaje) {
+            const tbody = document.getElementById('tabla-camiones-body');
+            const fila = document.createElement('tr');
+            const celda = document.createElement('td');
+            celda.colSpan = 6;
+            celda.style.textAlign = 'center';
+            celda.style.padding = '20px';
+            celda.textContent = mensaje;
+            fila.appendChild(celda);
+            tbody.replaceChildren(fila);
         }
     </script>
     
