@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instalaciones - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+                <a href="panel.html"><span>▣</span>Panel principal</a>
+                <a href="Empleados.html"><span>♙</span>Empleados</a>
+                <a href="rutas.html"><span>♧</span>Rutas</a>
+                <a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Centros.html" class="active"><span>▦</span>Instalaciones</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="Informes.html"><span>▤</span>Informes</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Instalaciones</h1>
+                    <p>Centros de acopio y vertederos, con su capacidad y los residuos que reciben.</p>
+                </div>
+
+                <button type="submit" form="form-centro" id="add-centro-btn" class="add-button">
+                    + Nueva instalación
+                </button>
+            </div>
+
+            <form id="form-centro" class="filters">
+                <div class="search">
+                    <input type="text" id="centro-nombre" placeholder="Nombre" maxlength="30" required>
+                </div>
+
+                <select id="centro-tipo" required>
+                    <option value="" disabled selected>Tipo...</option>
+                    <option value="centro_acopio">Centro de acopio</option>
+                    <option value="vertedero">Vertedero</option>
+                </select>
+
+                <div class="search">
+                    <input type="text" id="centro-ubicacion" placeholder="Calle 1" required>
+                </div>
+
+                <div class="search">
+                    <input type="text" id="centro-ubicacion2" placeholder="Calle 2 (esquina)" required>
+                </div>
+
+                <select id="centro-municipio" disabled style="background:#e3e6ea;color:#6b7a90;cursor:not-allowed;">
+                    <option value="">Municipio (se detecta por las calles)...</option>
+                </select>
+                <small id="municipio-hint" style="align-self:center;color:#6b7a90;"></small>
+
+                <div class="search">
+                    <input type="number" id="centro-capacidad" placeholder="Capacidad máxima (kg)" min="1" step="0.01" required>
+                </div>
+
+                <div class="search">
+                    <input type="number" id="centro-almacenado" placeholder="Almacenado (kg)" min="0" step="0.01">
+                </div>
+
+                <select id="centro-estado" required>
+                    <option value="" disabled selected>Estado...</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                </select>
+
+                <div class="search">
+                    <input type="text" id="centro-tipos-residuo" placeholder="Tipos de residuo (separados por coma)" maxlength="255">
+                </div>
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                <div class="search">
+                    <input type="text" id="search-centro" placeholder="Buscar instalación...">
+                </div>
+
+                <select id="filter-tipo">
+                    <option value="todos">Todos los tipos</option>
+                    <option value="centro_acopio">Centros de acopio</option>
+                    <option value="vertedero">Vertederos</option>
+                </select>
+
+                <select id="filter-estado">
+                    <option value="todos">Todos los estados</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                </select>
+            </div>
+
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Ubicación</th>
+                            <th>Municipio</th>
+                            <th>Capacidad</th>
+                            <th>Almacenado</th>
+                            <th>Disponible</th>
+                            <th>Estado</th>
+                            <th>Residuos</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-centros-body"></tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="../js/municipios-montevideo.js"></script>
+    <script src="../js/geo-montevideo.js"></script>
+    <script>
+        const apiUrl = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=centros';
+        const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+        const nombresEstado = { activo: 'Activo', inactivo: 'Inactivo', mantenimiento: 'En mantenimiento' };
+
+        const separadorCalles = ' esq. ';
+        let centros = [];
+        let centroEditando = null;
+        let municipiosPorId = {};
+        let deteccionMunicipio = Promise.resolve();
+        let ultimaDeteccion = '';
+
+        async function cargarMunicipios() {
+            try {
+                const respuesta = await fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php');
+                const resultado = await respuesta.json();
+                const select = document.getElementById('centro-municipio');
+                select.innerHTML = '<option value="">Municipio (se detecta por las calles)...</option>';
+                (resultado.data || []).forEach(m => {
+                    municipiosPorId[String(m.id_municipio)] = m.nombre;
+                    select.innerHTML += `<option value="${esc(m.id_municipio)}">${esc(m.nombre)}</option>`;
+                });
+                renderCentros();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function detectarMunicipio() {
+            const calle1 = document.getElementById('centro-ubicacion').value.trim();
+            const calle2 = document.getElementById('centro-ubicacion2').value.trim();
+            const select = document.getElementById('centro-municipio');
+            const aviso = document.getElementById('municipio-hint');
+            if (!calle1 || !calle2) return;
+            const clave = `${calle1}|${calle2}`.toLowerCase();
+            if (clave === ultimaDeteccion) return;
+            ultimaDeteccion = clave;
+            aviso.textContent = 'Detectando municipio...';
+            const punto = await GeoMontevideo.ubicarCalles(calle1, calle2);
+            const letra = punto && GeoMontevideo.municipioDePunto(punto);
+            const opcion = letra && Array.from(select.options).find(o => o.textContent.trim().toLowerCase() === `municipio ${letra}`.toLowerCase());
+            if (opcion) {
+                select.value = opcion.value;
+                aviso.textContent = `Detectado: Municipio ${letra}`;
+            } else {
+                select.value = '';
+                aviso.textContent = 'No se pudo detectar el municipio con esas calles.';
+            }
+        }
+
+        function esc(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function leerFormulario() {
+            return {
+                nombre: document.getElementById('centro-nombre').value.trim(),
+                tipo: document.getElementById('centro-tipo').value,
+                ubicacion: [document.getElementById('centro-ubicacion').value.trim(), document.getElementById('centro-ubicacion2').value.trim()].join(separadorCalles),
+                id_municipio: document.getElementById('centro-municipio').value,
+                capacidad: document.getElementById('centro-capacidad').value,
+                cantidad_almacenada: document.getElementById('centro-almacenado').value || '0',
+                estado: document.getElementById('centro-estado').value,
+                tipos_residuo: document.getElementById('centro-tipos-residuo').value.trim()
+            };
+        }
+
+        function resetearFormulario() {
+            centroEditando = null;
+            ultimaDeteccion = '';
+            document.getElementById('municipio-hint').textContent = '';
+            document.getElementById('add-centro-btn').textContent = '+ Nueva instalación';
+        }
+
+        function renderCentros() {
+            const termino = document.getElementById('search-centro').value.toLowerCase().trim();
+            const tipo = document.getElementById('filter-tipo').value;
+            const estado = document.getElementById('filter-estado').value;
+            const tbody = document.getElementById('tabla-centros-body');
+
+            const listado = centros.filter(c => {
+                const texto = `${c.Nombre} ${c.Ubicacion} ${c.Tipos_Residuo || ''}`.toLowerCase();
+                return texto.includes(termino) && (tipo === 'todos' || c.Tipo === tipo) && (estado === 'todos' || c.Estado === estado);
+            });
+
+            if (listado.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #666; padding: 20px;">No se encontraron instalaciones</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = listado.map(c => {
+                const disponible = (Number(c.Capacidad) - Number(c.Cantidad_Almacenada || 0)).toFixed(2);
+                const clase = c.Estado === 'activo' ? 'status active-status' : 'status';
+                return `
+                    <tr>
+                        <td><strong>${esc(c.Nombre)}</strong></td>
+                        <td>${esc(nombresTipo[c.Tipo] || c.Tipo)}</td>
+                        <td>${esc(c.Ubicacion || '-')}</td>
+                        <td>${esc(municipiosPorId[String(c.Id_Municipio)] || '-')}</td>
+                        <td>${esc(c.Capacidad)} kg</td>
+                        <td>${esc(c.Cantidad_Almacenada)} kg</td>
+                        <td>${disponible} kg</td>
+                        <td><span class="${clase}">${esc(nombresEstado[c.Estado] || c.Estado)}</span></td>
+                        <td>${esc(c.Tipos_Residuo || '-')}</td>
+                        <td>
+                            <button class="edit" onclick="prepararEdicion(${Number(c.Id_Centro)})">Editar</button>
+                            <button class="delete" onclick="eliminarCentro(${Number(c.Id_Centro)})">Eliminar</button>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        async function cargarCentros() {
+            try {
+                const respuesta = await fetch(apiUrl, { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                centros = resultado.status === 'success' ? resultado.data : [];
+            } catch (error) {
+                centros = [];
+            }
+            renderCentros();
+        }
+
+        function prepararEdicion(id) {
+            const centro = centros.find(c => Number(c.Id_Centro) === id);
+            if (!centro) return;
+
+            const ubicacionPartes = String(centro.Ubicacion || '').split(separadorCalles);
+            centroEditando = {
+                id,
+                nombre: centro.Nombre,
+                tipo: centro.Tipo,
+                ubicacion: ubicacionPartes[0] ? centro.Ubicacion : '',
+                id_municipio: String(centro.Id_Municipio || ''),
+                capacidad: String(Number(centro.Capacidad)),
+                cantidad_almacenada: String(Number(centro.Cantidad_Almacenada || 0)),
+                estado: centro.Estado,
+                tipos_residuo: centro.Tipos_Residuo || ''
+            };
+
+            document.getElementById('centro-nombre').value = centroEditando.nombre;
+            document.getElementById('centro-tipo').value = centroEditando.tipo;
+            document.getElementById('centro-ubicacion').value = ubicacionPartes[0] || '';
+            document.getElementById('centro-ubicacion2').value = ubicacionPartes[1] || '';
+            document.getElementById('centro-municipio').value = centroEditando.id_municipio;
+            ultimaDeteccion = ((ubicacionPartes[0] || '') + '|' + (ubicacionPartes[1] || '')).trim().toLowerCase();
+            document.getElementById('municipio-hint').textContent = '';
+            document.getElementById('centro-capacidad').value = centroEditando.capacidad;
+            document.getElementById('centro-almacenado').value = centroEditando.cantidad_almacenada;
+            document.getElementById('centro-estado').value = centroEditando.estado;
+            document.getElementById('centro-tipos-residuo').value = centroEditando.tipos_residuo;
+            document.getElementById('add-centro-btn').textContent = 'Guardar cambios';
+        }
+
+        async function procesarFormulario(evento) {
+            evento.preventDefault();
+            await deteccionMunicipio;
+            await detectarMunicipio();
+            if (!document.getElementById('centro-municipio').value) {
+                alert('No se pudo determinar el municipio. Revisá que las calles estén bien escritas.');
+                return;
+            }
+            const datos = leerFormulario();
+
+            if (centroEditando) {
+                const sinCambios = ['nombre', 'tipo', 'ubicacion', 'id_municipio', 'estado', 'tipos_residuo'].every(k => String(centroEditando[k]) === String(datos[k]))
+                    && Number(centroEditando.capacidad) === Number(datos.capacidad)
+                    && Number(centroEditando.cantidad_almacenada) === Number(datos.cantidad_almacenada);
+
+                if (sinCambios) {
+                    alert('No se realizaron cambios (se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            const editando = centroEditando !== null;
+            const url = editando ? `${apiUrl}&id=${centroEditando.id}` : apiUrl;
+
+            try {
+                const respuesta = await fetch(url, {
+                    method: editando ? 'PUT' : 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const resultado = await respuesta.json();
+
+                if (resultado.status === 'success') {
+                    alert(editando ? '¡Instalación actualizada!' : '¡Instalación registrada!');
+                    resetearFormulario();
+                    cargarCentros();
+                } else {
+                    alert(resultado.message || 'No se pudo guardar la instalación.');
+                }
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
+        }
+
+        async function eliminarCentro(id) {
+            if (!confirm('¿Eliminar esta instalación? También se borrarán su maquinaria y sus ingresos.')) return;
+
+            try {
+                const respuesta = await fetch(`${apiUrl}&id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                alert(resultado.message || 'Listo.');
+                if (centroEditando && centroEditando.id === id) resetearFormulario();
+                cargarCentros();
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('form-centro').addEventListener('submit', procesarFormulario);
+            ['centro-ubicacion', 'centro-ubicacion2'].forEach(id => document.getElementById(id).addEventListener('change', () => { deteccionMunicipio = detectarMunicipio(); }));
+            cargarMunicipios();
+            document.getElementById('search-centro').addEventListener('input', renderCentros);
+            document.getElementById('filter-tipo').addEventListener('change', renderCentros);
+            document.getElementById('filter-estado').addEventListener('change', renderCentros);
+            cargarCentros();
+        });
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

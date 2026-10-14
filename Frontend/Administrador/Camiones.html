@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camiones - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            SIGERU
+        </div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name">Administrador</span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html" class="active"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+        </aside>
+        
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Camiones</h1>
+                    <p>Gestión de vehículos de recolección.</p>
+                </div>
+                
+                <button type="submit" form="form-camion" id="add-camion-btn" class="add-button">
+                    + Nuevo Camion
+                </button>
+            </div>
+
+            <form id="form-camion" class="filters">
+                
+                <div class="search">
+                    <input type="text" id="matricula" placeholder="Matrícula (Ej: STU-1234)" required>
+                </div>
+                
+                <div class="search">
+                    <input type="number" id="capacidad" placeholder="Capacidad (kg)" required>
+                </div>
+                
+                <select id="estado" required>
+                    <option value="" disabled selected>Estado..</option>
+                    <option value="Disponible">Disponible</option>
+                    <option value="En Ruta">En Ruta</option>
+                    <option value="Mantenimiento">En mantenimiento</option>
+                    <option value="Roto">Roto</option>
+                    <option value="Fuera de servicio">Fuera de servicio</option>
+                </select>
+
+                <select id="id_municipio" required>
+                     <option value="" disabled selected>Municipio...</option>
+                </select>
+
+                <select id="id_ruta">
+                     <option value="">Sin ruta asignada</option>
+                </select>
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                <div class="search">
+                    <input type="text" id="search-camion" placeholder="Buscar camión...">
+                </div>
+
+                <select id="filter-estado">
+                    <option value="todos">Todos los estados</option>
+                    <option value="Disponible">Disponible</option>
+                    <option value="En Ruta">En Ruta</option>
+                    <option value="Mantenimiento">En mantenimiento</option>
+                    <option value="Roto">Roto</option>
+                    <option value="Fuera de servicio">Fuera de servicio</option>
+                </select>
+
+                <select id="filter-municipio">
+                    <option value="todos">Todos los municipios</option>
+                </select>
+
+            </div>
+
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Matrícula</th>
+                            <th>Capacidad</th>
+                            <th>Estado</th>
+                            <th>Municipio</th>
+                            <th>Ruta</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-camiones-body">
+
+                    </tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        
+        let modoEdicion = false;
+        let camionesOriginales = [];
+        let municipiosPorId = {};
+        let camionEditando = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarCamiones();
+            cargarMunicipios();
+            cargarRutas();
+
+            const formulario = document.getElementById('form-camion');
+            if (formulario) {
+                formulario.addEventListener('submit', procesarFormulario);
+            }
+
+            const searchInput = document.getElementById('search-camion');
+            if (searchInput) {
+                searchInput.addEventListener('input', filtrarCamiones);
+            }
+
+            document.getElementById('filter-municipio')?.addEventListener('change', filtrarCamiones);
+            document.getElementById('filter-estado')?.addEventListener('change', filtrarCamiones);
+        });
+
+        function filtrarCamiones() {
+            const termino = document.getElementById('search-camion').value.toLowerCase().trim();
+            const municipioSeleccionado = document.getElementById('filter-municipio').value;
+            const estadoSeleccionado = document.getElementById('filter-estado').value;
+
+            const listado = camionesOriginales.filter(camion => {
+                const matricula = camion.matricula ?? camion.Matricula ?? '';
+                const estado = camion.estado ?? camion.Estado ?? '';
+                const capacidad = camion.capacidad ?? camion.Capacidad ?? '';
+                const idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? camion.idMunicipio ?? '';
+                const nombreMunicipio = municipiosPorId[String(idMunicipio)] || '';
+                const texto = `${matricula} ${estado} ${capacidad} ${idMunicipio} ${nombreMunicipio}`.toLowerCase();
+                const coincideMunicipio = municipioSeleccionado === 'todos' || String(idMunicipio) === municipioSeleccionado;
+                const coincideEstado = estadoSeleccionado === 'todos' || String(estado).toLowerCase() === estadoSeleccionado.toLowerCase();
+
+                return texto.includes(termino) && coincideMunicipio && coincideEstado;
+            });
+
+            renderCamiones(listado);
+        }
+
+        function renderCamiones(camiones) {
+            const tbody = document.getElementById('tabla-camiones-body');
+            tbody.innerHTML = '';
+
+            if (camiones.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666; padding: 20px;">No se encontraron camiones</td></tr>`;
+                return;
+            }
+
+            camiones.forEach(camion => {
+                let estadoClase = 'status';
+                if (camion.estado === 'Disponible') estadoClase += ' active-status';
+
+                let idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
+                let nombreMunicipio = municipiosPorId[String(idMunicipio)] || idMunicipio || '-';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${camion.matricula}</strong></td>
+                        <td>${camion.capacidad} kg</td>
+                        <td><span class="${estadoClase}">${camion.estado}</span></td>
+                        <td>${nombreMunicipio}</td>
+                        <td>${camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-'}</td>
+                        <td>
+                            <button class="edit" onclick="prepararEdicion('${camion.matricula}', '${camion.capacidad}', '${camion.estado}', '${idMunicipio}', '${camion.Id_Ruta || ''}')">Editar</button>
+                            <button class="delete" onclick="eliminarCamion('${camion.matricula}')">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function cargarMunicipios() {
+            fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        const selectMunicipio = document.getElementById('id_municipio');
+                        const filtroMunicipio = document.getElementById('filter-municipio');
+                        selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
+                        municipiosPorId = {};
+                        if (filtroMunicipio) {
+                            filtroMunicipio.innerHTML = '<option value="todos">Todos los municipios</option>';
+                        }
+                        
+                        res.data.forEach(muni => {
+                            municipiosPorId[String(muni.id_municipio)] = muni.nombre;
+                            selectMunicipio.innerHTML += `<option value="${muni.id_municipio}">${muni.nombre}</option>`;
+                            if (filtroMunicipio) {
+                                filtroMunicipio.innerHTML += `<option value="${muni.id_municipio}">${muni.nombre}</option>`;
+                            }
+                        });
+                        if (camionesOriginales.length > 0) {
+                            filtrarCamiones();
+                        }
+                    } else {
+                        console.error('Error al cargar municipios:', res.message);
+                    }
+                })
+                .catch(err => console.error('Error de red al cargar municipios:', err));
+        }
+
+        function cargarRutas() {
+            fetch('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    const select = document.getElementById('id_ruta');
+                    select.innerHTML = '<option value="">Sin ruta asignada</option>';
+                    (res.data || []).forEach(ruta => {
+                        const id = ruta.Id_Ruta ?? ruta.id_ruta;
+                        const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
+                        select.innerHTML += `<option value="${id}">#${id} - ${recorrido}</option>`;
+                    });
+                })
+                .catch(err => console.error('Error al cargar rutas:', err));
+        }
+
+        function cargarCamiones() {
+            fetch('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=listar')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        camionesOriginales = Array.isArray(res.data) ? res.data : [];
+                        renderCamiones(camionesOriginales);
+                    }
+                })
+            .catch(err => console.error('Error al cargar la tabla:', err));
+        }
+
+        function prepararEdicion(matricula, capacidad, estado, idMunicipio, idRuta) {
+            camionEditando = {
+                matricula,
+                capacidad,
+                estado,
+                id_municipio: idMunicipio || '',
+                id_ruta: idRuta || ''
+            };
+            document.getElementById('id_ruta').value = idRuta || '';
+
+            modoEdicion = true;
+            document.getElementById('matricula').value = matricula;
+            document.getElementById('matricula').readOnly = true;
+            document.getElementById('capacidad').value = capacidad;
+            document.getElementById('estado').value = estado;
+            document.getElementById('id_municipio').value = idMunicipio;
+            
+            const btn = document.getElementById('add-camion-btn');
+            if(btn) btn.textContent = 'Guardar cambios';
+        }
+
+        function resetearFormulario() {
+            modoEdicion = false;
+            camionEditando = null;
+            const formulario = document.getElementById('form-camion');
+            if(formulario) formulario.reset();
+            const inputMatricula = document.getElementById('matricula');
+            if(inputMatricula) inputMatricula.readOnly = false;
+            
+            const btn = document.getElementById('add-camion-btn');
+            if(btn) btn.textContent = '+ Nuevo Camion';
+        }
+
+        function procesarFormulario(e) {
+            e.preventDefault();
+
+            const datos = {
+                matricula: document.getElementById('matricula').value,
+                capacidad: document.getElementById('capacidad').value,
+                estado: document.getElementById('estado').value,
+                id_municipio: document.getElementById('id_municipio').value,
+                id_ruta: document.getElementById('id_ruta').value
+            };
+
+            if (modoEdicion && camionEditando) {
+                const sinCambios =
+                    String(camionEditando.matricula || '') === String(datos.matricula || '') &&
+                    String(camionEditando.capacidad || '') === String(datos.capacidad || '') &&
+                    String(camionEditando.estado || '') === String(datos.estado || '') &&
+                    String(camionEditando.id_municipio || '') === String(datos.id_municipio || '') &&
+                    String(camionEditando.id_ruta || '') === String(datos.id_ruta || '');
+
+                if (sinCambios) {
+                    alert('No se realizaron cambios(Se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            const accion = modoEdicion ? 'editar' : 'crear';
+            const url = `http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=${accion}`;
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert(modoEdicion ? '¡Camión actualizado!' : '¡Camión registrado!');
+                    resetearFormulario();
+                    cargarCamiones(); 
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            })
+            .catch(err => console.error('Error en el envío:', err));
+        }
+
+        function eliminarCamion(matricula) {
+            if (!confirm(`¿Estás seguro de que querés eliminar el camión ${matricula}?`)) {
+                return; 
+            }
+
+            const url = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=camiones&accion=eliminar';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matricula: matricula })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert('Camión eliminado.');
+                    cargarCamiones();
+                } else {
+                    alert('Error al eliminar: ' + res.message);
+                }
+            })
+            .catch(err => console.error('Error:', err));
+        }
+    </script>
+    
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

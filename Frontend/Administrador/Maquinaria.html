@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maquinaria - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+                <a href="panel.html"><span>▣</span>Panel principal</a>
+                <a href="Empleados.html"><span>♙</span>Empleados</a>
+                <a href="rutas.html"><span>♧</span>Rutas</a>
+                <a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Centros.html"><span>▦</span>Instalaciones</a>
+                <a href="Maquinaria.html" class="active"><span>⚙</span>Maquinaria</a>
+                <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="Informes.html"><span>▤</span>Informes</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Maquinaria</h1>
+                    <p>Maquinaria de vertederos y maquinaria básica de centros de acopio.</p>
+                </div>
+
+                <button type="submit" form="form-maquinaria" id="add-maquina-btn" class="add-button">
+                    + Nueva maquinaria
+                </button>
+            </div>
+
+            <form id="form-maquinaria" class="filters">
+                <div class="search">
+                    <input type="text" id="maquina-nombre" placeholder="Nombre (Ej: Retroexcavadora)" maxlength="60" required>
+                </div>
+
+                <div class="search">
+                    <input type="text" id="maquina-tipo" placeholder="Tipo (Ej: Compactadora, Cinta, Balanza)" maxlength="50">
+                </div>
+
+                <select id="maquina-centro" required>
+                    <option value="" disabled selected>Instalación...</option>
+                </select>
+
+                <select id="maquina-estado" required>
+                    <option value="" disabled selected>Estado...</option>
+                    <option value="operativa">Operativa</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="fuera_de_servicio">Fuera de servicio</option>
+                </select>
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                <div class="search">
+                    <input type="text" id="search-maquina" placeholder="Buscar maquinaria...">
+                </div>
+
+                <select id="filter-instalacion">
+                    <option value="todos">Todas las instalaciones</option>
+                    <option value="vertedero">Solo vertederos</option>
+                    <option value="centro_acopio">Solo centros de acopio</option>
+                </select>
+
+                <select id="filter-estado">
+                    <option value="todos">Todos los estados</option>
+                    <option value="operativa">Operativa</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="fuera_de_servicio">Fuera de servicio</option>
+                </select>
+            </div>
+
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Instalación</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-maquinaria-body"></tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        const apiBase = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=';
+        const nombresEstado = { operativa: 'Operativa', mantenimiento: 'En mantenimiento', fuera_de_servicio: 'Fuera de servicio' };
+        const nombresInstalacion = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+
+        let maquinas = [];
+        let maquinaEditando = null;
+
+        function esc(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function leerFormulario() {
+            return {
+                nombre: document.getElementById('maquina-nombre').value.trim(),
+                tipo: document.getElementById('maquina-tipo').value.trim(),
+                id_centro: document.getElementById('maquina-centro').value,
+                estado: document.getElementById('maquina-estado').value
+            };
+        }
+
+        function resetearFormulario() {
+            maquinaEditando = null;
+            document.getElementById('form-maquinaria').reset();
+            document.getElementById('add-maquina-btn').textContent = '+ Nueva maquinaria';
+        }
+
+        function renderMaquinas() {
+            const termino = document.getElementById('search-maquina').value.toLowerCase().trim();
+            const instalacion = document.getElementById('filter-instalacion').value;
+            const estado = document.getElementById('filter-estado').value;
+            const tbody = document.getElementById('tabla-maquinaria-body');
+
+            const listado = maquinas.filter(m => {
+                const texto = `${m.Nombre} ${m.Tipo || ''} ${m.Centro}`.toLowerCase();
+                return texto.includes(termino)
+                    && (instalacion === 'todos' || m.Tipo_Instalacion === instalacion)
+                    && (estado === 'todos' || m.Estado === estado);
+            });
+
+            if (listado.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666; padding: 20px;">No se encontró maquinaria</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = listado.map(m => {
+                const clase = m.Estado === 'operativa' ? 'status active-status' : 'status';
+                return `
+                    <tr>
+                        <td>${Number(m.Id_Maquinaria)}</td>
+                        <td><strong>${esc(m.Nombre)}</strong></td>
+                        <td>${esc(m.Tipo || '-')}</td>
+                        <td>${esc(m.Centro)} (${esc(nombresInstalacion[m.Tipo_Instalacion] || m.Tipo_Instalacion)})</td>
+                        <td><span class="${clase}">${esc(nombresEstado[m.Estado] || m.Estado)}</span></td>
+                        <td>
+                            <button class="edit" onclick="prepararEdicion(${Number(m.Id_Maquinaria)})">Editar</button>
+                            <button class="delete" onclick="eliminarMaquina(${Number(m.Id_Maquinaria)})">Eliminar</button>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        async function pedir(recurso) {
+            const respuesta = await fetch(apiBase + recurso, { credentials: 'same-origin' });
+            const resultado = await respuesta.json();
+            return resultado.status === 'success' ? resultado.data : [];
+        }
+
+        async function cargarCentros() {
+            try {
+                const centros = await pedir('centros');
+                const select = document.getElementById('maquina-centro');
+                select.innerHTML = '<option value="" disabled selected>Instalación...</option>' + centros.map(c =>
+                    `<option value="${Number(c.Id_Centro)}">${esc(c.Nombre)} (${esc(nombresInstalacion[c.Tipo] || c.Tipo)})</option>`
+                ).join('');
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function cargarMaquinas() {
+            try {
+                maquinas = await pedir('maquinaria');
+            } catch (error) {
+                maquinas = [];
+            }
+            renderMaquinas();
+        }
+
+        function prepararEdicion(id) {
+            const m = maquinas.find(x => Number(x.Id_Maquinaria) === id);
+            if (!m) return;
+
+            maquinaEditando = { id, nombre: m.Nombre, tipo: m.Tipo || '', id_centro: String(m.Id_Centro), estado: m.Estado };
+            document.getElementById('maquina-nombre').value = maquinaEditando.nombre;
+            document.getElementById('maquina-tipo').value = maquinaEditando.tipo;
+            document.getElementById('maquina-centro').value = maquinaEditando.id_centro;
+            document.getElementById('maquina-estado').value = maquinaEditando.estado;
+            document.getElementById('add-maquina-btn').textContent = 'Guardar cambios';
+        }
+
+        async function procesarFormulario(evento) {
+            evento.preventDefault();
+            const datos = leerFormulario();
+
+            if (maquinaEditando) {
+                const sinCambios = ['nombre', 'tipo', 'id_centro', 'estado'].every(k => String(maquinaEditando[k]) === String(datos[k]));
+                if (sinCambios) {
+                    alert('No se realizaron cambios (se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            const editando = maquinaEditando !== null;
+            const url = apiBase + 'maquinaria' + (editando ? `&id=${maquinaEditando.id}` : '');
+
+            try {
+                const respuesta = await fetch(url, {
+                    method: editando ? 'PUT' : 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const resultado = await respuesta.json();
+
+                if (resultado.status === 'success') {
+                    alert(editando ? '¡Maquinaria actualizada!' : '¡Maquinaria registrada!');
+                    resetearFormulario();
+                    cargarMaquinas();
+                } else {
+                    alert(resultado.message || 'No se pudo guardar la maquinaria.');
+                }
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
+        }
+
+        async function eliminarMaquina(id) {
+            if (!confirm('¿Eliminar esta maquinaria?')) return;
+
+            try {
+                const respuesta = await fetch(apiBase + `maquinaria&id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                alert(resultado.message || 'Listo.');
+                if (maquinaEditando && maquinaEditando.id === id) resetearFormulario();
+                cargarMaquinas();
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('form-maquinaria').addEventListener('submit', procesarFormulario);
+            document.getElementById('search-maquina').addEventListener('input', renderMaquinas);
+            document.getElementById('filter-instalacion').addEventListener('change', renderMaquinas);
+            document.getElementById('filter-estado').addEventListener('change', renderMaquinas);
+            await cargarCentros();
+            cargarMaquinas();
+        });
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

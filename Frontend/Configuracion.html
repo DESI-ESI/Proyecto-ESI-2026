@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - SIGERU</title>
+    <link rel="stylesheet" href="Css/admin-panel.css?v=3">
+    <style>
+        .settings-content {
+            width: min(820px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 112px 0 40px;
+        }
+        .settings-heading {
+            margin-bottom: 24px;
+        }
+        .settings-heading h1 {
+            margin-bottom: 8px;
+            color: #26332f;
+            font-size: 30px;
+        }
+        .settings-heading p {
+            color: #7a8580;
+        }
+        .settings-card {
+            margin-bottom: 18px;
+            padding: 24px;
+            border: 1px solid #e4eae7;
+            border-radius: 12px;
+            background: #fff;
+        }
+        .settings-card h2 {
+            margin-bottom: 16px;
+            color: #26332f;
+            font-size: 18px;
+        }
+        .settings-account {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .settings-account dt {
+            color: #7a8580;
+        }
+        .settings-account dd {
+            color: #26332f;
+            font-weight: 600;
+        }
+        .settings-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: #36443e;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .settings-option input {
+            margin-top: 3px;
+            accent-color: #238b57;
+        }
+        .password-fields {
+            display: grid;
+            gap: 16px;
+            max-width: 520px;
+        }
+        .password-field {
+            display: grid;
+            gap: 7px;
+            color: #36443e;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .password-field input {
+            width: 100%;
+            min-height: 42px;
+            padding: 9px 11px;
+            border: 1px solid #d5dfda;
+            border-radius: 8px;
+            color: #26332f;
+            font: inherit;
+            font-weight: 400;
+        }
+        .password-field input:focus {
+            outline: 2px solid rgba(35, 139, 87, .25);
+            border-color: #238b57;
+        }
+        .password-help,
+        .password-status {
+            margin-top: 12px;
+            color: #748079;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .password-status[data-status="success"] { color: #176b43; }
+        .password-status[data-status="error"] { color: #b42318; }
+        .settings-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 20px;
+        }
+        .settings-home {
+            color: #238b57;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .settings-home:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 520px) {
+            .topbar { padding: 0 16px; }
+            .settings-account { grid-template-columns: 1fr; gap: 5px; }
+            .settings-account dd { margin-bottom: 10px; }
+            .settings-actions { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Configuración</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <button id="logout-btn" type="button">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <main class="settings-content">
+        <div class="settings-heading">
+            <h1>Configuración</h1>
+            <p>Administrá tu cuenta y las preferencias de SIGERU.</p>
+        </div>
+
+        <section class="settings-card" aria-labelledby="account-settings-title">
+            <h2 id="account-settings-title">Cuenta</h2>
+            <dl class="settings-account">
+                <dt>Nombre</dt>
+                <dd id="config-account-name">Cargando...</dd>
+                <dt>Rol</dt>
+                <dd id="config-account-role">Cargando...</dd>
+            </dl>
+        </section>
+
+        <form id="config-form" class="settings-card">
+            <h2>Preferencias</h2>
+            <label class="settings-option" for="config-notifications">
+                <input type="checkbox" id="config-notifications">
+                <span>Mostrar el botón y las notificaciones en los paneles.</span>
+            </label>
+            <div class="settings-actions">
+                <button class="add-button" type="submit">Guardar configuración</button>
+                <a class="settings-home" href="index.php">Ir a la página principal</a>
+            </div>
+        </form>
+
+        <form id="password-form" class="settings-card">
+            <h2>Cambiar contraseña</h2>
+            <div class="password-fields">
+                <label class="password-field" for="password-current">
+                    Contraseña actual
+                    <input type="password" id="password-current" name="contrasena_actual" autocomplete="current-password" required>
+                </label>
+                <label class="password-field" for="password-new">
+                    Nueva contraseña
+                    <input type="password" id="password-new" name="contrasena_nueva" autocomplete="new-password" minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" required>
+                </label>
+                <label class="password-field" for="password-confirm">
+                    Confirmar nueva contraseña
+                    <input type="password" id="password-confirm" name="confirmacion" autocomplete="new-password" minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" required>
+                </label>
+            </div>
+            <p class="password-help">Debe tener al menos 8 caracteres, una letra y un número.</p>
+            <p id="password-status" class="password-status" role="status" aria-live="polite"></p>
+            <div class="settings-actions">
+                <button class="add-button" type="submit">Actualizar contraseña</button>
+            </div>
+        </form>
+    </main>
+
+    <script src="js/admin-auth.js?v=18"></script>
+</body>
+</html>

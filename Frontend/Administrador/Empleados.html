@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empleados - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            SIGERU
+        </div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html" class="active"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Empleados</h1>
+                    <p>
+                        Gestión de empleados del sistema.
+                    </p>
+                </div>
+                <button type="submit" form="form-empleado" id="add-user-btn" class="add-button">
+                    + Nuevo empleado
+                </button>
+            </div>
+
+            <div class="filters role-selector-container">
+                <span class="role-selector-title">Selecciona un rol para filtrar:</span>
+                <button type="button" class="rol-btn add-button" data-rol="admi_municipal">Admin Municipal</button>
+                <button type="button" class="rol-btn add-button" data-rol="operario">Operario</button>
+                <button type="button" class="rol-btn add-button" data-rol="limpiador">Limpiador</button>
+                <button type="button" class="rol-btn add-button" data-rol="chofer">Chofer</button>
+                <button type="button" class="rol-btn add-button" data-rol="todos">Ver Todos</button>
+            </div>
+            
+            <form id="form-empleado" class="filters">
+                <div class="search">
+                    <input type="number" id="Id" placeholder="Id (Automático)" disabled>
+                </div>
+ 
+                <div class="search">
+                    <input type="text" id="Cedula" placeholder="Cédula" maxlength="8" pattern="[0-9]{7,8}" required>
+                </div>
+                
+                <div class="search">
+                    <input type="text" id="Nombre" placeholder="Nombre" maxlength="30" required>
+                </div>
+                
+                <div class="search">
+                    <input type="text" id="Apellido" placeholder="Apellido" maxlength="30" required>
+                </div>  
+                
+                <div class="search">
+                    <input type="email" id="Email" placeholder="Email" maxlength="30" required>
+                </div>
+
+                <select name="rol" id="rolSelect" required>
+                    <option value="">Selecciona rol...</option>
+                    <option value="empleado">Empleado</option>
+                    <option value="admi_municipal">Admin Municipal</option>
+                    <option value="chofer">Chofer</option>
+                    <option value="limpiador">Limpiador</option>
+                </select>
+
+                <div class="search" id="grupo-municipio"> 
+                    <select id="Id_Municipio" required>
+                        <option value="" disabled selected>Municipio...</option>
+                    </select>
+                </div>
+
+                <select name="turno" id="turnoSelect" required>
+                    <option value="">Selecciona un turno...</option>
+                    <option value="Manana">Mañana</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noche">Noche</option>
+                </select>
+
+                <div class="search">
+                    <input type="password" id="password" placeholder="Contraseña" required>
+                </div>
+
+                <div class="search">
+                    <input type="password" id="confirm_password" placeholder="Confirmar contraseña" required>
+                </div>
+                
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                <div class="search">
+                    <input type="text" id="search-empleado" placeholder="Buscar empleado...">
+                </div>
+
+                <select id="filter-rol">
+                    <option value="todos">Todos los roles</option>
+                    <option value="admi_municipal">Admin Municipal</option>
+                    <option value="operario">Operario</option>
+                    <option value="limpiador">Limpiador</option>
+                    <option value="chofer">Chofer</option>
+                </select>
+
+                <select id="filter-turno">
+                    <option value="todos">Todos los turnos</option>
+                    <option value="mañana">Mañana</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="noche">Noche</option>
+                </select>
+            </div>
+
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Cédula</th>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Turno</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-container"></tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        let modoEdicion = false;
+        let rolSeleccionado = 'todos'; 
+        let empleadosOriginales = [];
+        let empleadoEditando = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarMunicipios();
+
+            const btnTodos = document.querySelector('[data-rol="todos"]');
+            if (btnTodos) {
+                btnTodos.classList.add('active-role-btn');
+            }
+
+            actualizarCamposFormulario('todos');
+            cargarEmpleados();
+
+            const formulario = document.getElementById('form-empleado');
+            if (formulario) {
+                formulario.addEventListener('submit', procesarFormulario);
+            }
+
+            document.getElementById('rolSelect')?.addEventListener('change', () => {
+                actualizarCamposFormulario(rolSeleccionado);
+            });
+
+            document.getElementById('search-empleado')?.addEventListener('input', aplicarFiltrosEmpleados);
+            document.getElementById('filter-rol')?.addEventListener('change', aplicarFiltrosEmpleados);
+            document.getElementById('filter-turno')?.addEventListener('change', aplicarFiltrosEmpleados);
+
+            document.querySelectorAll('.rol-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    rolSeleccionado = btn.dataset.rol;
+                    
+                    document.querySelectorAll('.rol-btn').forEach(b => {
+                        b.classList.remove('active-role-btn');
+                    });
+                    
+                    btn.classList.add('active-role-btn');
+                    
+                    actualizarCamposFormulario(rolSeleccionado);
+                    cargarEmpleados();
+                });
+            });
+        });
+
+        function actualizarCamposFormulario(rol) {
+            const rolSelect = document.getElementById('rolSelect');
+            const grupoMunicipio = document.getElementById('grupo-municipio');
+            const turnoSelect = document.getElementById('turnoSelect');
+            const muniInput = document.getElementById('Id_Municipio');
+
+            rolSelect.disabled = false;
+            rolSelect.style.opacity = '1';
+            rolSelect.style.backgroundColor = '';
+            rolSelect.style.cursor = '';
+
+            if (modoEdicion || rol === 'todos') {
+                rolSelect.style.display = '';
+            } else {
+                rolSelect.style.display = 'none';
+                if (Array.from(rolSelect.options).some(option => option.value === rol)) {
+                    rolSelect.value = rol;
+                }
+            }
+
+            const rolFormulario = rol === 'todos' ? rolSelect.value : rol;
+            const esAdminMunicipal = rolFormulario === 'admi_municipal';
+
+            const pedirMunicipio = !modoEdicion || esAdminMunicipal;
+            grupoMunicipio.style.display = pedirMunicipio ? '' : 'none';
+            muniInput.required = pedirMunicipio;
+            if (!pedirMunicipio) muniInput.value = '';
+            turnoSelect.style.display = '';
+            turnoSelect.required = true;
+        }
+
+        function aplicarFiltrosEmpleados() {
+            const texto = normalizarTexto(document.getElementById('search-empleado')?.value || '');
+            const terminos = texto.split(' ').filter(Boolean);
+            const rolFiltro = document.getElementById('filter-rol')?.value || 'todos';
+            const turnoFiltro = document.getElementById('filter-turno')?.value || 'todos';
+
+            const filtrados = empleadosOriginales.filter(user => {
+                const nombreCompleto = normalizarTexto(`${user.Nombre || user.nombre || ''} ${user.Apellido || user.apellido || ''} ${user.cedula || ''} ${user.Email || user.email || ''} ${user.Rol || user.rol || ''} ${user.turno || ''}`);
+                const coincideTexto = terminos.every(termino => nombreCompleto.includes(termino));
+                const coincideRol = rolFiltro === 'todos' || String(user.Rol || user.rol || '').toLowerCase() === rolFiltro;
+                const coincideTurno = turnoFiltro === 'todos' || normalizarTexto(user.turno || '') === normalizarTexto(turnoFiltro);
+                return coincideTexto && coincideRol && coincideTurno;
+            });
+
+            mostrarEmpleados(filtrados);
+        }
+
+        function normalizarTexto(texto) {
+            return String(texto)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, ' ');
+        }
+
+        function cargarEmpleados() {
+            const url = rolSeleccionado === 'todos'
+                ? 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php'
+                : `http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=${rolSeleccionado}`;
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        empleadosOriginales = Array.isArray(res.data) ? res.data : [];
+                        aplicarFiltrosEmpleados();
+                        
+                        const rolSelect = document.getElementById('rolSelect');
+                        if (rolSelect && rolSeleccionado !== 'todos') {
+                            rolSelect.value = rolSeleccionado;
+                        }
+                    } else {
+                        console.error('Error al cargar empleados:', res.message);
+                        mostrarEmpleados([]);
+                    }
+                })
+               .catch(err => console.error(err));
+        }
+        
+        function mostrarEmpleados(empleados) {
+            const contenedor = document.getElementById('users-container');
+            contenedor.innerHTML = '';
+
+            if (!Array.isArray(empleados) || empleados.length === 0) {
+                const rolNombre = rolSeleccionado === 'admi_municipal' ? 'Administradores'
+                                    : rolSeleccionado === 'operario' ? 'Operarios'
+                                    : rolSeleccionado === 'chofer' ? 'Choferes'
+                                    : rolSeleccionado === 'limpiador' ? 'Limpiadores'
+                                    : 'Empleados';
+                contenedor.innerHTML = `<tr><td colspan="8" class="empty-table-message">No se encontraron ${rolNombre}</td></tr>`;
+                return;
+            }
+            
+            empleados.forEach((user, index) => {
+                const rol = user.Rol || user.rol || 'empleado';
+                const esOperario = String(rol).toLowerCase() === 'operario';
+                const tr = document.createElement('tr');
+
+                [
+                    `${index + 1} (ID: ${user.Id})`,
+                    user.cedula || '-',
+                    user.Nombre || user.nombre || '-',
+                    user.Apellido || user.apellido || '-',
+                    user.Email || user.email || '-',
+                    rol,
+                    user.turno || '-'
+                ].forEach(valor => {
+                    const celda = document.createElement('td');
+                    celda.textContent = String(valor);
+                    tr.appendChild(celda);
+                });
+
+                const acciones = document.createElement('td');
+                const botonEditar = document.createElement('button');
+                botonEditar.type = 'button';
+                botonEditar.className = 'edit';
+                botonEditar.textContent = 'Editar';
+                botonEditar.disabled = esOperario;
+                if (esOperario) {
+                    botonEditar.title = 'Los operarios se gestionan desde su módulo específico.';
+                } else {
+                    botonEditar.addEventListener('click', () => prepararEdicion(
+                        user.Id,
+                        user.cedula || '',
+                        user.Nombre || user.nombre || '',
+                        user.Apellido || user.apellido || '',
+                        user.Email || user.email || '',
+                        rol,
+                        user.turno || '',
+                        user.Id_Municipio || ''
+                    ));
+                }
+
+                const botonEliminar = document.createElement('button');
+                botonEliminar.type = 'button';
+                botonEliminar.className = 'delete';
+                botonEliminar.textContent = 'Eliminar';
+                botonEliminar.disabled = esOperario;
+                if (esOperario) {
+                    botonEliminar.title = 'Los operarios se gestionan desde su módulo específico.';
+                } else {
+                    botonEliminar.addEventListener('click', () => eliminarEmpleado(user.Id));
+                }
+
+                acciones.append(botonEditar, botonEliminar);
+                tr.appendChild(acciones);
+                contenedor.appendChild(tr);
+            });
+        }
+        
+        function procesarFormulario(e) {
+            e.preventDefault();
+
+            const datos = {
+                cedula: document.getElementById('Cedula').value,
+                nombre: document.getElementById('Nombre').value,
+                apellido: document.getElementById('Apellido').value,
+                email: document.getElementById('Email').value,
+                password: document.getElementById('password').value,
+                confirm_password: document.getElementById('confirm_password').value,
+                rol: document.getElementById('rolSelect').value,
+                turno: document.getElementById('turnoSelect').value,
+                id_municipio: document.getElementById('Id_Municipio').value
+            };
+
+            if (datos.password && datos.password !== datos.confirm_password) {
+                alert('Las contraseñas no coinciden.');
+                return;
+            }
+
+            if (modoEdicion && empleadoEditando) {
+                const sinCambios = 
+                    String(empleadoEditando.cedula || '') === String(datos.cedula || '') &&
+                    String(empleadoEditando.nombre || '') === String(datos.nombre || '') &&
+                    String(empleadoEditando.apellido || '') === String(datos.apellido || '') &&
+                    String(empleadoEditando.email || '') === String(datos.email || '') &&
+                    String(empleadoEditando.rol || '') === String(datos.rol || '') &&
+                    String(empleadoEditando.turno || '') === String(datos.turno || '') &&
+                    String(empleadoEditando.id_municipio || '') === String(datos.id_municipio || '') &&
+                    (datos.password === '' || datos.password === undefined);
+
+                if (sinCambios) {
+                    alert('No se realizaron cambios (Se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            let url = 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php';
+            
+            if (modoEdicion) {
+                datos.id = document.getElementById('Id').value;
+                url += `?accion=editar&id=${datos.id}`;
+            } else {
+                url += '?accion=crear';
+            }
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert(modoEdicion ? '¡Empleado actualizado!' : '¡Empleado registrado correctamente!');
+                    resetearFormulario();
+                    cargarEmpleados();
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            })
+            .catch(err => console.error('Error de conexión:', err));
+        }
+
+        function prepararEdicion(id, cedula, nombre, apellido, email, rol, turno, idMunicipio) {
+            empleadoEditando = {
+                id,
+                cedula,
+                nombre,
+                apellido,
+                email,
+                rol,
+                turno,
+                id_municipio: idMunicipio || ''
+            };
+
+            document.getElementById('Id').value = id;
+            document.getElementById('Cedula').value = cedula;
+            document.getElementById('Cedula').disabled = true;
+            document.getElementById('rolSelect').disabled = false;
+            document.getElementById('rolSelect').style.opacity = '1';
+            document.getElementById('rolSelect').style.backgroundColor = '';
+            document.getElementById('rolSelect').style.cursor = '';
+            
+            document.getElementById('Nombre').value = nombre;
+            document.getElementById('Apellido').value = apellido;
+            document.getElementById('Email').value = email;
+            const rolDelEmpleado = (rol || 'empleado').trim().toLowerCase();
+            document.getElementById('rolSelect').value = rolDelEmpleado;
+            const turnoNormalizado = normalizarTexto(turno || '');
+            document.getElementById('turnoSelect').value = ({
+                manana: 'Manana',
+                tarde: 'Tarde',
+                noche: 'Noche'
+            })[turnoNormalizado] || '';
+            document.getElementById('Id_Municipio').value = idMunicipio || '';
+            
+            document.getElementById('password').required = false;
+            document.getElementById('password').placeholder = "Contraseña (dejar en blanco si no cambia)";
+            
+            document.getElementById('confirm_password').required = false;
+            document.getElementById('confirm_password').placeholder = "Confirmar contraseña";
+
+            const btnSubmit = document.getElementById('add-user-btn');
+            if (btnSubmit) {
+                btnSubmit.textContent = 'Guardar cambios';
+            }
+
+            modoEdicion = true;
+            
+            actualizarCamposFormulario(rolDelEmpleado);
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetearFormulario() {
+            document.getElementById('form-empleado').reset();
+            empleadoEditando = null;
+            
+            document.getElementById('Cedula').disabled = false;
+            document.getElementById('rolSelect').disabled = false;
+            document.getElementById('rolSelect').style.opacity = '1';
+            document.getElementById('rolSelect').style.backgroundColor = '';
+            document.getElementById('rolSelect').style.cursor = '';
+            
+            document.getElementById('password').required = true;
+            document.getElementById('password').placeholder = "Contraseña";
+
+            document.getElementById('confirm_password').required = true;
+            document.getElementById('confirm_password').placeholder = "Confirmar contraseña";
+
+            const btnSubmit = document.getElementById('add-user-btn');
+            if (btnSubmit) {
+                btnSubmit.textContent = '+ Nuevo empleado';
+            }
+
+            modoEdicion = false;
+            actualizarCamposFormulario(rolSeleccionado);
+        }
+
+        function eliminarEmpleado(id) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
+                return;
+            }
+
+            fetch(`http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=eliminar&id=${id}`, {
+                method: 'POST'
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert('Empleado eliminado con éxito');
+                    cargarEmpleados();
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            })
+            .catch(err => console.error('Error:', err));
+        }
+        
+        function cargarMunicipios() {
+            fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        const selectMunicipio = document.getElementById('Id_Municipio');
+                        selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
+                        
+                        res.data.forEach(muni => {
+                            selectMunicipio.add(new Option(muni.nombre, muni.id_municipio));
+                        });
+                    } else {
+                        console.error('Error al cargar municipios:', res.message);
+                    }
+                })
+                .catch(err => console.error('Error de red al cargar municipios:', err));
+        }
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

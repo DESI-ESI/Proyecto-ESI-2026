@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Mi cuadrilla - SIGERU</title>
+	<link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+<body>
+	<header class="topbar">
+		<div class="logo">SIGERU</div>
+		<div class="topbar-title">Panel empleado</div>
+
+		<div class="admin-info">
+			<span id="admin-name"></span>
+			<a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+			<button id="logout-btn">Cerrar sesión</button>
+		</div>
+	</header>
+
+	<div class="layout">
+		<aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html">
+                    <span>▣</span>
+                    Panel principal
+                </a>
+
+                <a href="MapaInteractivo.html">
+                    <span>♧</span>
+                    Mapa interactivo
+                </a>
+
+                <a href="MiCuadrilla.html" class="active">
+                    <span>▤</span>
+                    Mi cuadrilla
+                </a>
+
+                <a href="MiRuta.html">
+                    <span>➤</span>
+                    Mi ruta
+                </a>
+
+                <a href="Informes.html">
+                    <span>✎</span>
+                    Informes
+                </a>
+
+                <a href="Contenedores.html">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Mi cuadrilla</h1>
+                    <p>Cuadrilla a la que estás asignado según tu cédula.</p>
+                </div>
+            </div>
+
+            <section class="data-table" id="crew-info" style="padding: 22px;">
+                <p>Cargando...</p>
+            </section>
+        </main>
+    </div>
+    <script>
+        (async () => {
+            const contenedor = document.getElementById('crew-info');
+            const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+            try {
+                const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=micuadrilla', { credentials: 'same-origin' });
+                const datos = await respuesta.json();
+                if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message);
+                const cuadrilla = datos.data;
+                if (!cuadrilla) {
+                    contenedor.innerHTML = '<p>No estás asignado a ninguna cuadrilla.</p>';
+                    return;
+                }
+                contenedor.innerHTML = `
+                    <p><strong>Cuadrilla #${escapar(cuadrilla.Id_Cuadrilla)}</strong> &middot; Turno: ${escapar(cuadrilla.Turno)}</p>
+                    <p style="margin: 14px 0 8px;">Integrantes (${cuadrilla.Integrantes.length} de ${escapar(cuadrilla.Num_integrantes)}):</p>
+                    <table>
+                        <thead><tr><th>Nombre</th><th>Apellido</th><th>Cédula</th></tr></thead>
+                        <tbody>${cuadrilla.Integrantes.map(i => `<tr><td>${escapar(i.Nombre)}</td><td>${escapar(i.Apellido)}</td><td>${escapar(i.cedula)}</td></tr>`).join('')}</tbody>
+                    </table>`;
+            } catch (error) {
+                contenedor.innerHTML = '<p>No se pudo cargar tu cuadrilla.</p>';
+            }
+        })();
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

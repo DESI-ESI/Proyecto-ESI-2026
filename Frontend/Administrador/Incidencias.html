@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Incidencias - SIGERU</title>
+	<link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+<body>
+	<header class="topbar">
+		<div class="logo">SIGERU</div>
+		<div class="topbar-title">Panel admin</div>
+
+		<div class="admin-info">
+			<span id="admin-name"></span>
+			<a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+			<button id="logout-btn">Cerrar sesión</button>
+		</div>
+	</header>
+
+	<div class="layout">
+		<aside class="sidebar">
+			<nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html" class="active"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+		</aside>
+
+		<main class="main-content">
+		<div class="page-header">
+			<div>
+				<h1>Incidencias</h1>
+				<p>Consulta y seguimiento de incidencias registradas.</p>
+			</div>
+			<button type="submit" form="incident-form" class="add-button" id="save-incident-btn">+ Nueva incidencia</button>
+		</div>
+
+		<form id="incident-form" class="filters">
+			<input type="hidden" id="incident-id">
+			<select id="incident-type" required>
+				<option value="" disabled selected>Tipo de incidencia...</option>
+				<option value="rotura">Rotura</option>
+				<option value="desborde">Desborde</option>
+				<option value="falta de recolección">Falta de recolección</option>
+			</select>
+			<select id="incident-container">
+				<option value="">Contenedor (opcional)...</option>
+			</select>
+			<div class="search">
+				<input type="text" id="incident-description" placeholder="Descripción" required>
+			</div>
+			<div class="search">
+				<input type="datetime-local" id="incident-date" required>
+			</div>
+			<select id="incident-status" required>
+				<option value="" disabled selected>Estado de la incidencia...</option>
+				<option value="abierta">Abierta</option>
+				<option value="en curso">En curso</option>
+				<option value="resuelta">Resuelta</option>
+			</select>
+		</form>
+
+		<div class="filters">
+			<div class="search">
+				<input type="search" id="search-incidencia" placeholder="Buscar incidencia...">
+			</div>
+			<select id="filter-tipo">
+				<option value="todos">Todos los tipos</option>
+				<option value="rotura">Rotura</option>
+				<option value="desborde">Desborde</option>
+				<option value="falta de recolección">Falta de recolección</option>
+			</select>
+			<select id="filter-estado">
+				<option value="todos">Todos los estados</option>
+				<option value="abierta">Abierta</option>
+				<option value="en curso">En curso</option>
+				<option value="resuelta">Resuelta</option>
+			</select>
+		</div>
+
+		<section class="data-table">
+			<table>
+				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+				<tbody id="incidents-container"></tbody>
+			</table>
+		</section>
+		</main>
+	</div>
+	<script>
+		const incidenciasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=incidencias';
+		const contenedoresApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+		const formularioIncidencia = document.getElementById('incident-form');
+		let incidencias = [];
+		let incidenciaOriginal = null;
+
+		document.addEventListener('DOMContentLoaded', () => {
+			document.getElementById('search-incidencia').addEventListener('input', filtrarIncidencias);
+			document.getElementById('filter-estado').addEventListener('change', filtrarIncidencias);
+			document.getElementById('filter-tipo').addEventListener('change', filtrarIncidencias);
+			formularioIncidencia.addEventListener('submit', guardarIncidencia);
+			establecerFechaActual();
+			cargarContenedores();
+			cargarIncidencias();
+		});
+
+		async function cargarContenedores() {
+			const select = document.getElementById('incident-container');
+			try {
+				const respuesta = await solicitarJson(contenedoresApi, { credentials: 'same-origin' });
+				const lista = (respuesta.data || []).sort((a, b) => a.Numero_Contenedor - b.Numero_Contenedor);
+				select.innerHTML = '<option value="">Contenedor (opcional)...</option>' +
+					lista.map(c => `<option value="${escaparHtml(c.Numero_Contenedor)}">N° ${escaparHtml(c.Numero_Contenedor)} - ${escaparHtml(c.Ubicacion)}</option>`).join('');
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		async function solicitarJson(url, opciones) {
+			const respuesta = await fetch(url, opciones);
+			const datos = await respuesta.json();
+			if (!respuesta.ok || datos.status === 'error') {
+				throw new Error(datos.message || 'No se pudo completar la solicitud.');
+			}
+			return datos;
+		}
+
+		function establecerFechaActual() {
+			const fecha = new Date();
+			fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+			document.getElementById('incident-date').value = fecha.toISOString().slice(0, 16);
+		}
+
+		function escaparHtml(valor) {
+			return String(valor ?? '').replace(/[&<>'"]/g, caracter => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+			}[caracter]));
+		}
+
+		async function cargarIncidencias() {
+			try {
+				const respuesta = await solicitarJson(incidenciasApi);
+				incidencias = Array.isArray(respuesta.data) ? respuesta.data : [];
+				filtrarIncidencias();
+			} catch (error) {
+				document.getElementById('incidents-container').innerHTML =
+					`<tr><td colspan="7" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+			}
+		}
+
+		function filtrarIncidencias() {
+			const texto = document.getElementById('search-incidencia').value.trim().toLowerCase();
+			const estado = document.getElementById('filter-estado').value;
+			const tipo = document.getElementById('filter-tipo').value;
+			const filtradas = incidencias.filter(incidencia => {
+				const contenido = `${incidencia.Id_Incidencia} ${incidencia.Numero_Contenedor ?? ''} ${incidencia.Tipo} ${incidencia.Descripcion} ${incidencia.Fecha} ${incidencia.Estado}`.toLowerCase();
+				return contenido.includes(texto) && (estado === 'todos' || incidencia.Estado === estado) && (tipo === 'todos' || incidencia.Tipo === tipo);
+			});
+
+			const tbody = document.getElementById('incidents-container');
+			tbody.innerHTML = filtradas.length ? filtradas.map(incidencia => `
+				<tr>
+					<td>${escaparHtml(incidencia.Id_Incidencia)}</td>
+					<td>${incidencia.Numero_Contenedor ? 'N° ' + escaparHtml(incidencia.Numero_Contenedor) : '-'}</td>
+					<td>${escaparHtml(incidencia.Tipo)}</td>
+					<td>${escaparHtml(incidencia.Descripcion)}</td>
+					<td>${escaparHtml(incidencia.Fecha)}</td>
+					<td>${escaparHtml(incidencia.Estado)}</td>
+					<td><button class="edit" type="button">Editar</button> <button class="delete" type="button">Eliminar</button></td>
+				</tr>
+			`).join('') : '<tr><td colspan="7" class="empty-table-message">No se encontraron incidencias</td></tr>';
+
+			tbody.querySelectorAll('.edit').forEach((boton, indice) => {
+				boton.addEventListener('click', () => editarIncidencia(filtradas[indice]));
+			});
+			tbody.querySelectorAll('.delete').forEach((boton, indice) => {
+				boton.addEventListener('click', () => eliminarIncidencia(filtradas[indice].Id_Incidencia));
+			});
+		}
+
+		function editarIncidencia(incidencia) {
+			incidenciaOriginal = {
+				Tipo: incidencia.Tipo || '',
+				Descripcion: incidencia.Descripcion || '',
+				Fecha: String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16),
+				Estado: incidencia.Estado || 'abierta',
+				Numero_Contenedor: incidencia.Numero_Contenedor ? String(incidencia.Numero_Contenedor) : ''
+			};
+			document.getElementById('incident-id').value = incidencia.Id_Incidencia;
+			document.getElementById('incident-type').value = incidencia.Tipo || '';
+			document.getElementById('incident-description').value = incidencia.Descripcion || '';
+			document.getElementById('incident-date').value = String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16);
+			document.getElementById('incident-status').value = incidencia.Estado || 'abierta';
+			document.getElementById('incident-container').value = incidencia.Numero_Contenedor || '';
+			document.getElementById('incident-type').focus();
+		}
+
+		async function guardarIncidencia(event) {
+			event.preventDefault();
+			const id = document.getElementById('incident-id').value;
+			const datos = {
+				Tipo: document.getElementById('incident-type').value.trim(),
+				Descripcion: document.getElementById('incident-description').value.trim(),
+				Fecha: document.getElementById('incident-date').value,
+				Estado: document.getElementById('incident-status').value,
+				Numero_Contenedor: document.getElementById('incident-container').value
+			};
+			if (id && incidenciaOriginal && Object.keys(datos).every(clave => datos[clave] === incidenciaOriginal[clave])) {
+				resetearFormularioIncidencia();
+				alert('No se realizaron cambios (Se canceló la edición).');
+				return;
+			}
+			const url = id ? `${incidenciasApi}&id=${encodeURIComponent(id)}` : incidenciasApi;
+
+			try {
+				const respuesta = await solicitarJson(url, {
+					method: id ? 'PUT' : 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(datos)
+				});
+				alert(respuesta.message);
+				resetearFormularioIncidencia();
+				cargarIncidencias();
+			} catch (error) {
+				alert(error.message);
+			}
+		}
+
+		async function eliminarIncidencia(id) {
+			if (!confirm('¿Eliminar esta incidencia?')) return;
+			try {
+				const respuesta = await solicitarJson(`${incidenciasApi}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+				alert(respuesta.message);
+				cargarIncidencias();
+			} catch (error) {
+				alert(error.message);
+			}
+		}
+
+		function resetearFormularioIncidencia() {
+			formularioIncidencia.reset();
+			incidenciaOriginal = null;
+			document.getElementById('incident-id').value = '';
+			establecerFechaActual();
+		}
+	</script>
+	<script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Panel Operario - Centro de acopio - SIGERU</title>
+	<link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+<body>
+	<header class="topbar">
+		<div class="logo">SIGERU</div>
+		<div class="topbar-title">Panel operario</div>
+
+		<div class="admin-info">
+			<span id="admin-name"></span>
+			<a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+			<button id="logout-btn">Cerrar sesión</button>
+		</div>
+	</header>
+
+	<div class="layout">
+		<aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html">
+                    <span>▣</span>
+                    Panel principal
+                </a>
+
+                <a href="Operario.html" id="operario-link" class="active" style="display: none;">
+                    <span>▦</span>
+                    Centro de acopio
+                </a>
+
+                <a href="Contenedores.html">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Centro de acopio</h1>
+                    <p>Registrá ingresos, clasificá residuos y consultá la capacidad disponible.</p>
+                </div>
+
+                <button type="submit" form="entry-form" id="save-entry-btn" class="add-button">+ Registrar ingreso</button>
+            </div>
+
+            <section class="data-table">
+                <table>
+                    <thead><tr><th>Instalación</th><th>Tipo</th><th>Estado</th><th>Capacidad</th><th>Almacenado</th><th>Disponible</th><th>Residuos que recibe</th></tr></thead>
+                    <tbody id="centers-body"><tr><td colspan="7">Cargando...</td></tr></tbody>
+                </table>
+            </section>
+
+            <form id="entry-form" class="filters" style="margin-top: 18px;">
+                <select id="entry-center" required>
+                    <option value="" disabled selected>Instalación...</option>
+                </select>
+                <select id="entry-type">
+                    <option value="">Sin clasificar</option>
+                </select>
+                <div class="search">
+                    <input type="number" id="entry-amount" placeholder="Cantidad ingresada (kg)" min="0.01" step="0.01" required>
+                </div>
+            </form>
+
+            <section class="data-table">
+                <table>
+                    <thead><tr><th>ID</th><th>Fecha</th><th>Instalación</th><th>Cantidad</th><th>Operario</th><th>Clasificación</th><th>Acciones</th></tr></thead>
+                    <tbody id="entries-body"><tr><td colspan="7">Cargando...</td></tr></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=operario';
+        const tiposBase = ['Orgánico', 'Reciclable', 'Plástico', 'Vidrio', 'Papel y cartón', 'Metal', 'Peligroso', 'Voluminoso', 'Escombros'];
+        const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+        const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        let centros = [];
+        let ingresos = [];
+        let ingresoEditando = null;
+
+        async function solicitar(opciones = {}, query = '') {
+            const respuesta = await fetch(api + query, { credentials: 'same-origin', ...opciones });
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            return datos;
+        }
+
+        function tiposDe(centro) {
+            const propios = centro && centro.Tipos_Residuo
+                ? centro.Tipos_Residuo.split(',').map(t => t.trim()).filter(Boolean)
+                : [];
+            return propios.length ? propios : tiposBase;
+        }
+
+        function opcionesTipos(tipos, seleccionado) {
+            return tipos.map(t => `<option value="${escapar(t)}"${t === seleccionado ? ' selected' : ''}>${escapar(t)}</option>`).join('');
+        }
+
+        function actualizarTiposFormulario(seleccionado = '') {
+            const centro = centros.find(c => String(c.Id_Centro) === document.getElementById('entry-center').value);
+            const tipos = tiposDe(centro);
+            if (seleccionado && !tipos.includes(seleccionado)) tipos.unshift(seleccionado);
+            document.getElementById('entry-type').innerHTML = '<option value="">Sin clasificar</option>' + opcionesTipos(tipos, seleccionado);
+        }
+
+        function dibujar(data) {
+            centros = data.centros;
+
+            document.getElementById('centers-body').innerHTML = centros.length ? centros.map(c => `
+                <tr><td><strong>${escapar(c.Nombre)}</strong><br><small>${escapar(c.Ubicacion || '')}</small></td>
+                <td>${escapar(nombresTipo[c.Tipo] || c.Tipo)}</td><td>${escapar(c.Estado)}</td>
+                <td>${escapar(c.Capacidad)}</td><td>${escapar(c.Cantidad_Almacenada)}</td>
+                <td><strong>${escapar(Number(c.Disponible).toFixed(2))}</strong></td>
+                <td>${escapar(c.Tipos_Residuo || 'Todos')}</td></tr>`).join('')
+                : '<tr><td colspan="7">No hay instalaciones registradas</td></tr>';
+
+            const select = document.getElementById('entry-center');
+            const actual = select.value;
+            select.innerHTML = '<option value="" disabled>Instalación...</option>' + centros
+                .filter(c => c.Estado === 'activo')
+                .map(c => `<option value="${escapar(c.Id_Centro)}">${escapar(c.Nombre)}</option>`).join('');
+            select.value = actual;
+            if (!select.value) select.selectedIndex = 0;
+            actualizarTiposFormulario();
+
+            ingresos = data.ingresos;
+            document.getElementById('entries-body').innerHTML = ingresos.length ? ingresos.map(i => `
+                <tr><td>${escapar(i.Id_Ingreso)}</td><td>${escapar(i.Fecha)}</td><td>${escapar(i.Centro)}</td>
+                <td>${escapar(i.Cantidad)}</td><td>${escapar(i.Operario)}</td><td>${escapar(i.Tipo_Residuo || 'Sin clasificar')}</td>
+                <td><button type="button" class="edit" onclick="prepararEdicion(${Number(i.Id_Ingreso)})">Editar</button>
+                <button type="button" class="delete" onclick="eliminarIngreso(${Number(i.Id_Ingreso)})">Eliminar</button></td></tr>`).join('')
+                : '<tr><td colspan="7">No hay ingresos registrados</td></tr>';
+        }
+
+        async function cargar() {
+            try {
+                const { data } = await solicitar();
+                dibujar(data);
+            } catch (error) {
+                const mensaje = `<tr><td colspan="7">${escapar(error.message)}</td></tr>`;
+                document.getElementById('centers-body').innerHTML = mensaje;
+                document.getElementById('entries-body').innerHTML = mensaje;
+            }
+        }
+
+        function resetearFormulario() {
+            ingresoEditando = null;
+            document.getElementById('entry-form').reset();
+            actualizarTiposFormulario();
+            document.getElementById('save-entry-btn').textContent = '+ Registrar ingreso';
+        }
+
+        function prepararEdicion(id) {
+            const ingreso = ingresos.find(i => Number(i.Id_Ingreso) === id);
+            if (!ingreso) return;
+
+            ingresoEditando = { id, id_centro: String(ingreso.Id_Centro), cantidad: String(Number(ingreso.Cantidad)), tipo_residuo: ingreso.Tipo_Residuo || '' };
+            const select = document.getElementById('entry-center');
+            if (![...select.options].some(o => o.value === ingresoEditando.id_centro)) {
+                select.insertAdjacentHTML('beforeend', `<option value="${escapar(ingreso.Id_Centro)}">${escapar(ingreso.Centro)}</option>`);
+            }
+            select.value = ingresoEditando.id_centro;
+            actualizarTiposFormulario(ingresoEditando.tipo_residuo);
+            document.getElementById('entry-amount').value = ingresoEditando.cantidad;
+            document.getElementById('save-entry-btn').textContent = 'Guardar cambios';
+        }
+
+        async function eliminarIngreso(id) {
+            if (!confirm('¿Eliminar este ingreso? La cantidad se descontará del almacenado.')) return;
+            try {
+                const datos = await solicitar({ method: 'DELETE' }, '&id=' + id);
+                alert(datos.message);
+                if (ingresoEditando && ingresoEditando.id === id) resetearFormulario();
+                cargar();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+        document.getElementById('entry-center').addEventListener('change', () => actualizarTiposFormulario());
+
+        document.getElementById('entry-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const datos = {
+                id_centro: document.getElementById('entry-center').value,
+                cantidad: document.getElementById('entry-amount').value,
+                tipo_residuo: document.getElementById('entry-type').value
+            };
+
+            if (ingresoEditando) {
+                const sinCambios = String(ingresoEditando.id_centro) === String(datos.id_centro)
+                    && Number(ingresoEditando.cantidad) === Number(datos.cantidad)
+                    && ingresoEditando.tipo_residuo === datos.tipo_residuo;
+                if (sinCambios) {
+                    alert('No se realizaron cambios (se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            try {
+                const editando = ingresoEditando !== null;
+                const resultado = await solicitar({
+                    method: editando ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                }, editando ? '&id=' + ingresoEditando.id : '');
+                alert(resultado.message);
+                resetearFormulario();
+                cargar();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+        cargar();
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

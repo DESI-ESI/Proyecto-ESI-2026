@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contenedores - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="logo">
+            SIGERU
+        </div>
+
+        <div class="topbar-title">Panel empleado</div>
+
+        <div class="admin-info">
+
+            <span id="admin-name"></span>
+
+            <a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html">
+                    <span>▣</span>
+                    Panel principal
+                </a>
+
+                <a href="Operario.html" id="operario-link" style="display: none;">
+                    <span>▦</span>
+                    Centro de acopio
+                </a>
+
+                <a href="Contenedores.html" class="active">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>Contenedores</h1>
+
+                    <p>
+                        Gestión de los contenedores registrados.
+                    </p>
+
+                </div>
+
+                <div class="header-actions">
+
+                    <button
+                        type="submit"
+                        form="container-form"
+                        class="add-button"
+                        id="add-container-btn">
+
+                        + Nuevo contenedor
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <form id="container-form" class="filters">
+
+                <input type="hidden" id="container-id">
+
+                <div class="search">
+                    <input type="number" id="container-number" placeholder="N° (automático)" min="1" step="1">
+                </div>
+
+                <div class="search">
+                    <input type="text" id="container-location" placeholder="Calle 1" required>
+                </div>
+
+                <div class="search">
+                    <input type="text" id="container-location2" placeholder="Calle 2 (esquina)" required>
+                </div>
+
+                <div class="search">
+                    <input type="number" id="container-capacity" placeholder="Capacidad" min="0.01" step="0.01" required>
+                </div>
+ 
+                <select id="container-type" required>
+                    <option value="" disabled selected>Tipo de residuo...</option>
+                    <option value="orgánico">Orgánicos</option>
+                    <option value="biodegradable">Biodegradables</option>
+                    <option value="doméstico">Domésticos</option>
+                    <option value="peligroso">Peligrosos</option>
+                    <option value="industrial">Industriales</option>
+                </select>
+
+                <select id="container-status" required>
+                    <option value="" disabled selected>Estado...</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                    <option value="reserva">Reserva</option>
+                </select>
+
+                <select id="container-municipality" disabled style="background:#e3e6ea;color:#6b7a90;cursor:not-allowed;">
+                    <option value="">Municipio (se detecta por las calles)...</option>
+                </select>
+                <small id="municipality-hint" style="align-self:center;color:#6b7a90;"></small>
+
+            </form>
+
+            <div class="filters">
+
+                <div class="search filter-search">
+
+                    <input
+                        type="text"
+                        id="search-container"
+                        placeholder="Buscar contenedor...">
+
+                </div>
+
+                <select id="container-type-filter">
+                    <option value="">Todos los tipos</option>
+                    <option value="orgánico">Orgánicos</option>
+                    <option value="biodegradable">Biodegradables</option>
+                    <option value="doméstico">Domésticos</option>
+                    <option value="peligroso">Peligrosos</option>
+                    <option value="industrial">Industriales</option>
+                </select>
+
+                <select id="container-status-filter">
+
+                    <option value="">
+                        Todos los estados
+                    </option>
+
+                    <option value="activo">
+                        Activo
+                    </option>
+
+                    <option value="inactivo">
+                        Inactivo
+                    </option>
+
+                    <option value="reserva">
+                        Reserva
+                    </option>
+
+                </select>
+
+            </div>
+
+            <section class="data-table">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                <th>N°</th>
+                            <th>Ubicación</th>
+                            <th>Tipo</th>
+                            <th>Capacidad</th>
+                            <th>Estado</th>
+                            <th>Municipio</th>
+                            <th>Acciones</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="containers-container"></tbody>
+
+                </table>
+        
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="../js/municipios-montevideo.js"></script>
+    <script src="../js/geo-montevideo.js"></script>
+    <script>
+        const contenedoresApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+        const municipiosApi = 'http://localhost/DESIPROYECTO/Backend/get_municipios.php';
+        const containerForm = document.getElementById('container-form');
+        let contenedorEditando = null;
+        let municipiosPorId = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarMunicipios();
+            cargarContenedores();
+            containerForm.addEventListener('submit', guardarContenedor);
+            ['container-location', 'container-location2'].forEach(id => document.getElementById(id).addEventListener('change', () => { deteccionMunicipio = detectarMunicipio(); }));
+            document.getElementById('search-container').addEventListener('input', cargarContenedores);
+            document.getElementById('container-type-filter').addEventListener('change', cargarContenedores);
+            document.getElementById('container-status-filter').addEventListener('change', cargarContenedores);
+        });
+
+        async function solicitarJson(url, opciones) {
+            const respuesta = await fetch(url, opciones);
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') {
+                throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            }
+            return datos;
+        }
+
+        async function cargarMunicipios() {
+            const select = document.getElementById('container-municipality');
+            try {
+                const respuesta = await solicitarJson(municipiosApi);
+                select.innerHTML = '<option value="">Municipio...</option>';
+                municipiosPorId = {};
+                respuesta.data.forEach(municipio => {
+                    municipiosPorId[String(municipio.id_municipio)] = municipio.nombre;
+                    select.innerHTML += `<option value="${escapeHtml(municipio.id_municipio)}">${escapeHtml(municipio.nombre)}</option>`;
+                });
+                cargarContenedores();
+            } catch (error) {
+                select.innerHTML = '<option value="">Error al cargar municipios</option>';
+                console.error(error);
+            }
+        }
+
+        async function cargarContenedores() {
+            const tbody = document.getElementById('containers-container');
+            try {
+                const respuesta = await solicitarJson(contenedoresApi);
+                const busqueda = document.getElementById('search-container').value.toLowerCase();
+                const tipo = document.getElementById('container-type-filter').value;
+                const estado = document.getElementById('container-status-filter').value;
+                const contenedores = respuesta.data || [];
+                const datos = contenedores.filter(contenedor =>
+                    `${contenedor.Ubicacion} ${contenedor.Tipo_Residuo}`.toLowerCase().includes(busqueda) &&
+                    (!tipo || contenedor.Tipo_Residuo === tipo) &&
+                    (!estado || contenedor.Estado === estado)
+                );
+
+                tbody.innerHTML = datos.length ? datos.map(contenedor => `
+                    <tr>
+                        <td>${contenedor.Id_Contenedor}</td>
+                        <td>${escapeHtml(contenedor.Numero_Contenedor ?? '')}</td>
+                        <td>${escapeHtml(contenedor.Ubicacion || '')}</td>
+                        <td>${escapeHtml(contenedor.Tipo_Residuo || '')}</td>
+                        <td>${escapeHtml(contenedor.Capacidad ?? '')}</td>
+                        <td>${escapeHtml(contenedor.Estado || '')}</td>
+                        <td>${escapeHtml(municipiosPorId[String(contenedor.Id_Municipio)] || contenedor.Id_Municipio || '')}</td>
+                        <td>
+                            <button class="edit">Editar</button>
+                            <button class="delete">Eliminar</button>
+                        </td>
+                    </tr>`).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron contenedores</td></tr>';
+
+                tbody.querySelectorAll('.edit').forEach((button, index) => {
+                    button.addEventListener('click', () => editarContenedor(datos[index]));
+                });
+                tbody.querySelectorAll('.delete').forEach((button, index) => {
+                    button.addEventListener('click', () => eliminarContenedor(datos[index].Id_Contenedor));
+                });
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-table-message">Error de conexión</td></tr>';
+            }
+        }
+
+        function editarContenedor(contenedor) {
+            contenedorEditando = {
+                id: contenedor.Id_Contenedor,
+                numero_contenedor: contenedor.Numero_Contenedor || '',
+                ubicacion: contenedor.Ubicacion || '',
+                tipo_residuo: contenedor.Tipo_Residuo || '',
+                capacidad: contenedor.Capacidad || '',
+                estado: contenedor.Estado || 'activo',
+                id_municipio: contenedor.Id_Municipio || ''
+            };
+
+            document.getElementById('add-container-btn').textContent = 'Guardar cambios';
+            document.getElementById('container-id').value = contenedor.Id_Contenedor;
+            document.getElementById('container-number').value = contenedor.Numero_Contenedor || '';
+            const [calle1, calle2] = String(contenedor.Ubicacion || '').split(separadorCalles);
+            document.getElementById('container-location').value = calle1 || '';
+            document.getElementById('container-location2').value = calle2 || '';
+            document.getElementById('container-type').value = contenedor.Tipo_Residuo || '';
+            document.getElementById('container-capacity').value = contenedor.Capacidad || '';
+            document.getElementById('container-status').value = contenedor.Estado || 'activo';
+            document.getElementById('container-municipality').value = contenedor.Id_Municipio || '';
+            ultimaDeteccion = ((calle1 || '') + '|' + (calle2 || '')).trim().toLowerCase();
+            document.getElementById('municipality-hint').textContent = '';
+        }
+
+        const separadorCalles = ' esq. ';
+        let deteccionMunicipio = Promise.resolve();
+        let ultimaDeteccion = '';
+
+        async function detectarMunicipio() {
+            const calle1 = document.getElementById('container-location').value.trim();
+            const calle2 = document.getElementById('container-location2').value.trim();
+            const select = document.getElementById('container-municipality');
+            const aviso = document.getElementById('municipality-hint');
+            if (!calle1 || !calle2) return;
+            const clave = `${calle1}|${calle2}`.toLowerCase();
+            if (clave === ultimaDeteccion) return;
+            ultimaDeteccion = clave;
+            aviso.textContent = 'Detectando municipio...';
+            const punto = await GeoMontevideo.ubicarCalles(calle1, calle2);
+            const letra = punto && GeoMontevideo.municipioDePunto(punto);
+            const opcion = letra && Array.from(select.options).find(o => o.textContent.trim().toLowerCase() === `municipio ${letra}`.toLowerCase());
+            if (opcion) {
+                select.value = opcion.value;
+                aviso.textContent = `Detectado: Municipio ${letra}`;
+            } else {
+                select.value = '';
+                aviso.textContent = 'No se pudo detectar el municipio con esas calles.';
+            }
+        }
+        async function guardarContenedor(event) {
+            event.preventDefault();
+            await deteccionMunicipio;
+            await detectarMunicipio();
+            if (!document.getElementById('container-municipality').value) {
+                alert('No se pudo determinar el municipio. Revisá que las calles estén bien escritas.');
+                return;
+            }
+            const id = document.getElementById('container-id').value;
+            const datos = {
+                id,
+                numero_contenedor: document.getElementById('container-number').value ? Number(document.getElementById('container-number').value) : '',
+                ubicacion: [document.getElementById('container-location').value.trim(), document.getElementById('container-location2').value.trim()].join(separadorCalles),
+                tipo_residuo: document.getElementById('container-type').value.trim(),
+                capacidad: Number(document.getElementById('container-capacity').value),
+                estado: document.getElementById('container-status').value,
+                id_municipio: Number(document.getElementById('container-municipality').value)
+            };
+
+            if (id && contenedorEditando) {
+                const sinCambios =
+                    String(contenedorEditando.numero_contenedor || '') === String(datos.numero_contenedor || '') &&
+                    String(contenedorEditando.ubicacion || '') === String(datos.ubicacion || '') &&
+                    String(contenedorEditando.tipo_residuo || '') === String(datos.tipo_residuo || '') &&
+                    String(contenedorEditando.capacidad || '') === String(datos.capacidad || '') &&
+                    String(contenedorEditando.estado || '') === String(datos.estado || '') &&
+                    String(contenedorEditando.id_municipio || '') === String(datos.id_municipio || '');
+
+                if (sinCambios) {
+                    alert('No se realizaron cambios(Se canceló la edición).');
+                    ocultarFormulario();
+                    return;
+                }
+            }
+
+            const url = id ? `${contenedoresApi}&id=${id}` : contenedoresApi;
+            try {
+                const respuesta = await solicitarJson(url, {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                alert(respuesta.message);
+                ocultarFormulario();
+                cargarContenedores();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function eliminarContenedor(id) {
+            if (!confirm('¿Eliminar este contenedor?')) return;
+            try {
+                const respuesta = await solicitarJson(`${contenedoresApi}&id=${id}`, {
+                    method: 'DELETE'
+                });
+                alert(respuesta.message);
+                cargarContenedores();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function ocultarFormulario() {
+            containerForm.reset();
+            ultimaDeteccion = '';
+            document.getElementById('municipality-hint').textContent = '';
+            contenedorEditando = null;
+            document.getElementById('container-id').value = '';
+            document.getElementById('add-container-btn').textContent = '+ Nuevo contenedor';
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+        }
+    </script>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

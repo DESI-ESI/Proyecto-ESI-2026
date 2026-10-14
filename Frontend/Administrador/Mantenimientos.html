@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenimientos - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            SIGERU
+        </div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name">Administrador</span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html" class="active"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Mantenimientos</h1>
+                    <p>Mantenimientos preventivos y correctivos de los camiones.</p>
+                </div>
+
+                <button type="submit" form="form-mant" id="add-mant-btn" class="add-button">
+                    + Nuevo mantenimiento
+                </button>
+            </div>
+
+            <form id="form-mant" class="filters">
+                <select id="mant-camion" required>
+                    <option value="" disabled selected>Camión...</option>
+                </select>
+
+                <select id="mant-tipo" required>
+                    <option value="" disabled selected>Tipo...</option>
+                    <option value="preventivo">Preventivo</option>
+                    <option value="correctivo">Correctivo</option>
+                </select>
+
+                <div class="search">
+                    <input type="datetime-local" id="mant-fecha" title="Fecha de inicio">
+                </div>
+
+                <select id="mant-estado" required>
+                    <option value="" disabled selected>Estado...</option>
+                    <option value="en proceso">En proceso</option>
+                    <option value="finalizado">Finalizado</option>
+                </select>
+
+                <div class="search">
+                    <input type="text" id="mant-descripcion" placeholder="Descripción">
+                </div>
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                <div class="search">
+                    <input type="text" id="search-mant" placeholder="Buscar por matrícula o descripción...">
+                </div>
+
+                <select id="filter-tipo">
+                    <option value="todos">Todos los tipos</option>
+                    <option value="preventivo">Preventivo</option>
+                    <option value="correctivo">Correctivo</option>
+                </select>
+
+                <select id="filter-estado">
+                    <option value="todos">Todos los estados</option>
+                    <option value="en proceso">En proceso</option>
+                    <option value="finalizado">Finalizado</option>
+                </select>
+
+                <select id="filter-camion">
+                    <option value="todos">Todos los camiones</option>
+                </select>
+            </div>
+
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Camión</th>
+                            <th>Tipo</th>
+                            <th>Inicio</th>
+                            <th>Fin</th>
+                            <th>Estado</th>
+                            <th>Descripción</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-mant-body"></tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        const API = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php';
+        let mantenimientos = [];
+        let camiones = [];
+        let editando = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarCamiones();
+            cargarMantenimientos();
+
+            document.getElementById('form-mant').addEventListener('submit', procesarFormulario);
+            document.getElementById('search-mant').addEventListener('input', filtrar);
+            ['filter-tipo', 'filter-estado', 'filter-camion'].forEach(id =>
+                document.getElementById(id).addEventListener('change', filtrar));
+        });
+
+        function aInputFecha(valor) {
+            return valor ? String(valor).replace(' ', 'T').slice(0, 16) : '';
+        }
+
+        function cargarCamiones() {
+            fetch(`${API}?recurso=camiones`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    camiones = res.data;
+                    const filtro = document.getElementById('filter-camion');
+                    filtro.innerHTML = '<option value="todos">Todos los camiones</option>';
+                    camiones.forEach(c => {
+                        filtro.innerHTML += `<option value="${c.Id_Camion}">${c.matricula}</option>`;
+                    });
+                    llenarSelectCamiones();
+                })
+                .catch(err => console.error('Error al cargar camiones:', err));
+        }
+
+        function llenarSelectCamiones(idIncluir) {
+            const select = document.getElementById('mant-camion');
+            select.innerHTML = '<option value="" disabled selected>Camión...</option>';
+            const ocupados = mantenimientos.filter(m => m.Estado === 'en proceso').map(m => String(m.Id_Camion));
+            camiones
+                .filter(c => String(c.Id_Camion) === String(idIncluir) ||
+                    (['Mantenimiento', 'Roto'].includes(c.estado) && !ocupados.includes(String(c.Id_Camion))))
+                .forEach(c => {
+                    select.innerHTML += `<option value="${c.Id_Camion}">${c.matricula} (${c.estado})</option>`;
+                });
+        }
+
+        function cargarMantenimientos() {
+            fetch(`${API}?recurso=mantenimientos`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        mantenimientos = Array.isArray(res.data) ? res.data : [];
+                        if (!editando) llenarSelectCamiones();
+                        filtrar();
+                    }
+                })
+                .catch(err => console.error('Error al cargar mantenimientos:', err));
+        }
+
+        function filtrar() {
+            const termino = document.getElementById('search-mant').value.toLowerCase().trim();
+            const tipo = document.getElementById('filter-tipo').value;
+            const estado = document.getElementById('filter-estado').value;
+            const camion = document.getElementById('filter-camion').value;
+
+            render(mantenimientos.filter(m => {
+                const texto = `${m.Matricula} ${m.Descripcion || ''}`.toLowerCase();
+                return texto.includes(termino)
+                    && (tipo === 'todos' || m.Tipo_Mantenimiento === tipo)
+                    && (estado === 'todos' || m.Estado === estado)
+                    && (camion === 'todos' || String(m.Id_Camion) === camion);
+            }));
+        }
+
+        function render(lista) {
+            const tbody = document.getElementById('tabla-mant-body');
+            tbody.innerHTML = '';
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666; padding: 20px;">No se encontraron mantenimientos</td></tr>';
+                return;
+            }
+
+            lista.forEach(m => {
+                const clase = m.Estado === 'finalizado' ? 'status active-status' : 'status';
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${m.Matricula}</strong></td>
+                        <td>${m.Tipo_Mantenimiento || '-'}</td>
+                        <td>${m.Fecha_Inicio || '-'}</td>
+                        <td>${m.Fecha_Fin || '-'}</td>
+                        <td><span class="${clase}">${m.Estado}</span></td>
+                        <td>${m.Descripcion || '-'}</td>
+                        <td>
+                            <button class="edit" onclick="prepararEdicion(${m.Id_Mantenimiento})">Editar</button>
+                            <button class="delete" onclick="eliminar(${m.Id_Mantenimiento})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function leerFormulario() {
+            return {
+                id_camion: document.getElementById('mant-camion').value,
+                tipo: document.getElementById('mant-tipo').value,
+                fecha_inicio: document.getElementById('mant-fecha').value,
+                estado: document.getElementById('mant-estado').value,
+                descripcion: document.getElementById('mant-descripcion').value.trim()
+            };
+        }
+
+        function prepararEdicion(id) {
+            const m = mantenimientos.find(x => Number(x.Id_Mantenimiento) === Number(id));
+            if (!m) return;
+
+            editando = {
+                id: m.Id_Mantenimiento,
+                id_camion: String(m.Id_Camion),
+                tipo: m.Tipo_Mantenimiento || '',
+                fecha_inicio: aInputFecha(m.Fecha_Inicio),
+                estado: m.Estado,
+                descripcion: m.Descripcion || ''
+            };
+
+            llenarSelectCamiones(editando.id_camion);
+            document.getElementById('mant-camion').value = editando.id_camion;
+            document.getElementById('mant-camion').disabled = true;
+            document.getElementById('mant-tipo').value = editando.tipo;
+            document.getElementById('mant-fecha').value = editando.fecha_inicio;
+            document.getElementById('mant-estado').value = editando.estado;
+            document.getElementById('mant-descripcion').value = editando.descripcion;
+            document.getElementById('add-mant-btn').textContent = 'Guardar cambios';
+        }
+
+        function resetearFormulario() {
+            editando = null;
+            document.getElementById('form-mant').reset();
+            document.getElementById('mant-camion').disabled = false;
+            llenarSelectCamiones();
+            document.getElementById('add-mant-btn').textContent = '+ Nuevo mantenimiento';
+        }
+
+        function procesarFormulario(e) {
+            e.preventDefault();
+            const datos = leerFormulario();
+            if (editando) datos.id_camion = editando.id_camion;
+
+            if (editando) {
+                const sinCambios = ['id_camion', 'tipo', 'fecha_inicio', 'estado', 'descripcion']
+                    .every(k => String(editando[k] || '') === String(datos[k] || ''));
+                if (sinCambios) {
+                    alert('No se realizaron cambios(Se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            const url = editando ? `${API}?recurso=mantenimientos&id=${editando.id}` : `${API}?recurso=mantenimientos`;
+
+            fetch(url, {
+                method: editando ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        alert(editando ? '¡Mantenimiento actualizado!' : '¡Mantenimiento registrado!');
+                        resetearFormulario();
+                        cargarCamiones();
+                        cargarMantenimientos();
+                    } else {
+                        alert('Error: ' + res.message);
+                    }
+                })
+                .catch(err => console.error('Error en el envío:', err));
+        }
+
+        function eliminar(id) {
+            if (!confirm('¿Estás seguro de que querés eliminar este mantenimiento?')) return;
+
+            fetch(`${API}?recurso=mantenimientos&id=${id}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        alert('Mantenimiento eliminado.');
+                        if (editando && Number(editando.id) === Number(id)) resetearFormulario();
+                        cargarMantenimientos();
+                    } else {
+                        alert('Error al eliminar: ' + res.message);
+                    }
+                })
+                .catch(err => console.error('Error:', err));
+        }
+    </script>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

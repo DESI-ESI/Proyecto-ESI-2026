@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-panel.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="logo">
+            SIGERU
+        </div>
+
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <nav>
+				<a href="panel.html" class="active"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+
+        </aside>
+
+        <main class="main-content">
+
+            <section class="welcome">
+
+                <h1>Panel administrativo</h1>
+
+                <p>
+                    Gestión general del sistema SIGERU.
+                </p>
+
+            </section>
+
+            <section class="stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        ♙
+                    </div>
+
+                    <div>
+                        <h3>Empleados</h3>
+                        <p class="number" id="total-empleados"></p>
+                        <span>Empleados registrados</span>
+                    </div>
+
+                </div>
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        ♧
+                    </div>
+
+                    <div>
+                        <h3>Cuadrillas</h3>
+                        <p class="number" id="total-cuadrillas"></p>
+                        <span>Cuadrillas registradas</span>
+                    </div>
+
+                </div>
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        ▱
+                    </div>
+
+                    <div>
+                        <h3>Camiones</h3>
+                        <p class="number" id="total-camiones"></p>
+                        <span>Camiones registrados</span>
+                    </div>
+
+                </div>
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        !
+                    </div>
+
+                    <div>
+                        <h3>Incidencias</h3>
+                        <p class="number" id="total-incidencias"></p>
+                        <span>Incidencias pendientes</span>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="dashboard-grid">
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <h2>Actividad reciente</h2>
+
+                        <a href="#">
+                            Ver todo
+                        </a>
+
+                    </div>
+
+                    <div
+                        class="activity"
+                        id="activity-container">
+                    </div>
+
+                </div>
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <h2>Acciones rápidas</h2>
+                    </div>
+
+                    <div class="quick-actions">
+
+                        <a href="Empleados.html" class="action">
+
+                            <span>+</span>
+
+                            <div>
+                                <strong>Gestionar empleados</strong>
+                                <small>Administrar empleados del sistema</small>
+                            </div>
+
+                        </a>
+
+                        <a href="#" class="action">
+
+                            <span>+</span>
+
+                            <div>
+                                <strong>Gestionar rutas</strong>
+                                <small>Administrar rutas de recolección</small>
+                            </div>
+
+                        </a>
+
+                        <a href="#" class="action">
+
+                            <span>+</span>
+
+                            <div>
+                                <strong>Gestionar camiones</strong>
+                                <small>Administrar vehículos</small>
+                            </div>
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>
+
+</html>

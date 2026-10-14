@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Operario - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="logo">
+            SIGERU
+        </div>
+
+        <div class="topbar-title">Panel operario</div>
+
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html" class="active">
+                    <span>▣</span>
+                    Panel de operario
+                </a>
+
+                <a href="Operario.html">
+                    <span>▦</span>
+                    Centro de acopio
+                </a>
+
+                <a href="Contenedores.html">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+
+            <section class="welcome">
+
+                <h1>Panel de operario</h1>
+
+                <p>
+                    Accesos a las herramientas del centro de acopio.
+                </p>
+
+            </section>
+
+            <section class="stats">
+
+                <a href="Operario.html" class="stat-card">
+                    <div class="stat-icon">▦</div>
+                    <div>
+                        <h3>Centro de acopio</h3>
+                        <span>Registrar ingresos, clasificar residuos y consultar capacidad</span>
+                    </div>
+                </a>
+
+                <a href="Contenedores.html" class="stat-card">
+                    <div class="stat-icon">♢</div>
+                    <div>
+                        <h3>Contenedores</h3>
+                        <span>Consultar contenedores registrados</span>
+                    </div>
+                </a>
+
+                <a href="Incidencias.html" class="stat-card">
+                    <div class="stat-icon">!</div>
+                    <div>
+                        <h3>Incidencias</h3>
+                        <span>Registrar y consultar incidencias</span>
+                    </div>
+                </a>
+
+            </section>
+
+            <section class="dashboard-grid">
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <h2>Acciones rápidas</h2>
+                    </div>
+
+                    <div class="quick-actions">
+
+                        <a href="Operario.html" class="action">
+                            <span>+</span>
+                            <div>
+                                <strong>Registrar ingreso en el centro de acopio</strong>
+                                <small>Clasificar residuos y actualizar la capacidad</small>
+                            </div>
+                        </a>
+
+                        <a href="Incidencias.html" class="action">
+                            <span>+</span>
+                            <div>
+                                <strong>Registrar incidencia</strong>
+                                <small>Informar roturas, desbordes o faltas de recolección</small>
+                            </div>
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

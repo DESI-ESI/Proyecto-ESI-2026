@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Informes - SIGERU</title>
+	<link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+<body>
+	<header class="topbar">
+		<div class="logo">SIGERU</div>
+		<div class="topbar-title">Panel empleado</div>
+
+		<div class="admin-info">
+			<span id="admin-name"></span>
+			<a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+			<button id="logout-btn">Cerrar sesión</button>
+		</div>
+	</header>
+
+	<div class="layout">
+		<aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html">
+                    <span>▣</span>
+                    Panel principal
+                </a>
+
+                <a href="MapaInteractivo.html">
+                    <span>♧</span>
+                    Mapa interactivo
+                </a>
+
+                <a href="MiCuadrilla.html">
+                    <span>▤</span>
+                    Mi cuadrilla
+                </a>
+
+                <a href="MiRuta.html">
+                    <span>➤</span>
+                    Mi ruta
+                </a>
+
+                <a href="Informes.html" class="active">
+                    <span>✎</span>
+                    Informes
+                </a>
+
+                <a href="Contenedores.html">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Informes</h1>
+                    <p id="report-context">Informes de la ruta de tu cuadrilla.</p>
+                </div>
+                <button type="submit" form="report-form" class="add-button" id="report-submit">+ Nuevo informe</button>
+            </div>
+
+            <form id="report-form" class="filters">
+                <div class="search">
+                    <input type="text" id="report-description" placeholder="Descripción del informe" maxlength="2000" required>
+                </div>
+            </form>
+
+            <div class="filters">
+                <div class="search">
+                    <input type="search" id="search-report" placeholder="Buscar informe...">
+                </div>
+            </div>
+
+            <section class="data-table">
+                <table>
+                    <thead><tr><th>ID</th><th>Fecha</th><th>Ruta</th><th>Cuadrilla</th><th>Autor</th><th>Descripción</th><th>Acciones</th></tr></thead>
+                    <tbody id="reports-body"><tr><td colspan="7">Cargando...</td></tr></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=informes';
+        const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        let informes = [];
+        let informeEditando = null;
+        let contextoActual = null;
+        let esAdmin = false;
+
+        async function solicitar(opciones = {}, extra = '') {
+            const respuesta = await fetch(api + extra, { credentials: 'same-origin', ...opciones });
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            return datos;
+        }
+
+        function mostrarFormulario(visible) {
+            document.getElementById('report-form').style.display = visible ? '' : 'none';
+            document.getElementById('report-submit').style.display = visible ? '' : 'none';
+        }
+
+        function resetearFormulario() {
+            informeEditando = null;
+            document.getElementById('report-form').reset();
+            document.getElementById('report-submit').textContent = '+ Nuevo informe';
+            mostrarFormulario(contextoActual && contextoActual.Id_Ruta);
+        }
+
+        function puedeEditar(i) {
+            return esAdmin || (contextoActual && Number(contextoActual.Id_Cuadrilla) === Number(i.Id_Cuadrilla));
+        }
+
+        function pintar() {
+            const cuerpo = document.getElementById('reports-body');
+            const termino = document.getElementById('search-report').value.trim().toLowerCase();
+            const filtrados = informes.filter(i =>
+                `${i.Id_Informe} ${i.Fecha} ${i.Id_Ruta} ${i.Id_Cuadrilla} ${i.Autor || ''} ${i.Descripcion}`.toLowerCase().includes(termino));
+            cuerpo.innerHTML = filtrados.length ? filtrados.map(i => `
+                <tr><td>${escapar(i.Id_Informe)}</td><td>${escapar(i.Fecha)}</td><td>#${escapar(i.Id_Ruta)}</td>
+                <td>#${escapar(i.Id_Cuadrilla)}</td><td>${escapar(i.Autor || '-')}</td><td>${escapar(i.Descripcion)}</td>
+                <td>${puedeEditar(i) ? `<button class="edit" type="button" data-id="${escapar(i.Id_Informe)}">Editar</button> <button class="delete" type="button" data-id="${escapar(i.Id_Informe)}">Eliminar</button>` : '-'}</td></tr>`).join('')
+                : '<tr><td colspan="7">No hay informes</td></tr>';
+        }
+
+        async function cargar() {
+            const cuerpo = document.getElementById('reports-body');
+            try {
+                const { data } = await solicitar();
+                contextoActual = data.contexto;
+                esAdmin = !!data.es_admin;
+                informes = data.informes;
+                document.getElementById('report-context').textContent = !contextoActual
+                    ? 'No estás asignado a ninguna cuadrilla.'
+                    : contextoActual.Id_Ruta
+                        ? `Ruta #${contextoActual.Id_Ruta} (${contextoActual.Recorrido}) - Cuadrilla #${contextoActual.Id_Cuadrilla}`
+                        : `Tu cuadrilla (#${contextoActual.Id_Cuadrilla}) no tiene ruta asignada.`;
+                if (!informeEditando) mostrarFormulario(contextoActual && contextoActual.Id_Ruta);
+                pintar();
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="7">${escapar(error.message)}</td></tr>`;
+            }
+        }
+
+        document.getElementById('search-report').addEventListener('input', pintar);
+
+        document.getElementById('reports-body').addEventListener('click', async event => {
+            const boton = event.target.closest('button[data-id]');
+            if (!boton) return;
+            const id = Number(boton.dataset.id);
+            const informe = informes.find(i => Number(i.Id_Informe) === id);
+            if (!informe) return;
+
+            if (boton.classList.contains('delete')) {
+                if (!confirm('¿Eliminar este informe?')) return;
+                try {
+                    const datos = await solicitar({ method: 'DELETE' }, '&id=' + id);
+                    alert(datos.message);
+                    resetearFormulario();
+                    cargar();
+                } catch (error) {
+                    alert(error.message);
+                }
+                return;
+            }
+
+            informeEditando = informe;
+            mostrarFormulario(true);
+            document.getElementById('report-description').value = informe.Descripcion;
+            document.getElementById('report-submit').textContent = 'Guardar cambios';
+            document.getElementById('report-description').focus();
+        });
+
+        document.getElementById('report-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const descripcion = document.getElementById('report-description').value.trim();
+            try {
+                if (informeEditando) {
+                    if (descripcion === informeEditando.Descripcion) {
+                        alert('No se realizaron cambios.');
+                        resetearFormulario();
+                        return;
+                    }
+                    const datos = await solicitar({
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ descripcion })
+                    }, '&id=' + informeEditando.Id_Informe);
+                    alert(datos.message);
+                } else {
+                    const datos = await solicitar({
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ descripcion })
+                    });
+                    alert(datos.message);
+                }
+                resetearFormulario();
+                cargar();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        cargar();
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

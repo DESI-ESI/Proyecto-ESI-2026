@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informes - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+    <style>
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 18px; }
+        .stat-box { background: #fff; border: 1px solid #e4eae7; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .stat-box h3 { margin: 0 0 6px; font-size: 13px; color: #59645f; font-weight: 600; }
+        .stat-box .number { margin: 0; font-size: 28px; font-weight: 700; color: #26322c; }
+        .two-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 18px; margin-top: 18px; }
+        .box { background: #fff; border: 1px solid #e4eae7; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .box h2 { margin: 0 0 14px; font-size: 16px; color: #26322c; }
+        .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px; color: #36443e; }
+        .bar-label { width: 190px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bar-track { flex: 1; background: #eef2f0; border-radius: 6px; height: 14px; overflow: hidden; }
+        .bar-fill { height: 100%; background: #238b57; border-radius: 6px; }
+        .bar-value { width: 28px; text-align: right; font-weight: 700; }
+        .empty { color: #7a8680; font-size: 13px; padding: 10px 0; }
+        .section-title { margin: 28px 0 0; font-size: 18px; color: #26322c; }
+        .abierta-status { color: #d62828; }
+        .abierta-status::before { background: #d62828; }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            SIGERU
+        </div>
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+            <span id="admin-name">Administrador</span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+        </div>
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html" class="active"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+                <div>
+                    <h1>Informes y estadísticas</h1>
+                    <p>Listado de incidencias y panel de control del sistema.</p>
+                </div>
+            </div>
+
+            <div class="stats-grid" id="totales"></div>
+
+            <h2 class="section-title">Panel de control</h2>
+            <div class="filters" style="margin-top: 12px;">
+                <div class="search">
+                    <input type="month" id="mes">
+                </div>
+            </div>
+
+            <div class="two-cols">
+                <div class="box">
+                    <h2>Top de contenedores desbordados del mes</h2>
+                    <div id="top-desbordados"></div>
+                </div>
+                <div class="box">
+                    <h2>Incidencias del mes por tipo</h2>
+                    <div id="por-tipo"></div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Informe de incidencias</h2>
+            <div class="filters" style="margin-top: 12px;">
+                <select id="filtro-estado">
+                    <option value="todas">Abiertas y cerradas</option>
+                    <option value="abiertas">Solo abiertas</option>
+                    <option value="cerradas">Solo cerradas</option>
+                </select>
+            </div>
+
+            <section class="users-table" style="margin-top: 12px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Contenedor</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-incidencias"></tbody>
+                </table>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        const API = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php';
+        let incidencias = [];
+
+        function esc(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function formatearFecha(fecha) {
+            const [dia, hora] = String(fecha).split(' ');
+            const [anio, mes, d] = dia.split('-');
+            return `${d}/${mes}/${anio} ${(hora || '').slice(0, 5)}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoy = new Date();
+            document.getElementById('mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+            document.getElementById('mes').addEventListener('change', cargar);
+            document.getElementById('filtro-estado').addEventListener('change', renderIncidencias);
+            cargar();
+        });
+
+        function cargar() {
+            const mes = document.getElementById('mes').value;
+            fetch(`${API}?recurso=estadisticas${mes ? '&mes=' + mes : ''}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status !== 'success') {
+                        alert('Error: ' + res.message);
+                        return;
+                    }
+                    const d = res.data;
+                    incidencias = d.incidencias;
+                    renderTotales(d.totales);
+                    renderBarras('top-desbordados', d.top_desbordados.map(x => ({
+                        etiqueta: `N° ${x.Numero_Contenedor} - ${x.Ubicacion || ''}`,
+                        valor: Number(x.Cantidad)
+                    })), 'No hubo desbordes este mes.');
+                    renderBarras('por-tipo', d.incidencias_por_tipo.map(x => ({
+                        etiqueta: x.Tipo,
+                        valor: Number(x.Cantidad)
+                    })), 'No hubo incidencias este mes.');
+                    renderIncidencias();
+                })
+                .catch(err => console.error('Error al cargar estadísticas:', err));
+        }
+
+        function renderTotales(t) {
+            const items = [
+                ['Contenedores', t.contenedores],
+                ['Camiones', t.camiones],
+                ['Empleados', t.empleados],
+                ['Rutas', t.rutas],
+                ['Incidencias abiertas', t.incidencias_abiertas],
+                ['Incidencias cerradas', t.incidencias_cerradas]
+            ];
+            document.getElementById('totales').innerHTML = items.map(([titulo, valor]) =>
+                `<div class="stat-box"><h3>${titulo}</h3><p class="number">${valor}</p></div>`).join('');
+        }
+
+        function renderBarras(id, datos, vacio) {
+            const cont = document.getElementById(id);
+            if (datos.length === 0) {
+                cont.innerHTML = `<div class="empty">${vacio}</div>`;
+                return;
+            }
+            const max = Math.max(...datos.map(x => x.valor));
+            cont.innerHTML = datos.map(x => `
+                <div class="bar-row">
+                    <span class="bar-label" title="${esc(x.etiqueta)}">${esc(x.etiqueta)}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: ${(x.valor / max) * 100}%"></div></div>
+                    <span class="bar-value">${x.valor}</span>
+                </div>`).join('');
+        }
+
+        function renderIncidencias() {
+            const filtro = document.getElementById('filtro-estado').value;
+            const lista = incidencias.filter(i =>
+                filtro === 'todas' || (filtro === 'cerradas') === (i.Estado === 'resuelta'));
+            const tbody = document.getElementById('tabla-incidencias');
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666; padding: 20px;">No se encontraron incidencias</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lista.map(i => {
+                const clase = i.Estado === 'resuelta' ? 'status active-status' : 'status abierta-status';
+                return `
+                    <tr>
+                        <td>${formatearFecha(i.Fecha)}</td>
+                        <td>${esc(i.Tipo)}</td>
+                        <td>${i.Numero_Contenedor ? 'N° ' + esc(i.Numero_Contenedor) + (i.Ubicacion ? ' - ' + esc(i.Ubicacion) : '') : '-'}</td>
+                        <td>${esc(i.Descripcion) || '-'}</td>
+                        <td><span class="${clase}">${esc(i.Estado)}</span></td>
+                    </tr>`;
+            }).join('');
+        }
+    </script>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+*.log
+*.bak
+*.dump
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.db
+Thumbs.db
+.DS_Store

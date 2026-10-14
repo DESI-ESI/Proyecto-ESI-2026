@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Mapa interactivo - SIGERU</title>
+	<link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+	<style>
+		#map { height: 560px; border-radius: 12px; }
+		#map { position: relative; }
+		.leyenda { background: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.25); font-size: 13px; color: #34413b; line-height: 1.8; }
+		.leyenda strong { display: block; margin-bottom: 2px; }
+		.leyenda i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+		#map-status { margin: 0 0 12px; color: #7a8580; font-size: 14px; }
+	</style>
+</head>
+<body>
+	<header class="topbar">
+		<div class="logo">SIGERU</div>
+		<div class="topbar-title">Panel empleado</div>
+
+		<div class="admin-info">
+			<span id="admin-name"></span>
+			<a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+			<button id="logout-btn">Cerrar sesión</button>
+		</div>
+	</header>
+
+	<div class="layout">
+		<aside class="sidebar">
+
+            <nav>
+
+                <a href="Panel.html">
+                    <span>▣</span>
+                    Panel principal
+                </a>
+
+                <a href="MapaInteractivo.html" class="active">
+                    <span>♧</span>
+                    Mapa interactivo
+                </a>
+
+                <a href="MiCuadrilla.html">
+                    <span>▤</span>
+                    Mi cuadrilla
+                </a>
+
+                <a href="MiRuta.html">
+                    <span>➤</span>
+                    Mi ruta
+                </a>
+
+                <a href="Informes.html">
+                    <span>✎</span>
+                    Informes
+                </a>
+
+                <a href="Contenedores.html">
+                    <span>♢</span>
+                    Contenedores
+                </a>
+
+                <a href="Incidencias.html">
+                    <span>!</span>
+                    Incidencias
+                </a>
+
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Mapa interactivo</h1>
+                    <p>Visualiza contenedores y rutas en el mapa.</p>
+                </div>
+            </div>
+
+            <p id="map-status">Cargando contenedores...</p>
+            <section class="data-table" style="padding: 0; overflow: hidden;">
+                <div id="map"></div>
+            </section>
+        </main>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="../js/municipios-montevideo.js"></script>
+    <script src="../js/geo-montevideo.js"></script>
+    <script>
+        const apiBase = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=';
+        const limitesMontevideo = L.latLngBounds([-34.95, -56.43], [-34.70, -56.01]);
+        const colores = { activo: '#238b57', inactivo: '#d64545', reserva: '#e0a030' };
+        const mapa = L.map('map', { maxBounds: limitesMontevideo.pad(0.1), minZoom: 11 }).setView([-34.88, -56.17], 12);
+        const capa = L.layerGroup().addTo(mapa);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(mapa);
+
+        const leyenda = L.control({ position: 'bottomright' });
+        leyenda.onAdd = () => {
+            const div = L.DomUtil.create('div', 'leyenda');
+            div.innerHTML = '<strong>Estado del contenedor</strong>' +
+                Object.entries(colores).map(([estado, color]) =>
+                    `<div><i style="background:${color}"></i>${estado.charAt(0).toUpperCase() + estado.slice(1)}</div>`).join('') +
+                '<div><i style="background:#fff;border:3px solid #c62828;box-sizing:border-box"></i>Con incidencias abiertas</div>';
+            return div;
+        };
+        leyenda.addTo(mapa);
+
+        function escapar(valor) {
+            return String(valor ?? '').replace(/[&<>'"]/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[c]));
+        }
+
+        async function obtenerJson(recurso) {
+            const respuesta = await fetch(apiBase + recurso, { credentials: 'same-origin' });
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message || 'Error al cargar datos');
+            return datos.data || [];
+        }
+
+        const separadorCalles = ' esq. ';
+
+        function ubicarContenedor(c) {
+            const [calle1, calle2] = String(c.Ubicacion || '').split(separadorCalles).map(calle => calle.trim());
+            return GeoMontevideo.ubicarCalles(calle1, calle2);
+        }
+
+        async function cargarMapa() {
+            const estado = document.getElementById('map-status');
+            try {
+                const [contenedores, municipios, incidencias] = await Promise.all([obtenerJson('contenedores'), obtenerJson('municipios'), obtenerJson('incidencias')]);
+                const incidenciasPorContenedor = {};
+                incidencias.forEach(i => {
+                    if (i.Numero_Contenedor) (incidenciasPorContenedor[i.Numero_Contenedor] ||= []).push(i);
+                });
+                const nombres = {};
+                municipios.forEach(m => { nombres[String(m.id_municipio)] = m.nombre; });
+
+                const puntos = [];
+                let sinUbicar = 0;
+                for (let i = 0; i < contenedores.length; i++) {
+                    const c = contenedores[i];
+                    estado.textContent = `Ubicando contenedores en el mapa (${i + 1}/${contenedores.length})...`;
+                    const municipio = nombres[String(c.Id_Municipio)] || '';
+                    const coordenadas = await ubicarContenedor(c);
+                    if (!coordenadas) { sinUbicar++; continue; }
+                    const color = colores[String(c.Estado).toLowerCase()] || '#4a6fa5';
+                    const susIncidencias = incidenciasPorContenedor[c.Numero_Contenedor] || [];
+                    const abiertas = susIncidencias.filter(i => i.Estado !== 'resuelta').length;
+                    const listaIncidencias = susIncidencias.length
+                        ? '<hr><strong>Incidencias (' + susIncidencias.length + ')</strong><ul style="margin:4px 0 0 16px;padding:0;">' +
+                          susIncidencias.map(i => '<li>' + escapar(i.Tipo) + ' - ' + escapar(i.Estado) + '<br><small>' + escapar(i.Descripcion) + '</small></li>').join('') + '</ul>'
+                        : '<hr><em>Sin incidencias</em>';
+                    L.circleMarker(coordenadas, { radius: 10, color: abiertas ? '#c62828' : '#fff', weight: abiertas ? 4 : 2, fillColor: color, fillOpacity: 0.9 })
+                        .bindPopup(`<strong>Contenedor N° ${escapar(c.Numero_Contenedor)}</strong><br>
+                            Tipo: ${escapar(c.Tipo_Residuo)}<br>
+                            Estado: ${escapar(c.Estado)}<br>
+                            Capacidad: ${escapar(c.Capacidad)}<br>
+                            Ubicación: ${escapar(c.Ubicacion)}<br>
+                            Municipio: ${escapar(municipio)}${listaIncidencias}`)
+                        .addTo(capa);
+                    puntos.push(coordenadas);
+                }
+                if (puntos.length) mapa.fitBounds(puntos, { padding: [40, 40], maxZoom: 16 });
+                estado.textContent = `${puntos.length} contenedores en el mapa` + (sinUbicar ? `, ${sinUbicar} sin ubicación encontrada.` : '.');
+            } catch (error) {
+                estado.textContent = error.message || 'No se pudo cargar el mapa.';
+            }
+        }
+
+        cargarMapa();
+    </script>
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+</html>

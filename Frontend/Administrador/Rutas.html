@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+    <style>
+        .multi-cuadrillas { position: relative; width: 200px; }
+        .multi-cuadrillas summary { height: 42px; border: 1px solid #dce3df; border-radius: 8px; padding: 0 13px; background: white; color: #59645f; cursor: pointer; display: flex; align-items: center; font-size: 13px; list-style: none; box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .multi-cuadrillas summary::-webkit-details-marker { display: none; }
+        .multi-cuadrillas[open] summary { border-color: #238b57; }
+        #cuadrillas-lista { position: absolute; top: 46px; left: 0; min-width: 260px; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #e1e7e4; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 50; padding: 6px 0; }
+        #cuadrillas-lista label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: #36443e; cursor: pointer; }
+        #cuadrillas-lista label:hover { background: #f1f4f2; }
+        #cuadrillas-lista small { color: #7a8680; }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="logo">
+            SIGERU
+        </div>
+
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+
+            <span id="admin-name"></span>
+
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html" class="active"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>Rutas</h1>
+
+                    <p>
+                        Gestión de las rutas de recolección.
+                    </p>
+
+                </div>
+
+                <button
+                    type="submit"
+                    form="form-ruta"
+                    class="add-button"
+                    id="add-route-btn">
+
+                    + Nueva ruta
+
+                </button>
+
+            </div>
+
+            <form id="form-ruta" class="filters">
+                <input type="hidden" id="Id_Ruta" value="">
+
+                <div class="search">
+                    <select id="Recorrido" required>
+                        <option value="" disabled selected>Destino final...</option>
+                        <option value="Felipe Cardoso">Felipe Cardoso</option>
+                        <option value="La Paloma">La Paloma</option>
+                        <option value="Durán">Durán</option>
+                        <option value="Géminis">Géminis</option>
+                        <option value="Burgues">Burgues</option>
+                    </select>
+                </div>
+                
+                <div class="search">
+                    <input type="time" id="Horario_Inicio" required>
+                </div>
+
+                <div class="search">
+                    <input type="time" id="Horario_Fin" required>
+                </div>
+
+                <div class="search">
+                    <select id="Frecuencia" required>
+                        <option value="" disabled selected>Frecuencia...</option>
+                        <option value="1 vez por semana">1 vez por semana</option>
+                        <option value="2 veces por semana">2 veces por semana</option>
+                        <option value="3 veces por semana">3 veces por semana</option>
+                        <option value="4 veces por semana">4 veces por semana</option>
+                        <option value="5 veces por semana">5 veces por semana</option>
+                        <option value="6 veces por semana">6 veces por semana</option>
+                        <option value="7 veces por semana">7 veces por semana</option>
+                        <option value="especifica">Días específicos</option>
+                    </select>
+                </div>
+
+                <div class="search" id="grupo-dias-especificos" hidden>
+                    <input type="text" id="dias-especificos" placeholder="Ej: lunes, miércoles y viernes">
+                </div>
+
+                <div class="search">
+                    <input type="number" id="Distancia" placeholder="Distancia" min="0" step="1" required>
+                </div>
+
+                <select id="estado" required>
+                    <option value="" disabled selected>Estado..</option>
+                    <option value="activa">Activa</option>
+                    <option value="inactiva">Inactiva</option>
+                </select>
+
+                <select id="id_municipio" required>
+                     <option value="" disabled selected>Municipio...</option>
+                </select>
+
+                <details class="multi-cuadrillas" id="cuadrillas-box">
+                    <summary id="cuadrillas-resumen">Cuadrillas (opcional)...</summary>
+                    <div id="cuadrillas-lista"></div>
+                </details>
+
+            </form>
+
+            <div class="filters" style="margin-top: 18px;">
+                
+                <div class="search">
+                    <input type="text" id="search-ruta" placeholder="Buscar ruta...">
+                </div>
+
+                <select id="filter-municipio-ruta">
+                    <option value="todos">Todos los municipios</option>
+                </select>
+
+                <select id="filter-estado-ruta">
+                    <option value="todos">Todos los estados</option>
+                    <option value="activa">Activa</option>
+                    <option value="inactiva">Inactiva</option>
+                </select>
+
+            </div>
+            
+            <section class="data-table">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Recorrido</th>
+                            <th>Horario</th>
+                            <th>Frecuencia</th>
+                            <th>Distancia</th>
+                            <th>Municipio</th>
+                            <th>Cuadrillas</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="routes-container"></tbody>
+
+                </table>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        const rutasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const municipiosApi = 'http://localhost/DESIPROYECTO/Backend/get_municipios.php';
+        let rutasOriginales = [];
+        let municipiosPorId = {};
+        let modoEdicion = false;
+        let rutaEditando = null;
+
+        document.getElementById('Frecuencia').addEventListener('change', actualizarFrecuencia);
+
+        function actualizarFrecuencia() {
+            const frecuencia = document.getElementById('Frecuencia').value;
+            const grupoDias = document.getElementById('grupo-dias-especificos');
+            const dias = document.getElementById('dias-especificos');
+            const esEspecifica = frecuencia === 'especifica';
+
+            grupoDias.hidden = !esEspecifica;
+            dias.required = esEspecifica;
+            if (!esEspecifica) dias.value = '';
+        }
+
+        async function solicitarJson(url, opciones) {
+            const respuesta = await fetch(url, opciones);
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') {
+                throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            }
+            return datos;
+        }
+
+        function escaparHtml(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[caracter]));
+        }
+
+        function cuadrillasSeleccionadas() {
+            return [...document.querySelectorAll('#cuadrillas-lista input:checked')].map(c => c.value).sort((a, b) => a - b);
+        }
+
+        function actualizarResumenCuadrillas() {
+            const ids = cuadrillasSeleccionadas();
+            document.getElementById('cuadrillas-resumen').textContent =
+                ids.length ? 'Cuadrillas: ' + ids.map(id => '#' + id).join(', ') : 'Cuadrillas (opcional)...';
+        }
+
+        function marcarCuadrillas(ids) {
+            const set = new Set(ids.map(String));
+            document.querySelectorAll('#cuadrillas-lista input').forEach(c => { c.checked = set.has(c.value); });
+            actualizarResumenCuadrillas();
+        }
+
+        function cargarCuadrillas() {
+            solicitarJson('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
+                .then(respuesta => {
+                    const lista = document.getElementById('cuadrillas-lista');
+                    lista.innerHTML = (respuesta.data || []).map(c => `
+                        <label>
+                            <input type="checkbox" value="${escaparHtml(c.Id_Cuadrilla)}">
+                            Cuadrilla #${escaparHtml(c.Id_Cuadrilla)} <small>${escaparHtml(c.Turno)}${c.Id_Ruta ? ' · hoy en ruta #' + escaparHtml(c.Id_Ruta) : ''}</small>
+                        </label>`).join('') || '<div class="empty-table-message" style="padding: 10px 14px;">No hay cuadrillas</div>';
+                    lista.querySelectorAll('input').forEach(c => c.addEventListener('change', actualizarResumenCuadrillas));
+                })
+                .catch(error => console.error('Error al cargar cuadrillas:', error));
+        }
+
+        document.addEventListener('click', event => {
+            const caja = document.getElementById('cuadrillas-box');
+            if (!caja.contains(event.target)) caja.open = false;
+        });
+
+        function resetearFormulario() {
+            modoEdicion = false;
+            rutaEditando = null;
+            document.getElementById('form-ruta').reset();
+            marcarCuadrillas([]);
+            document.getElementById('Id_Ruta').value = '';
+            document.getElementById('add-route-btn').textContent = '+ Nueva ruta';
+            actualizarFrecuencia();
+        }
+
+        function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, cuadrillas) {
+            horarioInicio = String(horarioInicio || '').slice(0, 5);
+            horarioFin = String(horarioFin || '').slice(0, 5);
+            rutaEditando = {
+                Id_Ruta: idRuta,
+                Recorrido: recorrido,
+                Horario_Inicio: horarioInicio,
+                Horario_Fin: horarioFin,
+                Frecuencia: frecuencia,
+                Distancia: distancia,
+                Estado: estado,
+                Id_Municipio: idMunicipio || '',
+                Cuadrillas: cuadrillas || ''
+            };
+
+            modoEdicion = true;
+            marcarCuadrillas(cuadrillas ? cuadrillas.split(',') : []);
+            document.getElementById('Id_Ruta').value = idRuta;
+            document.getElementById('Recorrido').value = recorrido;
+            document.getElementById('Horario_Inicio').value = horarioInicio;
+            document.getElementById('Horario_Fin').value = horarioFin;
+            document.getElementById('Frecuencia').value = frecuencia.includes('Días específicos:') ? 'especifica' : frecuencia;
+            const dias = document.getElementById('dias-especificos');
+            if (frecuencia.includes('Días específicos:')) {
+                dias.value = frecuencia.replace('Días específicos:', '').trim();
+            } else {
+                dias.value = '';
+            }
+            document.getElementById('Distancia').value = distancia;
+            document.getElementById('estado').value = estado;
+            document.getElementById('id_municipio').value = idMunicipio;
+            document.getElementById('add-route-btn').textContent = 'Guardar cambios';
+            actualizarFrecuencia();
+            document.getElementById('Recorrido').focus();
+        }
+
+        function eliminarRuta(idRuta) {
+            if (!confirm('¿Seguro que querés eliminar esta ruta?')) {
+                return;
+            }
+
+            solicitarJson(`${rutasApi}&accion=eliminar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Id_Ruta: idRuta })
+            })
+            .then(respuesta => {
+                alert(respuesta.message);
+                if (respuesta.status === 'success') {
+                    resetearFormulario();
+                    cargarRutas();
+                }
+            })
+            .catch(error => alert(error.message));
+        }
+
+        function cargarMunicipios() {
+            solicitarJson(municipiosApi)
+                .then(respuesta => {
+                    const select = document.getElementById('id_municipio');
+                    const filtroMunicipio = document.getElementById('filter-municipio-ruta');
+                    municipiosPorId = {};
+                    select.innerHTML = '<option value="" disabled selected>Municipio...</option>';
+                    filtroMunicipio.innerHTML = '<option value="todos">Todos los municipios</option>';
+                    respuesta.data.forEach(municipio => {
+                        municipiosPorId[String(municipio.id_municipio)] = municipio.nombre;
+                        select.innerHTML += `<option value="${escaparHtml(municipio.id_municipio)}">${escaparHtml(municipio.nombre)}</option>`;
+                        filtroMunicipio.innerHTML += `<option value="${escaparHtml(municipio.id_municipio)}">${escaparHtml(municipio.nombre)}</option>`;
+                    });
+                    if (rutasOriginales.length > 0) renderRutas(rutasOriginales);
+                })
+                .catch(error => {
+                    document.getElementById('id_municipio').innerHTML = '<option value="">Error al cargar municipios</option>';
+                    console.error('Error al cargar municipios:', error);
+                });
+        }
+
+        function renderRutas(rutas) {
+            const tbody = document.getElementById('routes-container');
+            tbody.innerHTML = rutas.length ? rutas.map(ruta => {
+                const idRuta = ruta.Id_Ruta ?? ruta.id_ruta ?? ruta.id ?? '';
+                const idMunicipio = ruta.Id_Municipio ?? ruta.id_municipio ?? '';
+                const municipio = municipiosPorId[String(idMunicipio)] || idMunicipio || '-';
+                return `
+                    <tr>
+                        <td>${escaparHtml(idRuta)}</td>
+                        <td>${escaparHtml(ruta.Recorrido)}</td>
+                        <td>${escaparHtml(ruta.Horario_Inicio)} - ${escaparHtml(ruta.Horario_Fin)}</td>
+                        <td>${escaparHtml(ruta.Frecuencia)}</td>
+                        <td>${escaparHtml(ruta.Distancia)} km</td>
+                        <td>${escaparHtml(municipio)}</td>
+                        <td>${ruta.Cuadrillas ? escaparHtml(ruta.Cuadrillas.split(',').map(id => '#' + id).join(', ')) : '-'}</td>
+                        <td>${escaparHtml(ruta.Estado)}</td>
+                        <td>
+                            <button class="edit" type="button">Editar</button>
+                            <button class="delete" type="button">Eliminar</button>
+                        </td>
+                    </tr>`;
+            }).join('') : '<tr><td colspan="9" class="empty-table-message">No se encontraron rutas</td></tr>';
+
+            tbody.querySelectorAll('.edit').forEach((boton, indice) => {
+                boton.addEventListener('click', () => {
+                    const ruta = rutas[indice];
+                    prepararEdicion(
+                        ruta.Id_Ruta ?? ruta.id_ruta ?? ruta.id,
+                        ruta.Recorrido || '',
+                        ruta.Horario_Inicio || '',
+                        ruta.Horario_Fin || '',
+                        ruta.Frecuencia || '',
+                        ruta.Distancia ?? '',
+                        ruta.Estado || '',
+                        ruta.Id_Municipio ?? ruta.id_municipio ?? '',
+                        ruta.Cuadrillas || ''
+                    );
+                });
+            });
+            tbody.querySelectorAll('.delete').forEach((boton, indice) => {
+                boton.addEventListener('click', () => eliminarRuta(rutas[indice].Id_Ruta ?? rutas[indice].id_ruta ?? rutas[indice].id));
+            });
+        }
+
+        function cargarRutas() {
+            solicitarJson(rutasApi)
+                .then(respuesta => {
+                    rutasOriginales = Array.isArray(respuesta.data) ? respuesta.data : [];
+                    renderRutas(rutasOriginales);
+                })
+                .catch(error => {
+                    document.getElementById('routes-container').innerHTML =
+                        `<tr><td colspan="9" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+                });
+        }
+
+        function filtrarRutas() {
+            const termino = document.getElementById('search-ruta').value.toLowerCase().trim();
+            const estadoSeleccionado = document.getElementById('filter-estado-ruta').value;
+            const municipioSeleccionado = document.getElementById('filter-municipio-ruta').value;
+            const filtradas = rutasOriginales.filter(ruta => {
+                const idMunicipio = ruta.Id_Municipio ?? ruta.id_municipio ?? '';
+                const nombreMunicipio = municipiosPorId[String(idMunicipio)] || '';
+                const texto = `${ruta.Id_Ruta || ''} ${ruta.Recorrido || ''} ${ruta.Estado || ''} ${ruta.Horario_Inicio || ''} ${ruta.Horario_Fin || ''} ${ruta.Frecuencia || ''} ${ruta.Distancia || ''} ${ruta.Id_Municipio || ''} ${nombreMunicipio}`.toLowerCase();
+                const coincideTexto = texto.includes(termino);
+                const coincideEstado = estadoSeleccionado === 'todos' || String(ruta.Estado || '').toLowerCase() === estadoSeleccionado;
+                const coincideMunicipio = municipioSeleccionado === 'todos' || String(idMunicipio) === municipioSeleccionado;
+                return coincideTexto && coincideEstado && coincideMunicipio;
+            });
+            renderRutas(filtradas);
+        }
+
+        document.getElementById('search-ruta').addEventListener('input', filtrarRutas);
+        document.getElementById('filter-estado-ruta').addEventListener('change', filtrarRutas);
+        document.getElementById('filter-municipio-ruta').addEventListener('change', filtrarRutas);
+
+        document.getElementById('form-ruta').addEventListener('submit', event => {
+            event.preventDefault();
+            const datos = {
+                Id_Ruta: document.getElementById('Id_Ruta').value,
+                Recorrido: document.getElementById('Recorrido').value,
+                Horario_Inicio: document.getElementById('Horario_Inicio').value,
+                Horario_Fin: document.getElementById('Horario_Fin').value,
+                Frecuencia: document.getElementById('Frecuencia').value === 'especifica'
+                    ? `Días específicos: ${document.getElementById('dias-especificos').value.trim()}`
+                    : document.getElementById('Frecuencia').value,
+                Distancia: document.getElementById('Distancia').value,
+                Estado: document.getElementById('estado').value,
+                Id_Municipio: document.getElementById('id_municipio').value,
+                cuadrillas: cuadrillasSeleccionadas()
+            };
+
+            if (modoEdicion && rutaEditando) {
+                const sinCambios =
+                    String(rutaEditando.Recorrido || '') === String(datos.Recorrido || '') &&
+                    String(rutaEditando.Horario_Inicio || '') === String(datos.Horario_Inicio || '') &&
+                    String(rutaEditando.Horario_Fin || '') === String(datos.Horario_Fin || '') &&
+                    String(rutaEditando.Frecuencia || '') === String(datos.Frecuencia || '') &&
+                    String(rutaEditando.Distancia || '') === String(datos.Distancia || '') &&
+                    String(rutaEditando.Estado || '') === String(datos.Estado || '') &&
+                    String(rutaEditando.Id_Municipio || '') === String(datos.Id_Municipio || '') &&
+                    String(rutaEditando.Cuadrillas || '') === datos.cuadrillas.join(',');
+
+                if (sinCambios) {
+                    alert('No se realizaron cambios(Se canceló la edición).');
+                    resetearFormulario();
+                    return;
+                }
+            }
+
+            const accion = modoEdicion ? 'editar' : 'crear';
+            solicitarJson(`${rutasApi}&accion=${accion}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+            .then(respuesta => {
+                alert(respuesta.message);
+                if (respuesta.status === 'success') {
+                    resetearFormulario();
+                    cargarRutas();
+                    cargarCuadrillas();
+                }
+            })
+            .catch(error => alert(error.message));
+        });
+
+        cargarMunicipios();
+        cargarRutas();
+        cargarCuadrillas();
+        resetearFormulario();
+    </script>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>

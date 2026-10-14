@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuadrillas - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=3">
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        <div class="logo">
+            SIGERU
+        </div>
+
+        <div class="topbar-title">Panel admin</div>
+
+        <div class="admin-info">
+
+            <span id="admin-name"></span>
+
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </header>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <nav>
+				<a href="panel.html"><span>▣</span>Panel principal</a>
+				<a href="Empleados.html"><span>♙</span>Empleados</a>
+				<a href="rutas.html"><span>♧</span>Rutas</a>
+				<a href="cuadrillas.html" class="active"><span>▤</span>Cuadrillas</a>
+				<a href="Camiones.html"><span>▱</span>Camiones</a>
+				<a href="contenedores.html"><span>♢</span>Contenedores</a>
+				<a href="Incidencias.html"><span>!</span>Incidencias</a>
+				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+			</nav>
+
+        </aside>
+
+        <main class="main-content">
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>Cuadrillas</h1>
+
+                    <p>
+                        Gestión de las cuadrillas de trabajo.
+                    </p>
+
+                </div>
+
+                <button
+                    class="add-button"
+                    id="add-crew-btn"
+                    type="submit"
+                    form="crew-form">
+
+                    + Nueva cuadrilla
+
+                </button>
+
+            </div>
+
+            <form id="crew-form" class="filters">
+                <input type="hidden" id="crew-id">
+
+                <select id="crew-shift" required>
+                    <option value="" disabled selected>Turno...</option>
+                    <option value="mañana">Mañana</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="noche">Noche</option>
+                </select>
+
+                <div class="search">
+                    <input type="number" id="crew-members" placeholder="Cantidad de integrantes" min="1" max="100" step="1" required>
+                </div>
+
+                <select id="crew-route">
+                    <option value="">Ruta asignada (opcional)...</option>
+                </select>
+
+                <div class="search">
+                    <input type="text" id="crew-cedulas" placeholder="Cédulas de integrantes (separadas por coma)">
+                </div>
+            </form>
+
+            <div class="filters">
+
+                <div class="search">
+
+                    <input
+                        type="text"
+                        id="search-crew"
+                        placeholder="Buscar cuadrilla...">
+
+                </div>
+
+                <select id="crew-shift-filter">
+
+                    <option value="">
+                        Todos los turnos
+                    </option>
+
+                    <option value="mañana">
+                        Mañana
+                    </option>
+
+                    <option value="tarde">
+                        Tarde
+                    </option>
+
+                    <option value="noche">
+                        Noche
+                    </option>
+
+                </select>
+
+            </div>
+
+            <section class="data-table">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Turno</th>
+                            <th>Integrantes</th>
+                            <th>Cédulas</th>
+                            <th>Ruta</th>
+                            <th>Acciones</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="crews-container"></tbody>
+
+                </table>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        const cuadrillasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
+        const formularioCuadrilla = document.getElementById('crew-form');
+        let cuadrillas = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            formularioCuadrilla.addEventListener('submit', guardarCuadrilla);
+            document.getElementById('search-crew').addEventListener('input', filtrarCuadrillas);
+            document.getElementById('crew-shift-filter').addEventListener('change', filtrarCuadrillas);
+            cargarRutas();
+            cargarCuadrillas();
+        });
+
+        async function solicitarJson(url, opciones) {
+            const respuesta = await fetch(url, opciones);
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status === 'error') {
+                throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            }
+            return datos;
+        }
+
+        function escaparHtml(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[caracter]));
+        }
+
+        const rutasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        let rutas = [];
+
+        function nombreRuta(id) {
+            const ruta = rutas.find(r => String(r.Id_Ruta) === String(id));
+            return ruta ? `#${ruta.Id_Ruta} - ${ruta.Recorrido}` : `#${id}`;
+        }
+
+        async function cargarRutas() {
+            try {
+                const respuesta = await solicitarJson(rutasApi);
+                rutas = respuesta.data || [];
+                document.getElementById('crew-route').innerHTML = '<option value="">Ruta asignada (opcional)...</option>' +
+                    rutas.map(r => `<option value="${escaparHtml(r.Id_Ruta)}">#${escaparHtml(r.Id_Ruta)} - ${escaparHtml(r.Recorrido)}</option>`).join('');
+                filtrarCuadrillas();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function cargarCuadrillas() {
+            try {
+                const respuesta = await solicitarJson(cuadrillasApi);
+                cuadrillas = Array.isArray(respuesta.data) ? respuesta.data : [];
+                filtrarCuadrillas();
+            } catch (error) {
+                document.getElementById('crews-container').innerHTML =
+                    `<tr><td colspan="6" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+            }
+        }
+
+        function filtrarCuadrillas() {
+            const texto = document.getElementById('search-crew').value.trim().toLowerCase();
+            const turno = document.getElementById('crew-shift-filter').value;
+            const filtradas = cuadrillas.filter(cuadrilla =>
+                (`${cuadrilla.Id_Cuadrilla} ${cuadrilla.Turno} ${cuadrilla.Num_integrantes} ${cuadrilla.Cedulas || ''}`).toLowerCase().includes(texto) &&
+                (!turno || cuadrilla.Turno === turno)
+            );
+            const tbody = document.getElementById('crews-container');
+            tbody.innerHTML = filtradas.length ? filtradas.map(cuadrilla => `
+                <tr>
+                    <td>${escaparHtml(cuadrilla.Id_Cuadrilla)}</td>
+                    <td>${escaparHtml(cuadrilla.Turno)}</td>
+                    <td>${escaparHtml(cuadrilla.Num_integrantes)}</td>
+                    <td>${escaparHtml(cuadrilla.Cedulas || '')}</td>
+                    <td>${cuadrilla.Id_Ruta ? escaparHtml(nombreRuta(cuadrilla.Id_Ruta)) : '-'}</td>
+                    <td><button class="edit" type="button">Editar</button> <button class="delete" type="button">Eliminar</button></td>
+                </tr>`).join('') : '<tr><td colspan="6" class="empty-table-message">No se encontraron cuadrillas</td></tr>';
+
+            tbody.querySelectorAll('.edit').forEach((boton, indice) => {
+                boton.addEventListener('click', () => editarCuadrilla(filtradas[indice]));
+            });
+            tbody.querySelectorAll('.delete').forEach((boton, indice) => {
+                boton.addEventListener('click', () => eliminarCuadrilla(filtradas[indice].Id_Cuadrilla));
+            });
+        }
+
+        function editarCuadrilla(cuadrilla) {
+            document.getElementById('crew-id').value = cuadrilla.Id_Cuadrilla;
+            document.getElementById('crew-shift').value = cuadrilla.Turno || '';
+            document.getElementById('crew-members').value = cuadrilla.Num_integrantes || 1;
+            document.getElementById('crew-cedulas').value = cuadrilla.Cedulas || '';
+            document.getElementById('crew-route').value = cuadrilla.Id_Ruta || '';
+            document.getElementById('add-crew-btn').textContent = 'Guardar cambios';
+            document.getElementById('crew-shift').focus();
+        }
+
+        async function guardarCuadrilla(event) {
+            event.preventDefault();
+            const id = document.getElementById('crew-id').value;
+            const datos = {
+                Turno: document.getElementById('crew-shift').value,
+                Num_integrantes: Number(document.getElementById('crew-members').value),
+                Cedulas: document.getElementById('crew-cedulas').value,
+                Id_Ruta: document.getElementById('crew-route').value
+            };
+            const url = id ? `${cuadrillasApi}&id=${encodeURIComponent(id)}` : cuadrillasApi;
+
+            try {
+                const respuesta = await solicitarJson(url, {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                alert(respuesta.message);
+                resetearFormularioCuadrilla();
+                cargarCuadrillas();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function eliminarCuadrilla(id) {
+            if (!confirm('¿Eliminar esta cuadrilla?')) return;
+            try {
+                const respuesta = await solicitarJson(`${cuadrillasApi}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+                alert(respuesta.message);
+                cargarCuadrillas();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function resetearFormularioCuadrilla() {
+            formularioCuadrilla.reset();
+            document.getElementById('crew-id').value = '';
+            document.getElementById('add-crew-btn').textContent = '+ Nueva cuadrilla';
+        }
+    </script>
+
+    <script src="../js/admin-auth.js?v=18" defer></script>
+</body>
+
+</html>
