@@ -278,7 +278,9 @@ class Contenedores
                     Ubicacion,
                     Estado,
                     Id_Municipio,
-                    Id_Incidencia
+                    Id_Incidencia,
+                    Latitud,
+                    Longitud
              FROM contenedor"
         );
 

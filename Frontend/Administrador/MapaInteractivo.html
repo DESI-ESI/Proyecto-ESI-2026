@@ -68,14 +68,6 @@
         const apiBase = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=';
         const limitesMontevideo = L.latLngBounds([-34.95, -56.43], [-34.70, -56.01]);
         const colores = { activo: '#238b57', inactivo: '#d64545', reserva: '#e0a030' };
-        const contenedoresDemo = [
-            [-34.855, -56.190], [-34.858, -56.174], [-34.861, -56.157], [-34.864, -56.204],
-            [-34.867, -56.184], [-34.870, -56.166], [-34.873, -56.148], [-34.876, -56.211],
-            [-34.879, -56.193], [-34.882, -56.175], [-34.885, -56.157], [-34.888, -56.139],
-            [-34.891, -56.204], [-34.894, -56.186], [-34.897, -56.168], [-34.900, -56.150],
-            [-34.903, -56.132], [-34.906, -56.197], [-34.909, -56.179], [-34.912, -56.161],
-            [-34.915, -56.143], [-34.918, -56.188], [-34.921, -56.170], [-34.924, -56.152]
-        ];
         const mapa = L.map('map', { maxBounds: limitesMontevideo.pad(0.1), minZoom: 11 }).setView([-34.88, -56.17], 12);
         const capa = L.layerGroup().addTo(mapa);
 
@@ -90,7 +82,6 @@
             div.innerHTML = '<strong>Estado del contenedor</strong>' +
                 Object.entries(colores).map(([estado, color]) =>
                     `<div><i style="background:${color}"></i>${estado.charAt(0).toUpperCase() + estado.slice(1)}</div>`).join('') +
-                '<div><i style="background:#607d8b"></i>Contenedor de demostración</div>' +
                 '<div><i style="background:#fff;border:3px solid #c62828;box-sizing:border-box"></i>Con incidencias abiertas</div>';
             return div;
         };
@@ -112,6 +103,10 @@
         const separadorCalles = ' esq. ';
 
         function ubicarContenedor(c) {
+            if (c.Latitud !== null && c.Latitud !== '' && c.Longitud !== null && c.Longitud !== '') {
+                const punto = [Number(c.Latitud), Number(c.Longitud)];
+                if (punto.every(Number.isFinite)) return punto;
+            }
             const [calle1, calle2] = String(c.Ubicacion || '').split(separadorCalles).map(calle => calle.trim());
             return GeoMontevideo.ubicarCalles(calle1, calle2);
         }
@@ -152,21 +147,9 @@
                         .addTo(capa);
                     puntos.push(coordenadas);
                 }
-                contenedoresDemo.forEach((coordenadas, indice) => {
-                    L.circleMarker(coordenadas, {
-                        radius: 8,
-                        color: '#fff',
-                        weight: 2,
-                        fillColor: '#607d8b',
-                        fillOpacity: 0.95
-                    })
-                        .bindPopup(`<strong>Contenedor de demostración ${indice + 1}</strong><br>No está guardado en la base de datos.`)
-                        .addTo(capa);
-                    puntos.push(coordenadas);
-                });
                 if (puntos.length) mapa.fitBounds(puntos, { padding: [40, 40], maxZoom: 16 });
-                estado.textContent = `${contenedores.length} contenedores registrados y ${contenedoresDemo.length} de demostración (no guardados)` +
-                    (sinUbicar ? `; ${sinUbicar} registrados sin ubicación encontrada.` : '.');
+                estado.textContent = `${puntos.length} contenedores en el mapa` +
+                    (sinUbicar ? `; ${sinUbicar} sin ubicación encontrada.` : '.');
             } catch (error) {
                 estado.textContent = error.message || 'No se pudo cargar el mapa.';
             }

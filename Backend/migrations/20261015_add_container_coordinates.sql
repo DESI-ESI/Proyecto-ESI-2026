@@ -1,0 +1,3 @@
+ALTER TABLE contenedor
+    ADD COLUMN Latitud DECIMAL(10, 7) NULL,
+    ADD COLUMN Longitud DECIMAL(10, 7) NULL;

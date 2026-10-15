@@ -127,6 +127,10 @@
         const separadorCalles = ' esq. ';
 
         function ubicarContenedor(c) {
+            if (c.Latitud !== null && c.Latitud !== '' && c.Longitud !== null && c.Longitud !== '') {
+                const punto = [Number(c.Latitud), Number(c.Longitud)];
+                if (punto.every(Number.isFinite)) return punto;
+            }
             const [calle1, calle2] = String(c.Ubicacion || '').split(separadorCalles).map(calle => calle.trim());
             return GeoMontevideo.ubicarCalles(calle1, calle2);
         }
