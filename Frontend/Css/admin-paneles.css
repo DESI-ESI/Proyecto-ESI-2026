@@ -88,6 +88,10 @@ body {
     bottom: 0;
     left: 0;
     padding: 25px 15px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
 }
 
 .sidebar nav {
