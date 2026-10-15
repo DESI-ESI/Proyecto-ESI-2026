@@ -12,9 +12,10 @@
         .multi-cuadrillas summary::-webkit-details-marker { display: none; }
         .multi-cuadrillas[open] summary { border-color: #238b57; }
         #cuadrillas-lista { position: absolute; top: 46px; left: 0; min-width: 260px; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #e1e7e4; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 50; padding: 6px 0; }
-        #cuadrillas-lista label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: #36443e; cursor: pointer; }
-        #cuadrillas-lista label:hover { background: #f1f4f2; }
-        #cuadrillas-lista small { color: #7a8680; }
+        #contenedores-lista { position: absolute; top: 46px; left: 0; min-width: 280px; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #e1e7e4; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 50; padding: 6px 0; }
+        #cuadrillas-lista label, #contenedores-lista label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: #36443e; cursor: pointer; }
+        #cuadrillas-lista label:hover, #contenedores-lista label:hover { background: #f1f4f2; }
+        #cuadrillas-lista small, #contenedores-lista small { color: #7a8680; }
     </style>
 </head>
 
@@ -146,6 +147,10 @@
                     <summary id="cuadrillas-resumen">Cuadrillas (opcional)...</summary>
                     <div id="cuadrillas-lista"></div>
                 </details>
+                <details class="multi-cuadrillas" id="contenedores-box">
+                    <summary id="contenedores-resumen">Contenedores (opcional)...</summary>
+                    <div id="contenedores-lista"></div>
+                </details>
 
             </form>
 
@@ -181,6 +186,7 @@
                             <th>Distancia</th>
                             <th>Municipio</th>
                             <th>Cuadrillas</th>
+                            <th>Contenedores</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -199,8 +205,10 @@
 
     <script>
         const rutasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const contenedoresApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
         const municipiosApi = 'http://localhost/DESIPROYECTO/Backend/get_municipios.php';
         let rutasOriginales = [];
+        let contenedoresDisponibles = [];
         let municipiosPorId = {};
         let modoEdicion = false;
         let rutaEditando = null;
@@ -249,6 +257,48 @@
             actualizarResumenCuadrillas();
         }
 
+        function contenedoresSeleccionados() {
+            return [...document.querySelectorAll('#contenedores-lista input:checked')]
+                .map(input => input.value)
+                .sort((a, b) => Number(a) - Number(b));
+        }
+
+        function actualizarResumenContenedores() {
+            const cantidad = contenedoresSeleccionados().length;
+            document.getElementById('contenedores-resumen').textContent =
+                cantidad ? `Contenedores: ${cantidad} seleccionados` : 'Contenedores (opcional)...';
+        }
+
+        function marcarContenedores(ids) {
+            const seleccionados = new Set(ids.map(String));
+            document.querySelectorAll('#contenedores-lista input').forEach(input => {
+                input.checked = seleccionados.has(input.value);
+            });
+            actualizarResumenContenedores();
+        }
+
+        function cargarContenedores() {
+            solicitarJson(contenedoresApi)
+                .then(respuesta => {
+                    contenedoresDisponibles = Array.isArray(respuesta.data) ? respuesta.data : [];
+                    const lista = document.getElementById('contenedores-lista');
+                    lista.innerHTML = contenedoresDisponibles.map(contenedor => `
+                        <label>
+                            <input type="checkbox" value="${escaparHtml(contenedor.Id_Contenedor)}">
+                            N° ${escaparHtml(contenedor.Numero_Contenedor)} <small>${escaparHtml(contenedor.Ubicacion)}</small>
+                        </label>`).join('') ||
+                        '<div class="empty-table-message" style="padding: 10px 14px;">No hay contenedores registrados</div>';
+                    lista.querySelectorAll('input').forEach(input => {
+                        input.addEventListener('change', actualizarResumenContenedores);
+                    });
+                    actualizarResumenContenedores();
+                })
+                .catch(error => {
+                    document.getElementById('contenedores-lista').textContent =
+                        `No se pudieron cargar los contenedores: ${error.message}`;
+                });
+        }
+
         function cargarCuadrillas() {
             solicitarJson('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
                 .then(respuesta => {
@@ -265,7 +315,9 @@
 
         document.addEventListener('click', event => {
             const caja = document.getElementById('cuadrillas-box');
+            const cajaContenedores = document.getElementById('contenedores-box');
             if (!caja.contains(event.target)) caja.open = false;
+            if (!cajaContenedores.contains(event.target)) cajaContenedores.open = false;
         });
 
         function resetearFormulario() {
@@ -273,12 +325,13 @@
             rutaEditando = null;
             document.getElementById('form-ruta').reset();
             marcarCuadrillas([]);
+            marcarContenedores([]);
             document.getElementById('Id_Ruta').value = '';
             document.getElementById('add-route-btn').textContent = '+ Nueva ruta';
             actualizarFrecuencia();
         }
 
-        function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, cuadrillas) {
+        function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, cuadrillas, contenedoresAsignados) {
             horarioInicio = String(horarioInicio || '').slice(0, 5);
             horarioFin = String(horarioFin || '').slice(0, 5);
             rutaEditando = {
@@ -290,11 +343,13 @@
                 Distancia: distancia,
                 Estado: estado,
                 Id_Municipio: idMunicipio || '',
-                Cuadrillas: cuadrillas || ''
+                Cuadrillas: cuadrillas || '',
+                Contenedores: contenedoresAsignados || ''
             };
 
             modoEdicion = true;
             marcarCuadrillas(cuadrillas ? cuadrillas.split(',') : []);
+            marcarContenedores(contenedoresAsignados ? contenedoresAsignados.split(',') : []);
             document.getElementById('Id_Ruta').value = idRuta;
             document.getElementById('Recorrido').value = recorrido;
             document.getElementById('Horario_Inicio').value = horarioInicio;
@@ -370,13 +425,14 @@
                         <td>${escaparHtml(ruta.Distancia)} km</td>
                         <td>${escaparHtml(municipio)}</td>
                         <td>${ruta.Cuadrillas ? escaparHtml(ruta.Cuadrillas.split(',').map(id => '#' + id).join(', ')) : '-'}</td>
+                        <td>${ruta.Numeros_Contenedores ? escaparHtml(ruta.Numeros_Contenedores.split(',').map(numero => 'N° ' + numero).join(', ')) : '-'}</td>
                         <td>${escaparHtml(ruta.Estado)}</td>
                         <td>
                             <button class="edit" type="button">Editar</button>
                             <button class="delete" type="button">Eliminar</button>
                         </td>
                     </tr>`;
-            }).join('') : '<tr><td colspan="9" class="empty-table-message">No se encontraron rutas</td></tr>';
+            }).join('') : '<tr><td colspan="10" class="empty-table-message">No se encontraron rutas</td></tr>';
 
             tbody.querySelectorAll('.edit').forEach((boton, indice) => {
                 boton.addEventListener('click', () => {
@@ -390,7 +446,8 @@
                         ruta.Distancia ?? '',
                         ruta.Estado || '',
                         ruta.Id_Municipio ?? ruta.id_municipio ?? '',
-                        ruta.Cuadrillas || ''
+                        ruta.Cuadrillas || '',
+                        ruta.Contenedores || ''
                     );
                 });
             });
@@ -444,7 +501,8 @@
                 Distancia: document.getElementById('Distancia').value,
                 Estado: document.getElementById('estado').value,
                 Id_Municipio: document.getElementById('id_municipio').value,
-                cuadrillas: cuadrillasSeleccionadas()
+                cuadrillas: cuadrillasSeleccionadas(),
+                contenedores: contenedoresSeleccionados()
             };
 
             if (modoEdicion && rutaEditando) {
@@ -456,7 +514,8 @@
                     String(rutaEditando.Distancia || '') === String(datos.Distancia || '') &&
                     String(rutaEditando.Estado || '') === String(datos.Estado || '') &&
                     String(rutaEditando.Id_Municipio || '') === String(datos.Id_Municipio || '') &&
-                    String(rutaEditando.Cuadrillas || '') === datos.cuadrillas.join(',');
+                    String(rutaEditando.Cuadrillas || '') === datos.cuadrillas.join(',') &&
+                    String(rutaEditando.Contenedores || '') === datos.contenedores.join(',');
 
                 if (sinCambios) {
                     alert('No se realizaron cambios(Se canceló la edición).');
@@ -477,6 +536,7 @@
                     resetearFormulario();
                     cargarRutas();
                     cargarCuadrillas();
+                    cargarContenedores();
                 }
             })
             .catch(error => alert(error.message));
