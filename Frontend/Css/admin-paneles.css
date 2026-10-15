@@ -446,6 +446,16 @@ tbody tr:hover {
         flex-direction: column;
     }
 
+    .filters > .search {
+        flex: 0 1 auto;
+        width: 100%;
+    }
+
+    .filters select,
+    .filters > small {
+        flex: 0 1 auto;
+    }
+
     .filters select {
         width: 100%;
         height: 42px;
