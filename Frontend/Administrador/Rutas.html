@@ -278,7 +278,7 @@
         }
 
         function cargarContenedores() {
-            solicitarJson(contenedoresApi)
+            return solicitarJson(contenedoresApi)
                 .then(respuesta => {
                     contenedoresDisponibles = Array.isArray(respuesta.data) ? respuesta.data : [];
                     const lista = document.getElementById('contenedores-lista');
@@ -534,9 +534,8 @@
                 alert(respuesta.message);
                 if (respuesta.status === 'success') {
                     resetearFormulario();
-                    cargarRutas();
                     cargarCuadrillas();
-                    cargarContenedores();
+                    cargarContenedores().then(cargarRutas);
                 }
             })
             .catch(error => alert(error.message));
