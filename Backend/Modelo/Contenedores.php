@@ -303,7 +303,9 @@ class Contenedores
                     Ubicacion = :ubicacion,
                     Estado = :estado,
                     Id_Municipio = :municipio,
-                    Id_Incidencia = :incidencia
+                    Id_Incidencia = :incidencia,
+                    Latitud = :latitud,
+                    Longitud = :longitud
                 WHERE Id_Contenedor = :id";
 
         $stmt = $pdo->prepare($sql);
@@ -316,6 +318,8 @@ class Contenedores
             ':estado' => $datos['estado'],
             ':municipio' => $datos['id_municipio'],
             ':incidencia' => $datos['id_incidencia'] ?? null,
+            ':latitud' => $datos['latitud'] ?? null,
+            ':longitud' => $datos['longitud'] ?? null,
             ':id' => $idContenedor
         ]);
     }

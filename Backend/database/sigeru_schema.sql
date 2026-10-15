@@ -78,6 +78,8 @@ CREATE TABLE `contenedor` (
   `Estado` varchar(50) DEFAULT NULL,
   `Id_Municipio` int(11) NOT NULL,
   `Id_Incidencia` int(11) DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL,
   PRIMARY KEY (`Id_Contenedor`),
   UNIQUE KEY `uq_contenedor_numero` (`Numero_Contenedor`),
   KEY `Id_Municipio` (`Id_Municipio`),

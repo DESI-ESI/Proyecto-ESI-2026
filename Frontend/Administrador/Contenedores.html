@@ -289,7 +289,9 @@
                 tipo_residuo: contenedor.Tipo_Residuo || '',
                 capacidad: contenedor.Capacidad || '',
                 estado: contenedor.Estado || 'activo',
-                id_municipio: contenedor.Id_Municipio || ''
+                id_municipio: contenedor.Id_Municipio || '',
+                latitud: contenedor.Latitud,
+                longitud: contenedor.Longitud
             };
 
             document.getElementById('add-container-btn').textContent = 'Guardar cambios';
@@ -333,21 +335,38 @@
         }
         async function guardarContenedor(event) {
             event.preventDefault();
-            await deteccionMunicipio;
-            await detectarMunicipio();
+            const id = document.getElementById('container-id').value;
+            const ubicacion = [
+                document.getElementById('container-location').value.trim(),
+                document.getElementById('container-location2').value.trim()
+            ].join(separadorCalles);
+            const conservaCoordenadas = Boolean(
+                id &&
+                contenedorEditando &&
+                contenedorEditando.latitud !== null &&
+                contenedorEditando.latitud !== undefined &&
+                contenedorEditando.longitud !== null &&
+                contenedorEditando.longitud !== undefined &&
+                ubicacion === contenedorEditando.ubicacion
+            );
+            if (!conservaCoordenadas) {
+                await deteccionMunicipio;
+                await detectarMunicipio();
+            }
             if (!document.getElementById('container-municipality').value) {
                 alert('No se pudo determinar el municipio. Revisá que las calles estén bien escritas.');
                 return;
             }
-            const id = document.getElementById('container-id').value;
             const datos = {
                 id,
                 numero_contenedor: document.getElementById('container-number').value ? Number(document.getElementById('container-number').value) : '',
-                ubicacion: [document.getElementById('container-location').value.trim(), document.getElementById('container-location2').value.trim()].join(separadorCalles),
+                ubicacion,
                 tipo_residuo: document.getElementById('container-type').value.trim(),
                 capacidad: Number(document.getElementById('container-capacity').value),
                 estado: document.getElementById('container-status').value,
-                id_municipio: Number(document.getElementById('container-municipality').value)
+                id_municipio: Number(document.getElementById('container-municipality').value),
+                latitud: conservaCoordenadas ? Number(contenedorEditando.latitud) : null,
+                longitud: conservaCoordenadas ? Number(contenedorEditando.longitud) : null
             };
 
             if (id && contenedorEditando) {
