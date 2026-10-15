@@ -464,7 +464,7 @@
                 })
                 .catch(error => {
                     document.getElementById('routes-container').innerHTML =
-                        `<tr><td colspan="9" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+                        `<tr><td colspan="10" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
                 });
         }
 
@@ -535,15 +535,15 @@
                 if (respuesta.status === 'success') {
                     resetearFormulario();
                     cargarCuadrillas();
-                    cargarContenedores().then(cargarRutas);
+                    cargarRutas();
                 }
             })
             .catch(error => alert(error.message));
         });
 
         cargarMunicipios();
-        cargarRutas();
         cargarCuadrillas();
+        cargarContenedores().then(cargarRutas);
         resetearFormulario();
     </script>
 
