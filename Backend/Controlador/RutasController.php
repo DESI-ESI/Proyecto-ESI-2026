@@ -13,12 +13,15 @@ class RutasController
     {
         $ruta = $this->crearRutaDesdeDatos($datos);
         $cuadrillas = $this->leerCuadrillas($pdo, $datos);
+        $contenedores = $this->leerContenedores($pdo, $datos);
 
         $pdo->beginTransaction();
         try {
             $ok = $ruta->crear($pdo);
             if ($ok) {
-                $this->sincronizarCuadrillas($pdo, (int) $pdo->lastInsertId(), $cuadrillas);
+                $idRuta = (int) $pdo->lastInsertId();
+                $this->sincronizarCuadrillas($pdo, $idRuta, $cuadrillas);
+                $this->sincronizarContenedores($pdo, $idRuta, $contenedores);
             }
             $pdo->commit();
         } catch (Throwable $e) {
@@ -36,6 +39,7 @@ class RutasController
 
         $ruta = $this->crearRutaDesdeDatos($datos);
         $cuadrillas = $this->leerCuadrillas($pdo, $datos);
+        $contenedores = $this->leerContenedores($pdo, $datos);
 
         $pdo->beginTransaction();
         try {
@@ -57,6 +61,7 @@ class RutasController
             }
 
             $this->sincronizarCuadrillas($pdo, $idRuta, $cuadrillas);
+            $this->sincronizarContenedores($pdo, $idRuta, $contenedores);
             $pdo->commit();
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -101,6 +106,41 @@ class RutasController
         $insertar = $pdo->prepare('INSERT IGNORE INTO realiza (Id_Ruta, Id_Cuadrilla) VALUES (?, ?)');
         foreach ($ids as $id) {
             $insertar->execute([$idRuta, $id]);
+        }
+    }
+
+    private function leerContenedores(PDO $pdo, array $datos): array
+    {
+        $crudo = $datos['contenedores'] ?? [];
+        if (!is_array($crudo)) {
+            throw new InvalidArgumentException('Contenedores inválidos.');
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $crudo), fn($id) => $id > 0)));
+        if ($ids) {
+            $marcas = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM contenedor WHERE Id_Contenedor IN ($marcas)");
+            $stmt->execute($ids);
+            if ((int) $stmt->fetchColumn() !== count($ids)) {
+                throw new InvalidArgumentException('Alguno de los contenedores seleccionados no existe.');
+            }
+        }
+        return $ids;
+    }
+
+    private function sincronizarContenedores(PDO $pdo, int $idRuta, array $ids): void
+    {
+        if ($ids) {
+            $marcas = implode(',', array_fill(0, count($ids), '?'));
+            $pdo->prepare("DELETE FROM existe WHERE Id_Ruta = ? AND Id_Contenedor NOT IN ($marcas)")
+                ->execute(array_merge([$idRuta], $ids));
+        } else {
+            $pdo->prepare('DELETE FROM existe WHERE Id_Ruta = ?')->execute([$idRuta]);
+        }
+
+        $insertar = $pdo->prepare('INSERT IGNORE INTO existe (Id_Contenedor, Id_Ruta) VALUES (?, ?)');
+        foreach ($ids as $id) {
+            $insertar->execute([$id, $idRuta]);
         }
     }
 
