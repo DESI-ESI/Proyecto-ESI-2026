@@ -6,6 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cuadrillas - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=6">
+    <style>
+        .multi-empleados { position: relative; flex: 1 1 240px; min-width: 0; max-width: 100%; }
+        .multi-empleados summary { min-height: 42px; border: 1px solid #dce3df; border-radius: 8px; padding: 0 13px; background: #fff; color: #59645f; cursor: pointer; display: flex; align-items: center; font-size: 13px; list-style: none; box-sizing: border-box; }
+        .multi-empleados summary::-webkit-details-marker { display: none; }
+        .multi-empleados[open] summary { border-color: #238b57; }
+        #crew-employee-list { position: absolute; top: 46px; left: 0; width: max(100%, 280px); max-width: min(420px, calc(100vw - 40px)); max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #e1e7e4; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 50; padding: 6px 0; }
+        #crew-employee-list label { display: flex; align-items: center; gap: 9px; padding: 9px 14px; color: #36443e; font-size: 13px; cursor: pointer; }
+        #crew-employee-list label:hover { background: #f1f4f2; }
+        #crew-employee-list small { display: block; margin-top: 2px; color: #7a8680; }
+        #crew-employee-summary { flex: 1 1 190px; min-width: 0; color: #748079; font-size: 12px; }
+    </style>
 </head>
 
 <body>
@@ -96,9 +107,11 @@
                     <option value="">Ruta asignada (opcional)...</option>
                 </select>
 
-                <div class="search">
-                    <input type="text" id="crew-cedulas" placeholder="Cédulas de integrantes (separadas por coma)">
-                </div>
+                <details class="multi-empleados" id="crew-employees-box">
+                    <summary id="crew-employees-summary">Seleccionar empleados (opcional)...</summary>
+                    <div id="crew-employee-list"><div class="empty-table-message" style="padding: 10px 14px;">Cargando empleados...</div></div>
+                </details>
+                <small id="crew-employee-summary" aria-live="polite">0 empleados seleccionados</small>
             </form>
 
             <div class="filters">
@@ -163,14 +176,23 @@
 
     <script>
         const cuadrillasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
+        const empleadosApi = 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
         const formularioCuadrilla = document.getElementById('crew-form');
         let cuadrillas = [];
+        let empleados = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             formularioCuadrilla.addEventListener('submit', guardarCuadrilla);
             document.getElementById('search-crew').addEventListener('input', filtrarCuadrillas);
             document.getElementById('crew-shift-filter').addEventListener('change', filtrarCuadrillas);
+            document.getElementById('crew-members').addEventListener('input', actualizarResumenEmpleados);
+            document.getElementById('crew-employees-box').addEventListener('click', event => event.stopPropagation());
+            document.addEventListener('click', event => {
+                const selector = document.getElementById('crew-employees-box');
+                if (!selector.contains(event.target)) selector.open = false;
+            });
             cargarRutas();
+            cargarEmpleados();
             cargarCuadrillas();
         });
 
@@ -214,10 +236,69 @@
                 const respuesta = await solicitarJson(cuadrillasApi);
                 cuadrillas = Array.isArray(respuesta.data) ? respuesta.data : [];
                 filtrarCuadrillas();
+                renderizarEmpleadosSeleccionables();
             } catch (error) {
                 document.getElementById('crews-container').innerHTML =
                     `<tr><td colspan="6" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
             }
+        }
+
+        async function cargarEmpleados() {
+            const lista = document.getElementById('crew-employee-list');
+            try {
+                const respuesta = await solicitarJson(empleadosApi);
+                empleados = (Array.isArray(respuesta.data) ? respuesta.data : [])
+                    .filter(empleado => ['chofer', 'limpiador'].includes(String(empleado.Rol || empleado.rol || '').toLowerCase()));
+                renderizarEmpleadosSeleccionables();
+            } catch (error) {
+                lista.innerHTML = `<div class="empty-table-message" style="padding: 10px 14px;">No se pudieron cargar los empleados: ${escaparHtml(error.message)}</div>`;
+                document.getElementById('crew-employee-summary').textContent = 'No se pudieron cargar los empleados';
+            }
+        }
+
+        function empleadosSeleccionados() {
+            return [...document.querySelectorAll('#crew-employee-list input:checked')].map(input => input.value);
+        }
+
+        function renderizarEmpleadosSeleccionables() {
+            const lista = document.getElementById('crew-employee-list');
+            if (!lista || !empleados.length) return;
+            const idEditado = document.getElementById('crew-id').value;
+            const cedulasOcupadas = new Set(
+                cuadrillas
+                    .filter(cuadrilla => String(cuadrilla.Id_Cuadrilla) !== String(idEditado))
+                    .flatMap(cuadrilla => String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean))
+            );
+            const disponibles = empleados.filter(empleado =>
+                empleado.cedula && (!cedulasOcupadas.has(String(empleado.cedula)) || empleadosSeleccionados().includes(String(empleado.cedula)))
+            );
+            lista.innerHTML = disponibles.map(empleado => {
+                const nombre = `${empleado.Nombre || ''} ${empleado.Apellido || ''}`.trim();
+                const rol = String(empleado.Rol || empleado.rol || '').toLowerCase();
+                return `<label>
+                    <input type="checkbox" value="${escaparHtml(empleado.cedula)}">
+                    <span>${escaparHtml(nombre || empleado.cedula)}<small>${escaparHtml(rol)} · C.I. ${escaparHtml(empleado.cedula)}</small></span>
+                </label>`;
+            }).join('') || '<div class="empty-table-message" style="padding: 10px 14px;">No hay choferes o limpiadores disponibles.</div>';
+            lista.querySelectorAll('input').forEach(input => {
+                input.checked = empleadosSeleccionados().includes(input.value);
+                input.addEventListener('change', () => {
+                    actualizarResumenEmpleados();
+                    renderizarEmpleadosSeleccionables();
+                });
+            });
+            actualizarResumenEmpleados();
+        }
+
+        function actualizarResumenEmpleados() {
+            const seleccionados = empleadosSeleccionados();
+            const maximo = Number(document.getElementById('crew-members').value || 0);
+            document.getElementById('crew-employees-summary').textContent = seleccionados.length
+                ? `Empleados: ${seleccionados.length} seleccionados`
+                : 'Seleccionar empleados (opcional)...';
+            document.getElementById('crew-employee-summary').textContent =
+                `${seleccionados.length} empleados seleccionados` +
+                (seleccionados.length > maximo && maximo ? `; el máximo configurado es ${maximo}` : '');
         }
 
         function filtrarCuadrillas() {
@@ -250,9 +331,12 @@
             document.getElementById('crew-id').value = cuadrilla.Id_Cuadrilla;
             document.getElementById('crew-shift').value = cuadrilla.Turno || '';
             document.getElementById('crew-members').value = cuadrilla.Num_integrantes || 1;
-            document.getElementById('crew-cedulas').value = cuadrilla.Cedulas || '';
             document.getElementById('crew-route').value = cuadrilla.Id_Ruta || '';
             document.getElementById('add-crew-btn').textContent = 'Guardar cambios';
+            renderizarEmpleadosSeleccionables();
+            const seleccionadas = new Set(String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean));
+            document.querySelectorAll('#crew-employee-list input').forEach(input => { input.checked = seleccionadas.has(input.value); });
+            actualizarResumenEmpleados();
             document.getElementById('crew-shift').focus();
         }
 
@@ -262,9 +346,13 @@
             const datos = {
                 Turno: document.getElementById('crew-shift').value,
                 Num_integrantes: Number(document.getElementById('crew-members').value),
-                Cedulas: document.getElementById('crew-cedulas').value,
+                Cedulas: empleadosSeleccionados(),
                 Id_Ruta: document.getElementById('crew-route').value
             };
+            if (datos.Cedulas.length > datos.Num_integrantes) {
+                alert('La cantidad de empleados seleccionados no puede superar la cantidad de integrantes de la cuadrilla.');
+                return;
+            }
             const url = id ? `${cuadrillasApi}&id=${encodeURIComponent(id)}` : cuadrillasApi;
 
             try {
@@ -296,6 +384,8 @@
             formularioCuadrilla.reset();
             document.getElementById('crew-id').value = '';
             document.getElementById('add-crew-btn').textContent = '+ Nueva cuadrilla';
+            renderizarEmpleadosSeleccionables();
+            actualizarResumenEmpleados();
         }
     </script>
 
