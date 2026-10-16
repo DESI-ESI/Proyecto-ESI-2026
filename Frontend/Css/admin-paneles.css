@@ -294,6 +294,17 @@ input[type="checkbox"]:disabled {
     cursor: not-allowed;
 }
 
+.row-select-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 8px 2px 0;
+    color: #59645f;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
 .data-table,
 .users-table {
     background: white;
