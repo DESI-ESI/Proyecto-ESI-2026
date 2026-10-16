@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cuadrillas - SIGERU</title>
-    <link rel="stylesheet" href="../css/admin-paneles.css?v=6">
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=7">
     <style>
         .multi-empleados { position: relative; flex: 1 1 240px; min-width: 0; max-width: 100%; }
         .multi-empleados summary { min-height: 42px; border: 1px solid #dce3df; border-radius: 8px; padding: 0 13px; background: #fff; color: #59645f; cursor: pointer; display: flex; align-items: center; font-size: 13px; list-style: none; box-sizing: border-box; }
@@ -180,6 +180,8 @@
         const formularioCuadrilla = document.getElementById('crew-form');
         let cuadrillas = [];
         let empleados = [];
+        let empleadosCargados = false;
+        let cedulasSeleccionadas = new Set();
 
         document.addEventListener('DOMContentLoaded', () => {
             formularioCuadrilla.addEventListener('submit', guardarCuadrilla);
@@ -249,6 +251,7 @@
                 const respuesta = await solicitarJson(empleadosApi);
                 empleados = (Array.isArray(respuesta.data) ? respuesta.data : [])
                     .filter(empleado => ['chofer', 'limpiador'].includes(String(empleado.Rol || empleado.rol || '').toLowerCase()));
+                empleadosCargados = true;
                 renderizarEmpleadosSeleccionables();
             } catch (error) {
                 lista.innerHTML = `<div class="empty-table-message" style="padding: 10px 14px;">No se pudieron cargar los empleados: ${escaparHtml(error.message)}</div>`;
@@ -257,12 +260,12 @@
         }
 
         function empleadosSeleccionados() {
-            return [...document.querySelectorAll('#crew-employee-list input:checked')].map(input => input.value);
+            return [...cedulasSeleccionadas];
         }
 
         function renderizarEmpleadosSeleccionables() {
             const lista = document.getElementById('crew-employee-list');
-            if (!lista || !empleados.length) return;
+            if (!lista || !empleadosCargados) return;
             const idEditado = document.getElementById('crew-id').value;
             const cedulasOcupadas = new Set(
                 cuadrillas
@@ -270,7 +273,7 @@
                     .flatMap(cuadrilla => String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean))
             );
             const disponibles = empleados.filter(empleado =>
-                empleado.cedula && (!cedulasOcupadas.has(String(empleado.cedula)) || empleadosSeleccionados().includes(String(empleado.cedula)))
+                empleado.cedula && (!cedulasOcupadas.has(String(empleado.cedula)) || cedulasSeleccionadas.has(String(empleado.cedula)))
             );
             lista.innerHTML = disponibles.map(empleado => {
                 const nombre = `${empleado.Nombre || ''} ${empleado.Apellido || ''}`.trim();
@@ -279,10 +282,11 @@
                     <input type="checkbox" value="${escaparHtml(empleado.cedula)}">
                     <span>${escaparHtml(nombre || empleado.cedula)}<small>${escaparHtml(rol)} · C.I. ${escaparHtml(empleado.cedula)}</small></span>
                 </label>`;
-            }).join('') || '<div class="empty-table-message" style="padding: 10px 14px;">No hay choferes o limpiadores disponibles.</div>';
+            }).join('') || `<div class="empty-table-message" style="padding: 10px 14px;">${empleados.length ? 'No hay choferes o limpiadores disponibles.' : 'No hay choferes o limpiadores registrados.'}</div>`;
             lista.querySelectorAll('input').forEach(input => {
-                input.checked = empleadosSeleccionados().includes(input.value);
+                input.checked = cedulasSeleccionadas.has(input.value);
                 input.addEventListener('change', () => {
+                    cedulasSeleccionadas = new Set([...lista.querySelectorAll('input:checked')].map(checkbox => checkbox.value));
                     actualizarResumenEmpleados();
                     renderizarEmpleadosSeleccionables();
                 });
@@ -333,10 +337,8 @@
             document.getElementById('crew-members').value = cuadrilla.Num_integrantes || 1;
             document.getElementById('crew-route').value = cuadrilla.Id_Ruta || '';
             document.getElementById('add-crew-btn').textContent = 'Guardar cambios';
+            cedulasSeleccionadas = new Set(String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean));
             renderizarEmpleadosSeleccionables();
-            const seleccionadas = new Set(String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean));
-            document.querySelectorAll('#crew-employee-list input').forEach(input => { input.checked = seleccionadas.has(input.value); });
-            actualizarResumenEmpleados();
             document.getElementById('crew-shift').focus();
         }
 
@@ -384,6 +386,7 @@
             formularioCuadrilla.reset();
             document.getElementById('crew-id').value = '';
             document.getElementById('add-crew-btn').textContent = '+ Nueva cuadrilla';
+            cedulasSeleccionadas.clear();
             renderizarEmpleadosSeleccionables();
             actualizarResumenEmpleados();
         }
