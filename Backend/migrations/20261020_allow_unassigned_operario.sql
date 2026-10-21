@@ -1,0 +1,2 @@
+ALTER TABLE operario
+    MODIFY Id_Centro INT(11) DEFAULT NULL;

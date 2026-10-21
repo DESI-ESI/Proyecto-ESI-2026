@@ -150,18 +150,45 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 1000) {
                 respond(['status' => 'error', 'message' => 'Indicá el motivo (hasta 1000 caracteres).'], 400);
             }
-            $repetido = $pdo->prepare('SELECT 1 FROM informe WHERE Id_Ruta = :ruta AND Id_Cuadrilla = :cuadrilla AND DATE(Fecha) = CURDATE() AND (Descripcion LIKE "Recorrido completado%" OR Descripcion LIKE "Recorrido NO completado%") LIMIT 1');
-            $repetido->execute([':ruta' => $fila['Id_Ruta'], ':cuadrilla' => $fila['Id_Cuadrilla']]);
-            if ($repetido->fetchColumn()) {
+            $incidenciaAdicional = $data['incidencia'] ?? null;
+            if ($incidenciaAdicional !== null) {
+                if (!is_array($incidenciaAdicional)) {
+                    respond(['status' => 'error', 'message' => 'Los datos del inconveniente son inválidos.'], 400);
+                }
+                $numeroIncidencia = (int) ($incidenciaAdicional['numero_contenedor'] ?? 0);
+                $tipoIncidencia = trim((string) ($incidenciaAdicional['tipo'] ?? ''));
+                $descripcionIncidencia = trim((string) ($incidenciaAdicional['descripcion'] ?? ''));
+                if ($numeroIncidencia <= 0 || !in_array($tipoIncidencia, ['rotura', 'desborde', 'falta de recolección'], true)
+                    || $descripcionIncidencia === '' || mb_strlen($descripcionIncidencia, 'UTF-8') > 1000) {
+                    respond(['status' => 'error', 'message' => 'Para agregar un inconveniente, indicá un contenedor, un tipo de problema y una descripción válida.'], 400);
+                }
+                $enRuta = $pdo->prepare(
+                    'SELECT 1 FROM existe x JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
+                     WHERE x.Id_Ruta = :ruta AND c.Numero_Contenedor = :numero'
+                );
+                $enRuta->execute([':ruta' => $fila['Id_Ruta'], ':numero' => $numeroIncidencia]);
+                if (!$enRuta->fetchColumn()) {
+                    respond(['status' => 'error', 'message' => 'El contenedor seleccionado no pertenece a tu ruta.'], 400);
+                }
+                $incidenciaAdicional = [
+                    'numero_contenedor' => $numeroIncidencia,
+                    'tipo' => $tipoIncidencia,
+                    'descripcion' => $descripcionIncidencia,
+                ];
+            }
+            $descripcion = sprintf('Recorrido NO completado: ruta #%d (%s), turno %s. Motivo: %s', $fila['Id_Ruta'], $fila['Recorrido'], $fila['Turno'], $motivo);
+            $resultado = registrarResultadoRecorrido($pdo, $fila, $descripcion, $incidenciaAdicional);
+            if ($resultado === 'repetido') {
                 respond(['status' => 'error', 'message' => 'El recorrido de hoy ya fue registrado.'], 409);
             }
-            $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
-                ->execute([
-                    ':descripcion' => sprintf('Recorrido NO completado: ruta #%d (%s), turno %s. Motivo: %s', $fila['Id_Ruta'], $fila['Recorrido'], $fila['Turno'], $motivo),
-                    ':ruta' => $fila['Id_Ruta'],
-                    ':cuadrilla' => $fila['Id_Cuadrilla'],
-                ]);
-            respond(['status' => 'success', 'message' => 'Se registró que el recorrido no se pudo completar.'], 201);
+            if ($resultado !== 'registrado') {
+                respond(['status' => 'error', 'message' => 'La ruta ya no está asignada a tu cuadrilla.'], 409);
+            }
+            $mensaje = 'Se registró que el recorrido no se pudo completar, se resolvieron sus incidencias y la ruta dejó de estar asignada a tu cuadrilla.';
+            if ($incidenciaAdicional !== null) {
+                $mensaje .= ' También se registró el nuevo inconveniente.';
+            }
+            respond(['status' => 'success', 'message' => $mensaje], 201);
         }
 
         if ($action === 'reportar_contenedor') {
@@ -176,15 +203,14 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             if (!$enRuta->fetchColumn()) {
                 respond(['status' => 'error', 'message' => 'El contenedor no pertenece a tu ruta.'], 400);
             }
-            $pdo->prepare('INSERT INTO incidencia (Tipo, Descripcion, Estado, Numero_Contenedor) VALUES (:tipo, :descripcion, "abierta", :numero)')
-                ->execute([':tipo' => $tipo, ':descripcion' => $descripcion, ':numero' => $numero]);
+            $pdo->prepare('INSERT INTO incidencia (Tipo, Descripcion, Estado, Numero_Contenedor, Id_Cuadrilla) VALUES (:tipo, :descripcion, "abierta", :numero, :cuadrilla)')
+                ->execute([
+                    ':tipo' => $tipo,
+                    ':descripcion' => $descripcion,
+                    ':numero' => $numero,
+                    ':cuadrilla' => $fila['Id_Cuadrilla']
+                ]);
             respond(['status' => 'success', 'message' => 'Incidencia reportada correctamente.'], 201);
-        }
-
-        $repetido = $pdo->prepare('SELECT 1 FROM informe WHERE Id_Ruta = :ruta AND Id_Cuadrilla = :cuadrilla AND DATE(Fecha) = CURDATE() AND (Descripcion LIKE "Recorrido completado%" OR Descripcion LIKE "Recorrido NO completado%") LIMIT 1');
-        $repetido->execute([':ruta' => $fila['Id_Ruta'], ':cuadrilla' => $fila['Id_Cuadrilla']]);
-        if ($repetido->fetchColumn()) {
-            respond(['status' => 'error', 'message' => 'El recorrido de hoy ya fue marcado como completado.'], 409);
         }
 
         $cantidad = $pdo->prepare('SELECT COUNT(*) FROM existe WHERE Id_Ruta = :ruta');
@@ -199,13 +225,14 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             substr((string) $fila['Horario_Fin'], 0, 5)
         );
 
-        $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
-            ->execute([
-                ':descripcion' => $descripcion,
-                ':ruta' => $fila['Id_Ruta'],
-                ':cuadrilla' => $fila['Id_Cuadrilla'],
-            ]);
-        respond(['status' => 'success', 'message' => 'Recorrido completado. Se generó el informe automáticamente.'], 201);
+        $resultado = registrarResultadoRecorrido($pdo, $fila, $descripcion);
+        if ($resultado === 'repetido') {
+            respond(['status' => 'error', 'message' => 'El recorrido de hoy ya fue marcado como completado.'], 409);
+        }
+        if ($resultado !== 'registrado') {
+            respond(['status' => 'error', 'message' => 'La ruta ya no está asignada a tu cuadrilla.'], 409);
+        }
+        respond(['status' => 'success', 'message' => 'Recorrido completado. Se generó el informe, se resolvieron sus incidencias y la ruta dejó de estar asignada a tu cuadrilla.'], 201);
     }
     if ($fila) {
         $respuesta['cuadrilla'] = ['Id_Cuadrilla' => $fila['Id_Cuadrilla'], 'Turno' => $fila['Turno']];
@@ -218,6 +245,26 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             );
             $contenedores->execute([':ruta' => $fila['Id_Ruta']]);
             $respuesta['contenedores'] = $contenedores->fetchAll(PDO::FETCH_ASSOC);
+
+            $incidencias = $pdo->prepare(
+                "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Numero_Contenedor, i.Id_Cuadrilla
+                 FROM incidencia i
+                 WHERE i.Estado IN ('abierta', 'en curso')
+                   AND (i.Id_Cuadrilla IS NULL OR i.Id_Cuadrilla = :cuadrilla)
+                   AND EXISTS (
+                       SELECT 1
+                       FROM existe x
+                       JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
+                       WHERE x.Id_Ruta = :ruta
+                         AND c.Numero_Contenedor = i.Numero_Contenedor
+                   )
+                 ORDER BY FIELD(i.Estado, 'en curso', 'abierta'), i.Fecha DESC, i.Id_Incidencia DESC"
+            );
+            $incidencias->execute([
+                ':ruta' => $fila['Id_Ruta'],
+                ':cuadrilla' => $fila['Id_Cuadrilla']
+            ]);
+            $respuesta['incidencias'] = $incidencias->fetchAll(PDO::FETCH_ASSOC);
         }
     }
 
@@ -253,7 +300,6 @@ if ($resource === 'informes') {
         $contexto = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
 
         if ($method === 'GET') {
-            $informes = [];
             $consulta = $pdo->query(
                 'SELECT i.Id_Informe, i.Fecha, i.Descripcion, i.Id_Ruta, i.Id_Cuadrilla,
                         CONCAT("Cuadrilla #", i.Id_Cuadrilla) AS Autor
@@ -467,13 +513,20 @@ if ($resource === 'operario') {
     }
 }
 $recursosEmpleado = ['incidencias', 'contenedores', 'municipios', 'centros', 'centros_acopio'];
-if (!esAdministrador() && !(esEmpleado() && in_array($resource, $recursosEmpleado, true))) {
+$recursosLecturaOperario = ['camiones', 'maquinaria'];
+$accesoLecturaOperario = esOperario()
+    && $method === 'GET'
+    && in_array($resource, $recursosLecturaOperario, true);
+if (!esAdministrador() && !(esEmpleado() && in_array($resource, $recursosEmpleado, true)) && !$accesoLecturaOperario) {
     respond(['status' => 'error', 'message' => 'No tienes permisos para acceder a este recurso.'], 403);
 }
 
 try {
     switch ($resource) {
         case 'camiones':
+            if (esOperario() && $method !== 'GET') {
+                respond(['status' => 'error', 'message' => 'Los operarios solo pueden consultar los camiones.'], 403);
+            }
             $controller = new CamionesController();
 
             if ($method === 'GET') {
@@ -712,6 +765,9 @@ try {
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
 
         case 'maquinaria':
+            if (esOperario() && $method !== 'GET') {
+                respond(['status' => 'error', 'message' => 'Los operarios solo pueden consultar la maquinaria.'], 403);
+            }
             $controller = new MaquinariaController();
 
             if ($method === 'GET') {
@@ -739,15 +795,90 @@ try {
             $controller = new IncidenciaController();
 
             if ($method === 'GET') {
-                respond(['status' => 'success', 'data' => $controller->listar($pdo)]);
+                if (esCuadrilla()) {
+                    $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
+                    if (!$cuadrillaActual || $cuadrillaActual['Id_Ruta'] === null) {
+                        respond(['status' => 'success', 'data' => []]);
+                    }
+
+                    $consulta = $pdo->prepare(
+                        "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Numero_Contenedor, i.Id_Cuadrilla
+                         FROM incidencia i
+                         WHERE (
+                               (i.Id_Cuadrilla IS NULL AND i.Estado = 'abierta')
+                               OR i.Id_Cuadrilla = :cuadrilla
+                           )
+                           AND EXISTS (
+                               SELECT 1
+                               FROM existe x
+                               JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
+                               WHERE x.Id_Ruta = :ruta
+                                 AND c.Numero_Contenedor = i.Numero_Contenedor
+                           )
+                         ORDER BY i.Fecha DESC, i.Id_Incidencia DESC"
+                    );
+                    $consulta->execute([
+                        ':cuadrilla' => (int) $cuadrillaActual['Id_Cuadrilla'],
+                        ':ruta' => (int) $cuadrillaActual['Id_Ruta']
+                    ]);
+                    $incidencias = $consulta->fetchAll(PDO::FETCH_ASSOC);
+                } else {
+                    $incidencias = $controller->listar($pdo);
+                }
+                respond(['status' => 'success', 'data' => $incidencias]);
+            }
+
+            if ($method === 'POST' && $action === 'aceptar') {
+                if (!esCuadrilla()) {
+                    respond(['status' => 'error', 'message' => 'Solo una cuadrilla puede aceptar incidencias.'], 403);
+                }
+
+                $id = (int) ($data['id'] ?? $resourceId ?? 0);
+                $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
+                if (!$cuadrillaActual) {
+                    respond(['status' => 'error', 'message' => 'Tenés que pertenecer a una cuadrilla para aceptar incidencias.'], 400);
+                }
+                if ($cuadrillaActual['Id_Ruta'] === null) {
+                    respond(['status' => 'error', 'message' => 'Tu cuadrilla no tiene una ruta asignada.'], 400);
+                }
+
+                $accepted = $controller->aceptar(
+                    $pdo,
+                    $id,
+                    (int) $cuadrillaActual['Id_Cuadrilla'],
+                    (int) $cuadrillaActual['Id_Ruta']
+                );
+                respond([
+                    'status' => $accepted ? 'success' : 'error',
+                    'message' => $accepted ? 'Incidencia aceptada y asignada a tu cuadrilla.' : 'La incidencia no corresponde a tu ruta, ya fue aceptada o no existe.'
+                ], $accepted ? 200 : 409);
             }
 
             if ($method === 'POST') {
+                if (esCuadrilla()) {
+                    $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
+                    if (!$cuadrillaActual) {
+                        respond(['status' => 'error', 'message' => 'Tenés que pertenecer a una cuadrilla para registrar incidencias.'], 400);
+                    }
+                    $data['Id_Cuadrilla'] = (int) $cuadrillaActual['Id_Cuadrilla'];
+                }
+
                 $created = $controller->crear($pdo, $data);
                 respond(['status' => $created ? 'success' : 'error', 'message' => $created ? 'Incidencia creada correctamente.' : 'No se pudo crear la incidencia.'], $created ? 201 : 400);
             }
 
             if ($method === 'PUT') {
+                if (esCuadrilla() && strtolower(trim((string) ($data['Estado'] ?? $data['estado'] ?? ''))) === 'abierta') {
+                    respond(['status' => 'error', 'message' => 'Una cuadrilla no puede volver a marcar como abierta una incidencia.'], 403);
+                }
+                if (esCuadrilla()) {
+                    $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
+                    if (!$cuadrillaActual) {
+                        respond(['status' => 'error', 'message' => 'Tenés que pertenecer a una cuadrilla para editar incidencias.'], 400);
+                    }
+                    $data['Id_Cuadrilla'] = (int) $cuadrillaActual['Id_Cuadrilla'];
+                }
+
                 $id = (int) ($data['id'] ?? $resourceId ?? 0);
                 $updated = $controller->actualizar($pdo, $id, $data);
                 respond(['status' => $updated ? 'success' : 'error', 'message' => $updated ? 'Incidencia actualizada correctamente.' : 'No se encontró la incidencia o no hubo cambios.'], $updated ? 200 : 404);
@@ -822,6 +953,69 @@ try {
     respond(['status' => 'error', 'message' => 'Error de base de datos.'], 500);
 } catch (Throwable $exception) {
     respond(['status' => 'error', 'message' => 'Error interno del servidor.'], 500);
+}
+
+function registrarResultadoRecorrido(PDO $pdo, array $cuadrilla, string $descripcion, ?array $incidenciaAdicional = null): string
+{
+    $idRuta = (int) $cuadrilla['Id_Ruta'];
+    $idCuadrilla = (int) $cuadrilla['Id_Cuadrilla'];
+
+    $pdo->beginTransaction();
+    try {
+        $asignacion = $pdo->prepare(
+            'SELECT 1 FROM realiza WHERE Id_Ruta = :ruta AND Id_Cuadrilla = :cuadrilla FOR UPDATE'
+        );
+        $asignacion->execute([':ruta' => $idRuta, ':cuadrilla' => $idCuadrilla]);
+        if (!$asignacion->fetchColumn()) {
+            $pdo->rollBack();
+            return 'sin_asignacion';
+        }
+
+        $repetido = $pdo->prepare(
+            'SELECT 1 FROM informe
+             WHERE Id_Ruta = :ruta AND Id_Cuadrilla = :cuadrilla AND DATE(Fecha) = CURDATE()
+               AND (Descripcion LIKE "Recorrido completado%" OR Descripcion LIKE "Recorrido NO completado%")
+             LIMIT 1'
+        );
+        $repetido->execute([':ruta' => $idRuta, ':cuadrilla' => $idCuadrilla]);
+        if ($repetido->fetchColumn()) {
+            $pdo->rollBack();
+            return 'repetido';
+        }
+
+        $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
+            ->execute([':descripcion' => $descripcion, ':ruta' => $idRuta, ':cuadrilla' => $idCuadrilla]);
+
+        $pdo->prepare(
+            "UPDATE incidencia i
+             JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
+             JOIN existe x ON x.Id_Contenedor = c.Id_Contenedor
+             SET i.Estado = 'resuelta'
+             WHERE x.Id_Ruta = :ruta AND i.Estado IN ('abierta', 'en curso')"
+        )->execute([':ruta' => $idRuta]);
+
+        if ($incidenciaAdicional !== null) {
+            $pdo->prepare(
+                'INSERT INTO incidencia (Tipo, Descripcion, Estado, Numero_Contenedor, Id_Cuadrilla)
+                 VALUES (:tipo, :descripcion, "abierta", :numero, :cuadrilla)'
+            )->execute([
+                ':tipo' => $incidenciaAdicional['tipo'],
+                ':descripcion' => $incidenciaAdicional['descripcion'],
+                ':numero' => $incidenciaAdicional['numero_contenedor'],
+                ':cuadrilla' => $idCuadrilla,
+            ]);
+        }
+
+        $pdo->prepare('DELETE FROM realiza WHERE Id_Ruta = :ruta AND Id_Cuadrilla = :cuadrilla')
+            ->execute([':ruta' => $idRuta, ':cuadrilla' => $idCuadrilla]);
+        $pdo->commit();
+        return 'registrado';
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    }
 }
 
 function numeroContenedor(PDO $pdo, array $data, int $idActual): int

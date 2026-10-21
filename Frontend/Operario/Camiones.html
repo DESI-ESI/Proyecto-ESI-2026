@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camiones - Panel operario - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel operario</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="Panel.html"><span>▣</span>Panel principal</a>
+                <a href="Operario.html"><span>▦</span>Centro de acopio</a>
+                <a href="Contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Camiones.html" class="active"><span>▱</span>Camiones</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Camiones</h1>
+                    <p>Consulta los vehículos, su estado y la ruta asignada.</p>
+                </div>
+            </div>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr><th>Matrícula</th><th>Capacidad</th><th>Estado</th><th>Municipio</th><th>Ruta</th></tr>
+                    </thead>
+                    <tbody id="camiones-body"><tr><td colspan="5">Cargando camiones...</td></tr></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script>
+        const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        async function cargarCamiones() {
+            const cuerpo = document.getElementById('camiones-body');
+            try {
+                const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=camiones', { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudieron cargar los camiones.');
+                }
+                const camiones = Array.isArray(resultado.data) ? resultado.data : [];
+                cuerpo.innerHTML = camiones.length ? camiones.map(camion => `
+                    <tr>
+                        <td><strong>${escapar(camion.matricula)}</strong></td>
+                        <td>${escapar(camion.capacidad)} kg</td>
+                        <td>${escapar(camion.estado)}</td>
+                        <td>${camion.Id_Municipio ? 'Municipio #' + escapar(camion.Id_Municipio) : '-'}</td>
+                        <td>${camion.Id_Ruta ? `#${escapar(camion.Id_Ruta)} - ${escapar(camion.ruta_recorrido || '')}` : 'Sin ruta asignada'}</td>
+                    </tr>`).join('') : '<tr><td colspan="5">No hay camiones registrados.</td></tr>';
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="5">${escapar(error.message || 'No se pudieron cargar los camiones.')}</td></tr>`;
+            }
+        }
+
+        cargarCamiones();
+    </script>
+    <script src="../js/admin-auth.js?v=21" defer></script>
+</body>
+</html>

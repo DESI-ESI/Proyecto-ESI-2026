@@ -86,7 +86,7 @@
                 const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta', { credentials: 'same-origin' });
                 const datos = await respuesta.json();
                 if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message);
-                const { cuadrilla, ruta, contenedores } = datos.data;
+                const { cuadrilla, ruta, contenedores = [], incidencias = [] } = datos.data;
                 if (!cuadrilla) {
                     contenedor.innerHTML = '<p>No estás asignado a ninguna cuadrilla, por lo que no tenés una ruta.</p>';
                     return;
@@ -104,11 +104,19 @@
                         <li><strong>Frecuencia:</strong> ${escapar(ruta.Frecuencia || '-')}</li>
                         <li><strong>Distancia:</strong> ${escapar(ruta.Distancia ?? '-')}</li>
                     </ul>
+                    <h2 style="margin: 22px 0 8px;">Incidencias de esta ruta</h2>
+                    ${incidencias.length ? `
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Cuadrilla responsable</th></tr></thead>
+                            <tbody>${incidencias.map(i => `<tr><td>${escapar(i.Id_Incidencia)}</td><td>N° ${escapar(i.Numero_Contenedor)}</td><td>${escapar(i.Tipo)}</td><td>${escapar(i.Descripcion)}</td><td>${escapar(i.Fecha)}</td><td>${escapar(i.Estado)}</td><td>${i.Id_Cuadrilla ? 'Cuadrilla #' + escapar(i.Id_Cuadrilla) : 'Sin asignar'}</td></tr>`).join('')}</tbody>
+                        </table>
+                    </div>` : '<p>No hay incidencias abiertas o en curso en los contenedores de esta ruta.</p>'}
                     ${contenedores.length ? `
                     <p style="margin: 18px 0 8px;">Contenedores de la ruta:</p>
                     <table>
                         <thead><tr><th>N°</th><th>Ubicación</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
-                        <tbody>${contenedores.map(c => `<tr><td>${escapar(c.Numero_Contenedor)}</td><td>${escapar(c.Ubicacion)}</td><td>${escapar(c.Tipo_Residuo)}</td><td>${escapar(c.Estado)}</td><td><button type="button" class="report-btn" data-num="${escapar(c.Numero_Contenedor)}">Reportar</button></td></tr>`).join('')}</tbody>
+                        <tbody>${contenedores.map(c => `<tr><td>${escapar(c.Numero_Contenedor)}</td><td>${escapar(c.Ubicacion)}</td><td>${escapar(c.Tipo_Residuo)}</td><td>${escapar(c.Estado)}</td><td><button type="button" class="delete report-btn" data-num="${escapar(c.Numero_Contenedor)}">Reportar</button></td></tr>`).join('')}</tbody>
                     </table>` : ''}
                     <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
                         <button type="button" id="complete-btn" class="add-button">Completar recorrido</button>
@@ -117,6 +125,24 @@
                     <form id="notdone-form" style="display: none; margin-top: 16px;">
                         <p style="margin-bottom: 8px;">¿Por qué no se pudo completar el recorrido?</p>
                         <textarea id="notdone-text" rows="3" maxlength="1000" required style="width: 100%; max-width: 520px; padding: 10px; border: 1px solid #dce3df; border-radius: 8px; font: inherit;"></textarea>
+                        <p style="margin: 12px 0 8px;">Si querés, podés informar un inconveniente de un contenedor:</p>
+                        <div class="filters" style="margin-bottom: 8px;">
+                            <div class="search">
+                                <select id="notdone-container">
+                                    <option value="">Seleccionar contenedor (opcional)...</option>
+                                    ${contenedores.map(c => `<option value="${escapar(c.Numero_Contenedor)}">N° ${escapar(c.Numero_Contenedor)} - ${escapar(c.Ubicacion)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="search">
+                                <select id="notdone-type">
+                                    <option value="">Tipo de problema (opcional)...</option>
+                                    <option value="rotura">Rotura</option>
+                                    <option value="desborde">Desborde</option>
+                                    <option value="falta de recolección">Falta de recolección</option>
+                                </select>
+                            </div>
+                        </div>
+                        <textarea id="notdone-incident-text" rows="3" maxlength="1000" placeholder="Describí el inconveniente (opcional)" style="width: 100%; max-width: 520px; padding: 10px; border: 1px solid #dce3df; border-radius: 8px; font: inherit;"></textarea>
                         <div style="margin-top: 10px;"><button type="submit" class="add-button">Enviar motivo</button></div>
                     </form>
                     <form id="report-form" style="display: none; margin-top: 16px;">
@@ -156,10 +182,29 @@
                 });
                 formNoHecho.addEventListener('submit', async event => {
                     event.preventDefault();
+                    const numeroContenedor = document.getElementById('notdone-container').value;
+                    const tipoIncidencia = document.getElementById('notdone-type').value;
+                    const descripcionIncidencia = document.getElementById('notdone-incident-text').value.trim();
+                    const agregarIncidencia = numeroContenedor !== '' || tipoIncidencia !== '' || descripcionIncidencia !== '';
+                    if (agregarIncidencia && (!numeroContenedor || !tipoIncidencia || !descripcionIncidencia)) {
+                        alert('Para agregar un inconveniente, seleccioná un contenedor, el tipo de problema y describilo.');
+                        return;
+                    }
+                    const confirmacion = agregarIncidencia
+                        ? 'Al registrar el resultado, la ruta dejará de estar asignada a tu cuadrilla, sus incidencias actuales se marcarán como resueltas y se agregará el nuevo inconveniente. ¿Continuar?'
+                        : 'Al registrar el resultado, la ruta dejará de estar asignada a tu cuadrilla y sus incidencias se marcarán como resueltas. ¿Continuar?';
+                    if (!confirm(confirmacion)) return;
                     try {
-                        if (await enviar('no_completado', { descripcion: document.getElementById('notdone-text').value.trim() })) {
-                            formNoHecho.reset();
-                            formNoHecho.style.display = 'none';
+                        const cuerpo = { descripcion: document.getElementById('notdone-text').value.trim() };
+                        if (agregarIncidencia) {
+                            cuerpo.incidencia = {
+                                numero_contenedor: numeroContenedor,
+                                tipo: tipoIncidencia,
+                                descripcion: descripcionIncidencia
+                            };
+                        }
+                        if (await enviar('no_completado', cuerpo)) {
+                            window.location.reload();
                         }
                     } catch (error) {
                         alert('No se pudo registrar el motivo.');
@@ -188,11 +233,12 @@
                     }
                 });
                 document.getElementById('complete-btn').addEventListener('click', async () => {
-                    if (!confirm('¿Marcar el recorrido de hoy como completado? Se generará un informe automáticamente.')) return;
+                    if (!confirm('¿Marcar el recorrido de hoy como completado? Se generará un informe, la ruta dejará de estar asignada a tu cuadrilla y sus incidencias se marcarán como resueltas.')) return;
                     try {
                         const resp = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta&accion=completar', { method: 'POST', credentials: 'same-origin' });
                         const res = await resp.json();
                         alert(res.message);
+                        if (resp.ok && res.status === 'success') window.location.reload();
                     } catch (error) {
                         alert('No se pudo completar el recorrido.');
                     }
@@ -202,6 +248,6 @@
             }
         })();
     </script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=20" defer></script>
 </body>
 </html>

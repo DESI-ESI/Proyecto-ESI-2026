@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informes - SIGERU</title>
+    <title>Estadísticas - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
     <style>
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 18px; }
@@ -21,8 +21,6 @@
         .bar-value { width: 28px; text-align: right; font-weight: 700; }
         .empty { color: #7a8680; font-size: 13px; padding: 10px 0; }
         .section-title { margin: 28px 0 0; font-size: 18px; color: #26322c; }
-        .abierta-status { color: #d62828; }
-        .abierta-status::before { background: #d62828; }
     </style>
 </head>
 
@@ -57,7 +55,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html" class="active"><span>▤</span>Informes</a>
+				<a href="Informes.html" class="active"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
         </aside>
@@ -66,8 +64,8 @@
 
             <div class="page-header">
                 <div>
-                    <h1>Informes y estadísticas</h1>
-                    <p>Listado de incidencias y panel de control del sistema.</p>
+                    <h1>Estadísticas</h1>
+                    <p>Panel de control del sistema.</p>
                 </div>
             </div>
 
@@ -91,53 +89,20 @@
                 </div>
             </div>
 
-            <h2 class="section-title">Informe de incidencias</h2>
-            <div class="filters" style="margin-top: 12px;">
-                <select id="filtro-estado">
-                    <option value="todas">Abiertas y cerradas</option>
-                    <option value="abiertas">Solo abiertas</option>
-                    <option value="cerradas">Solo cerradas</option>
-                </select>
-            </div>
-
-            <section class="users-table" style="margin-top: 12px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
-                            <th>Contenedor</th>
-                            <th>Descripción</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-incidencias"></tbody>
-                </table>
-            </section>
-
         </main>
 
     </div>
 
     <script>
-        const API = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php';
-        let incidencias = [];
-
+        const API = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php';
         function esc(valor) {
             return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
-
-        function formatearFecha(fecha) {
-            const [dia, hora] = String(fecha).split(' ');
-            const [anio, mes, d] = dia.split('-');
-            return `${d}/${mes}/${anio} ${(hora || '').slice(0, 5)}`;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             const hoy = new Date();
             document.getElementById('mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             document.getElementById('mes').addEventListener('change', cargar);
-            document.getElementById('filtro-estado').addEventListener('change', renderIncidencias);
             cargar();
         });
 
@@ -151,7 +116,6 @@
                         return;
                     }
                     const d = res.data;
-                    incidencias = d.incidencias;
                     renderTotales(d.totales);
                     renderBarras('top-desbordados', d.top_desbordados.map(x => ({
                         etiqueta: `N° ${x.Numero_Contenedor} - ${x.Ubicacion || ''}`,
@@ -161,7 +125,6 @@
                         etiqueta: x.Tipo,
                         valor: Number(x.Cantidad)
                     })), 'No hubo incidencias este mes.');
-                    renderIncidencias();
                 })
                 .catch(err => console.error('Error al cargar estadísticas:', err));
         }
@@ -193,32 +156,8 @@
                     <span class="bar-value">${x.valor}</span>
                 </div>`).join('');
         }
-
-        function renderIncidencias() {
-            const filtro = document.getElementById('filtro-estado').value;
-            const lista = incidencias.filter(i =>
-                filtro === 'todas' || (filtro === 'cerradas') === (i.Estado === 'resuelta'));
-            const tbody = document.getElementById('tabla-incidencias');
-
-            if (lista.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666; padding: 20px;">No se encontraron incidencias</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = lista.map(i => {
-                const clase = i.Estado === 'resuelta' ? 'status active-status' : 'status abierta-status';
-                return `
-                    <tr>
-                        <td>${formatearFecha(i.Fecha)}</td>
-                        <td>${esc(i.Tipo)}</td>
-                        <td>${i.Numero_Contenedor ? 'N° ' + esc(i.Numero_Contenedor) + (i.Ubicacion ? ' - ' + esc(i.Ubicacion) : '') : '-'}</td>
-                        <td>${esc(i.Descripcion) || '-'}</td>
-                        <td><span class="${clase}">${esc(i.Estado)}</span></td>
-                    </tr>`;
-            }).join('');
-        }
     </script>
 
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=19" defer></script>
 </body>
 </html>

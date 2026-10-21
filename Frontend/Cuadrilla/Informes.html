@@ -5,6 +5,13 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Informes - SIGERU</title>
 	<link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+	<style>
+		#reports-body td:last-child,
+		table[data-bulk-delete="informes"] th:last-child {
+			min-width: 250px;
+			white-space: nowrap;
+		}
+	</style>
 </head>
 <body>
 	<header class="topbar">
@@ -130,7 +137,8 @@
             cuerpo.innerHTML = filtrados.length ? filtrados.map(i => `
                 <tr><td>${escapar(i.Id_Informe)}</td><td>${escapar(i.Fecha)}</td><td>#${escapar(i.Id_Ruta)}</td>
                 <td>#${escapar(i.Id_Cuadrilla)}</td><td>${escapar(i.Autor || '-')}</td><td>${escapar(i.Descripcion)}</td>
-                <td>${puedeEditar(i) ? `<button class="edit" type="button" data-id="${escapar(i.Id_Informe)}">Editar</button> <button class="delete" type="button" data-id="${escapar(i.Id_Informe)}">Eliminar</button>` : '-'}</td></tr>`).join('')
+                <td><button class="edit" type="button" data-id="${escapar(i.Id_Informe)}">Editar</button>
+                <button class="delete" type="button" data-id="${escapar(i.Id_Informe)}">Eliminar</button></td></tr>`).join('')
                 : '<tr><td colspan="7">No hay informes</td></tr>';
         }
 
@@ -161,6 +169,11 @@
             const id = Number(boton.dataset.id);
             const informe = informes.find(i => Number(i.Id_Informe) === id);
             if (!informe) return;
+
+            if (!puedeEditar(informe)) {
+                alert(`Este informe no pertenece a tu cuadrilla. No puedes ${boton.classList.contains('delete') ? 'eliminarlo' : 'editarlo'}.`);
+                return;
+            }
 
             if (boton.classList.contains('delete')) {
                 if (!confirm('¿Eliminar este informe?')) return;

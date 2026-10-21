@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maquinaria - Panel operario - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel operario</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" id="admin-panel-link" style="display: none;" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="Panel.html"><span>▣</span>Panel principal</a>
+                <a href="Operario.html"><span>▦</span>Centro de acopio</a>
+                <a href="Contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="Maquinaria.html" class="active"><span>⚙</span>Maquinaria</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Maquinaria</h1>
+                    <p>Consulta la maquinaria y su estado en cada instalación.</p>
+                </div>
+            </div>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Instalación</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody id="maquinaria-body"><tr><td colspan="5">Cargando maquinaria...</td></tr></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script>
+        const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const estados = { operativa: 'Operativa', mantenimiento: 'En mantenimiento', fuera_de_servicio: 'Fuera de servicio' };
+        const instalaciones = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+
+        async function cargarMaquinaria() {
+            const cuerpo = document.getElementById('maquinaria-body');
+            try {
+                const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=maquinaria', { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudo cargar la maquinaria.');
+                }
+                const maquinas = Array.isArray(resultado.data) ? resultado.data : [];
+                cuerpo.innerHTML = maquinas.length ? maquinas.map(maquina => `
+                    <tr>
+                        <td>${Number(maquina.Id_Maquinaria)}</td>
+                        <td><strong>${escapar(maquina.Nombre)}</strong></td>
+                        <td>${escapar(maquina.Tipo || '-')}</td>
+                        <td>${escapar(maquina.Centro)} (${escapar(instalaciones[maquina.Tipo_Instalacion] || maquina.Tipo_Instalacion || '-')})</td>
+                        <td>${escapar(estados[maquina.Estado] || maquina.Estado)}</td>
+                    </tr>`).join('') : '<tr><td colspan="5">No hay maquinaria registrada.</td></tr>';
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="5">${escapar(error.message || 'No se pudo cargar la maquinaria.')}</td></tr>`;
+            }
+        }
+
+        cargarMaquinaria();
+    </script>
+    <script src="../js/admin-auth.js?v=21" defer></script>
+</body>
+</html>

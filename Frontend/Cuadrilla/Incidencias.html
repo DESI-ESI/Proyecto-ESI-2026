@@ -66,10 +66,21 @@
 		<div class="page-header">
 			<div>
 				<h1>Incidencias</h1>
-				<p>Consulta y seguimiento de incidencias registradas.</p>
+				<p>Incidencias de los contenedores de la ruta asignada a tu cuadrilla.</p>
 			</div>
 			<button type="submit" form="incident-form" class="add-button" id="save-incident-btn">+ Nueva incidencia</button>
 		</div>
+
+		<section style="margin-bottom: 20px;">
+			<h2>Incidencias pendientes de aceptar</h2>
+			<p>Al aceptar una incidencia, pasará a estar en curso y dejará de aparecer en esta lista.</p>
+			<div class="data-table">
+				<table>
+					<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Cuadrilla responsable</th><th>Acción</th></tr></thead>
+					<tbody id="pending-incidents-container"></tbody>
+				</table>
+			</div>
+		</section>
 
 		<form id="incident-form" class="filters">
 			<input type="hidden" id="incident-id">
@@ -116,7 +127,7 @@
 
 		<section class="data-table">
 			<table data-bulk-delete="incidencias">
-				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Cuadrilla responsable</th><th>Acciones</th></tr></thead>
 				<tbody id="incidents-container"></tbody>
 			</table>
 		</section>
@@ -178,12 +189,31 @@
 				incidencias = Array.isArray(respuesta.data) ? respuesta.data : [];
 				filtrarIncidencias();
 			} catch (error) {
-				document.getElementById('incidents-container').innerHTML =
+				document.getElementById('pending-incidents-container').innerHTML =
 					`<tr><td colspan="7" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+				document.getElementById('incidents-container').innerHTML =
+					`<tr><td colspan="8" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
 			}
 		}
 
 		function filtrarIncidencias() {
+			const pendientes = incidencias.filter(incidencia => incidencia.Estado === 'abierta');
+			const pendientesBody = document.getElementById('pending-incidents-container');
+			pendientesBody.innerHTML = pendientes.length ? pendientes.map(incidencia => `
+				<tr>
+					<td>${escaparHtml(incidencia.Id_Incidencia)}</td>
+					<td>${incidencia.Numero_Contenedor ? 'N° ' + escaparHtml(incidencia.Numero_Contenedor) : '-'}</td>
+					<td>${escaparHtml(incidencia.Tipo)}</td>
+					<td>${escaparHtml(incidencia.Descripcion)}</td>
+					<td>${escaparHtml(incidencia.Fecha)}</td>
+					<td>${incidencia.Id_Cuadrilla ? 'Cuadrilla #' + escaparHtml(incidencia.Id_Cuadrilla) : 'Sin asignar'}</td>
+					<td><button class="accept-incident add-button" type="button" data-id="${escaparHtml(incidencia.Id_Incidencia)}">Aceptar</button></td>
+				</tr>
+			`).join('') : '<tr><td colspan="7" class="empty-table-message">No hay incidencias pendientes de aceptar</td></tr>';
+			pendientesBody.querySelectorAll('.accept-incident').forEach(boton => {
+				boton.addEventListener('click', () => aceptarIncidencia(boton));
+			});
+
 			const texto = document.getElementById('search-incidencia').value.trim().toLowerCase();
 			const estado = document.getElementById('filter-estado').value;
 			const tipo = document.getElementById('filter-tipo').value;
@@ -201,9 +231,10 @@
 					<td>${escaparHtml(incidencia.Descripcion)}</td>
 					<td>${escaparHtml(incidencia.Fecha)}</td>
 					<td>${escaparHtml(incidencia.Estado)}</td>
+					<td>${incidencia.Id_Cuadrilla ? 'Cuadrilla #' + escaparHtml(incidencia.Id_Cuadrilla) : 'Sin asignar'}</td>
 					<td><button class="edit" type="button">Editar</button> <button class="delete" type="button">Eliminar</button></td>
 				</tr>
-			`).join('') : '<tr><td colspan="7" class="empty-table-message">No se encontraron incidencias</td></tr>';
+			`).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron incidencias</td></tr>';
 
 			tbody.querySelectorAll('.edit').forEach((boton, indice) => {
 				boton.addEventListener('click', () => editarIncidencia(filtradas[indice]));
@@ -211,6 +242,22 @@
 			tbody.querySelectorAll('.delete').forEach((boton, indice) => {
 				boton.addEventListener('click', () => eliminarIncidencia(filtradas[indice].Id_Incidencia));
 			});
+		}
+
+		async function aceptarIncidencia(boton) {
+			boton.disabled = true;
+			try {
+				const id = boton.dataset.id;
+				const respuesta = await solicitarJson(`${incidenciasApi}&accion=aceptar&id=${encodeURIComponent(id)}`, {
+					method: 'POST',
+					credentials: 'same-origin'
+				});
+				alert(respuesta.message);
+				await cargarIncidencias();
+			} catch (error) {
+				alert(error.message || 'No se pudo aceptar la incidencia.');
+				await cargarIncidencias();
+			}
 		}
 
 		function editarIncidencia(incidencia) {

@@ -109,7 +109,7 @@ CREATE TABLE `empleado` (
   `cedula` varchar(20) NOT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `Email` (`Email`),
-  CONSTRAINT `chk_empleado_turno` CHECK (`turno` in ('Mañana','Tarde','Noche','Manana')),
+  CONSTRAINT `chk_empleado_turno` CHECK (`turno` in ('Ma�ana','Tarde','Noche','Manana')),
   CONSTRAINT `chk_empleado_rol` CHECK (`rol` in ('admin','admi_municipal','empleado','operario','chofer','limpiador') or `rol` is null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -140,8 +140,11 @@ CREATE TABLE `incidencia` (
   `Fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `Estado` varchar(20) NOT NULL DEFAULT 'abierta',
   `Numero_Contenedor` int(11) DEFAULT NULL,
+  `Id_Cuadrilla` int(11) DEFAULT NULL,
   PRIMARY KEY (`Id_Incidencia`),
   KEY `idx_incidencia_numero_contenedor` (`Numero_Contenedor`),
+  KEY `idx_incidencia_cuadrilla` (`Id_Cuadrilla`),
+  CONSTRAINT `fk_incidencia_cuadrilla` FOREIGN KEY (`Id_Cuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_incidencia_numero_contenedor` FOREIGN KEY (`Numero_Contenedor`) REFERENCES `contenedor` (`Numero_Contenedor`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -232,7 +235,7 @@ CREATE TABLE `notificacion_lectura` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `operario` (
   `Id` int(11) NOT NULL,
-  `Id_Centro` int(11) NOT NULL,
+  `Id_Centro` int(11) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   KEY `Id_Centro` (`Id_Centro`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -292,6 +295,10 @@ CREATE TABLE `utiliza` (
   KEY `Id_Camion` (`Id_Camion`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+ALTER TABLE `chofer`
+  ADD CONSTRAINT `fk_chofer_cuadrilla` FOREIGN KEY (`idCuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `limpiador`
+  ADD CONSTRAINT `fk_limpiador_cuadrilla` FOREIGN KEY (`idCuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

@@ -39,7 +39,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
         </aside>
@@ -92,6 +92,7 @@
                     <option value="">Selecciona rol...</option>
                     <option value="empleado">Empleado</option>
                     <option value="admi_municipal">Admin Municipal</option>
+                    <option value="operario">Operario</option>
                     <option value="chofer">Chofer</option>
                     <option value="limpiador">Limpiador</option>
                 </select>
@@ -268,8 +269,8 @@
 
         function cargarEmpleados() {
             const url = rolSeleccionado === 'todos'
-                ? 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php'
-                : `http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=${rolSeleccionado}`;
+                ? 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php'
+                : `http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=${rolSeleccionado}`;
             
             fetch(url)
                 .then(res => res.json())
@@ -399,7 +400,7 @@
                 }
             }
 
-            let url = 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php';
+            let url = 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php';
             
             if (modoEdicion) {
                 datos.id = document.getElementById('Id').value;
@@ -507,7 +508,7 @@
                 return;
             }
 
-            fetch(`http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=eliminar&id=${id}`, {
+            fetch(`http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=eliminar&id=${id}`, {
                 method: 'POST'
             })
             .then(res => res.json())
@@ -523,7 +524,7 @@
         }
         
         function cargarMunicipios() {
-            fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php')
+            fetch('http://localhost/Proyecto-ESI-2026/Backend/get_municipios.php')
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
@@ -541,7 +542,7 @@
         }
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=20" defer></script>
 </body>
 
 </html>

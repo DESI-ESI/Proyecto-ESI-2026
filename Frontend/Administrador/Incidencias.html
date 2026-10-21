@@ -31,7 +31,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
 		</aside>
@@ -68,6 +68,9 @@
 				<option value="en curso">En curso</option>
 				<option value="resuelta">Resuelta</option>
 			</select>
+			<select id="incident-crew">
+				<option value="">Cuadrilla responsable (opcional)...</option>
+			</select>
 		</form>
 
 		<div class="filters">
@@ -90,7 +93,7 @@
 
 		<section class="data-table">
 			<table data-bulk-delete="incidencias">
-				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Cuadrilla responsable</th><th>Acciones</th></tr></thead>
 				<tbody id="incidents-container"></tbody>
 			</table>
 		</section>
@@ -99,6 +102,7 @@
 	<script>
 		const incidenciasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=incidencias';
 		const contenedoresApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+		const cuadrillasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
 		const formularioIncidencia = document.getElementById('incident-form');
 		let incidencias = [];
 		let incidenciaOriginal = null;
@@ -110,6 +114,7 @@
 			formularioIncidencia.addEventListener('submit', guardarIncidencia);
 			establecerFechaActual();
 			cargarContenedores();
+			cargarCuadrillas();
 			cargarIncidencias();
 		});
 
@@ -134,6 +139,19 @@
 			return datos;
 		}
 
+		async function cargarCuadrillas() {
+			try {
+				const respuesta = await solicitarJson(cuadrillasApi, { credentials: 'same-origin' });
+				const cuadrillas = Array.isArray(respuesta.data) ? respuesta.data : [];
+				document.getElementById('incident-crew').innerHTML =
+					'<option value="">Sin cuadrilla asignada...</option>' +
+					cuadrillas.map(c => `<option value="${escaparHtml(c.Id_Cuadrilla)}">Cuadrilla #${escaparHtml(c.Id_Cuadrilla)} - ${escaparHtml(c.Turno)}</option>`).join('');
+			} catch (error) {
+				console.error(error);
+				alert(`No se pudieron cargar las cuadrillas: ${error.message}`);
+			}
+		}
+
 		function establecerFechaActual() {
 			const fecha = new Date();
 			fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
@@ -153,7 +171,7 @@
 				filtrarIncidencias();
 			} catch (error) {
 				document.getElementById('incidents-container').innerHTML =
-					`<tr><td colspan="7" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+					`<tr><td colspan="8" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
 			}
 		}
 
@@ -162,7 +180,7 @@
 			const estado = document.getElementById('filter-estado').value;
 			const tipo = document.getElementById('filter-tipo').value;
 			const filtradas = incidencias.filter(incidencia => {
-				const contenido = `${incidencia.Id_Incidencia} ${incidencia.Numero_Contenedor ?? ''} ${incidencia.Tipo} ${incidencia.Descripcion} ${incidencia.Fecha} ${incidencia.Estado}`.toLowerCase();
+				const contenido = `${incidencia.Id_Incidencia} ${incidencia.Numero_Contenedor ?? ''} ${incidencia.Tipo} ${incidencia.Descripcion} ${incidencia.Fecha} ${incidencia.Estado} ${incidencia.Id_Cuadrilla ?? ''}`.toLowerCase();
 				return contenido.includes(texto) && (estado === 'todos' || incidencia.Estado === estado) && (tipo === 'todos' || incidencia.Tipo === tipo);
 			});
 
@@ -175,9 +193,10 @@
 					<td>${escaparHtml(incidencia.Descripcion)}</td>
 					<td>${escaparHtml(incidencia.Fecha)}</td>
 					<td>${escaparHtml(incidencia.Estado)}</td>
+					<td>${incidencia.Id_Cuadrilla ? 'Cuadrilla #' + escaparHtml(incidencia.Id_Cuadrilla) : 'Sin asignar'}</td>
 					<td><button class="edit" type="button">Editar</button> <button class="delete" type="button">Eliminar</button></td>
 				</tr>
-			`).join('') : '<tr><td colspan="7" class="empty-table-message">No se encontraron incidencias</td></tr>';
+			`).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron incidencias</td></tr>';
 
 			tbody.querySelectorAll('.edit').forEach((boton, indice) => {
 				boton.addEventListener('click', () => editarIncidencia(filtradas[indice]));
@@ -193,7 +212,8 @@
 				Descripcion: incidencia.Descripcion || '',
 				Fecha: String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16),
 				Estado: incidencia.Estado || 'abierta',
-				Numero_Contenedor: incidencia.Numero_Contenedor ? String(incidencia.Numero_Contenedor) : ''
+				Numero_Contenedor: incidencia.Numero_Contenedor ? String(incidencia.Numero_Contenedor) : '',
+				Id_Cuadrilla: incidencia.Id_Cuadrilla ? String(incidencia.Id_Cuadrilla) : ''
 			};
 			document.getElementById('incident-id').value = incidencia.Id_Incidencia;
 			document.getElementById('incident-type').value = incidencia.Tipo || '';
@@ -201,6 +221,7 @@
 			document.getElementById('incident-date').value = String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16);
 			document.getElementById('incident-status').value = incidencia.Estado || 'abierta';
 			document.getElementById('incident-container').value = incidencia.Numero_Contenedor || '';
+			document.getElementById('incident-crew').value = incidencia.Id_Cuadrilla || '';
 			document.getElementById('incident-type').focus();
 		}
 
@@ -212,7 +233,8 @@
 				Descripcion: document.getElementById('incident-description').value.trim(),
 				Fecha: document.getElementById('incident-date').value,
 				Estado: document.getElementById('incident-status').value,
-				Numero_Contenedor: document.getElementById('incident-container').value
+				Numero_Contenedor: document.getElementById('incident-container').value,
+				Id_Cuadrilla: document.getElementById('incident-crew').value
 			};
 			if (id && incidenciaOriginal && Object.keys(datos).every(clave => datos[clave] === incidenciaOriginal[clave])) {
 				resetearFormularioIncidencia();

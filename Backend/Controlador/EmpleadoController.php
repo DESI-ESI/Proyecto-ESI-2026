@@ -29,10 +29,6 @@ class EmpleadoController
             throw new InvalidArgumentException('El rol seleccionado no es válido.');
         }
 
-        if (($rol === 'operario' || $rolActual === 'operario') && $rol !== $rolActual) {
-            throw new InvalidArgumentException('Los cambios de rol de operarios deben realizarse desde su módulo específico.');
-        }
-
         $email = filter_var(trim((string) ($datos['email'] ?? '')), FILTER_VALIDATE_EMAIL);
         if ($email === false || strlen($email) > 30) {
             throw new InvalidArgumentException('El email no es válido o supera los 30 caracteres.');
@@ -92,7 +88,7 @@ class EmpleadoController
                 return ['status' => 'error', 'message' => 'Todos los campos obligatorios deben estar completos.'];
             }
 
-            if (!in_array($rol, ['empleado', 'admi_municipal', 'chofer', 'limpiador'], true)) {
+            if (!in_array($rol, ['empleado', 'admi_municipal', 'chofer', 'limpiador', 'operario'], true)) {
                 return ['status' => 'error', 'message' => 'El rol seleccionado no puede gestionarse desde este formulario.'];
             }
 

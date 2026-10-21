@@ -41,7 +41,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html" class="active"><span>♧</span>Mapa interactivo</a>
 			</nav>
 
@@ -65,7 +65,7 @@
     <script src="../js/municipios-montevideo.js"></script>
     <script src="../js/geo-montevideo.js"></script>
     <script>
-        const apiBase = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=';
+        const apiBase = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=';
         const limitesMontevideo = L.latLngBounds([-34.95, -56.43], [-34.70, -56.01]);
         const colores = { activo: '#238b57', inactivo: '#d64545', reserva: '#e0a030' };
         const mapa = L.map('map', { maxBounds: limitesMontevideo.pad(0.1), minZoom: 11 }).setView([-34.88, -56.17], 12);

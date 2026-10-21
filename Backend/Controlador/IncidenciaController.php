@@ -23,6 +23,15 @@ class IncidenciaController
         return $this->crearDesdeDatos($pdo, $datos)->actualizar($pdo, $id);
     }
 
+    public function aceptar(PDO $pdo, int $id, int $idCuadrilla, int $idRuta): bool
+    {
+        if ($id <= 0 || $idCuadrilla <= 0 || $idRuta <= 0) {
+            throw new InvalidArgumentException('ID de incidencia, cuadrilla y ruta obligatorios.');
+        }
+
+        return incidencia::aceptar($pdo, $id, $idCuadrilla, $idRuta);
+    }
+
     public function eliminar(PDO $pdo, int $id): bool
     {
         if ($id <= 0) {
@@ -62,6 +71,22 @@ class IncidenciaController
             }
         }
 
-        return new incidencia($descripcion, $fechaObjeto->format('Y-m-d H:i:s'), $tipo, $estado, $numero > 0 ? $numero : null);
+        $idCuadrilla = (int) ($datos['Id_Cuadrilla'] ?? $datos['id_cuadrilla'] ?? 0);
+        if ($idCuadrilla > 0) {
+            $existe = $pdo->prepare('SELECT COUNT(*) FROM cuadrilla WHERE Id_Cuadrilla = :id');
+            $existe->execute([':id' => $idCuadrilla]);
+            if ((int) $existe->fetchColumn() === 0) {
+                throw new InvalidArgumentException('La cuadrilla seleccionada no existe.');
+            }
+        }
+
+        return new incidencia(
+            $descripcion,
+            $fechaObjeto->format('Y-m-d H:i:s'),
+            $tipo,
+            $estado,
+            $numero > 0 ? $numero : null,
+            $idCuadrilla > 0 ? $idCuadrilla : null
+        );
     }
 }

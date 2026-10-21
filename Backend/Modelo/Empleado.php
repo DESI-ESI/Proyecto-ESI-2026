@@ -153,7 +153,8 @@ class Empleado {
                 $tablasRol = [
                     'admi_municipal' => 'admi_municipal',
                     'chofer' => 'chofer',
-                    'limpiador' => 'limpiador'
+                    'limpiador' => 'limpiador',
+                    'operario' => 'operario'
                 ];
 
                 if (isset($tablasRol[$rolActual])) {
@@ -171,7 +172,9 @@ class Empleado {
                             ':id_municipio' => (int) ($datos['id_municipio'] ?? 0)
                         ]);
                     } else {
-                        $insertarRol = $pdo->prepare('INSERT INTO ' . $tablasRol[$rolNuevo] . ' (Id) VALUES (:id)');
+                        $insertarRol = $rolNuevo === 'operario'
+                            ? $pdo->prepare('INSERT INTO operario (Id, Id_Centro) VALUES (:id, NULL)')
+                            : $pdo->prepare('INSERT INTO ' . $tablasRol[$rolNuevo] . ' (Id) VALUES (:id)');
                         $insertarRol->execute([':id' => $id]);
                     }
                 }

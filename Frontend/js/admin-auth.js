@@ -2,6 +2,8 @@ const claveSesion = 'sigeru_sesion';
 const rutaActual = window.location.pathname.toLowerCase();
 let panelActual = ['/empleados/', '/operario/', '/cuadrilla/'].some(ruta => rutaActual.includes(ruta)) ? 'empleado' : 'admin';
 let apiNotificaciones = '';
+let actividadRecienteCargando = false;
+let actividadRecienteTimer = null;
 const enSubcarpetaFrontend = ['/administrador/', '/empleados/', '/operario/', '/cuadrilla/'].some(ruta => rutaActual.includes(ruta));
 const backendBase = enSubcarpetaFrontend ? '../../Backend/' : '../Backend/';
 const paginaLogin = enSubcarpetaFrontend ? '../login.html' : 'login.html';
@@ -304,6 +306,68 @@ function cargarNotificaciones(abierto) {
         });
 }
 
+function cargarActividadReciente() {
+    const contenedor = document.getElementById('activity-container');
+    if (!contenedor || actividadRecienteCargando) return;
+
+    actividadRecienteCargando = true;
+    fetchOriginal(apiNotificaciones, { credentials: 'same-origin' })
+        .then(response => response.json())
+        .then(respuesta => {
+            if (respuesta.status !== 'success') {
+                throw new Error(respuesta.message || 'La API rechazó la consulta de actividad reciente.');
+            }
+
+            const notificaciones = respuesta.data?.notificaciones;
+            if (!Array.isArray(notificaciones)) {
+                throw new Error('La respuesta de actividad reciente no tiene un formato válido.');
+            }
+
+            contenedor.replaceChildren();
+            if (notificaciones.length === 0) {
+                contenedor.textContent = 'Todavía no hay actividad reciente.';
+                return;
+            }
+
+            const iconos = {
+                camiones: '▱',
+                contenedores: '♢',
+                rutas: '♧',
+                incidencias: '!',
+                cuadrillas: '▤',
+                informes: '▤',
+                empleados: '♙',
+                mantenimientos: '✚'
+            };
+
+            notificaciones.slice(0, 5).forEach(item => {
+                const actividad = document.createElement('div');
+                actividad.className = 'activity-item';
+
+                const icono = document.createElement('span');
+                icono.className = 'activity-icon';
+                icono.textContent = iconos[item.Recurso] || '•';
+
+                const detalle = document.createElement('div');
+                const descripcion = document.createElement('strong');
+                descripcion.textContent = item.Descripcion || 'Se registró una actividad.';
+                const fecha = document.createElement('p');
+                fecha.textContent = formatearFecha(item.Fecha);
+
+                detalle.append(descripcion, fecha);
+                actividad.append(icono, detalle);
+                contenedor.appendChild(actividad);
+            });
+        })
+        .catch(error => {
+            console.error('No se pudo cargar la actividad reciente:', error);
+            contenedor.textContent = 'No se pudo cargar la actividad reciente.';
+        })
+        .finally(() => {
+            actividadRecienteCargando = false;
+        });
+}
+
 function crearMenuCuenta(session, esAdmin, rol) {
     const adminInfo = document.querySelector('.admin-info, .acciones');
     const logout = document.getElementById('logout-btn');
@@ -473,9 +537,13 @@ function aplicarSesion(session) {
                 // Ocultar módulo de Operario
                 document.querySelectorAll('#operario-link, #operario-link-card, a[href="Operario.html"]').forEach(e => e.remove());
             } else if (esAdmin) {
-                // Administrador municipal: acceso a ambos módulos
+                // El área operativa conserva su título aunque la abra un administrador.
                 if (topbarTitle) {
-                    topbarTitle.textContent = esPaginaOperario ? 'Panel operario (Admin)' : 'Panel cuadrilla (Admin)';
+                    topbarTitle.textContent = enAreaOperario
+                        ? 'Panel operario'
+                        : esPaginaOperario
+                            ? 'Panel operario'
+                            : 'Panel cuadrilla (Admin)';
                 }
                 document.querySelectorAll('#operario-link, #operario-link-card, a[href="Operario.html"]').forEach(e => {
                     e.style.display = '';
@@ -548,6 +616,12 @@ function aplicarSesion(session) {
         }
 
         crearMenuCuenta(session, esAdmin, rolActual);
+        if (document.getElementById('activity-container')) {
+            cargarActividadReciente();
+            if (actividadRecienteTimer === null) {
+                actividadRecienteTimer = setInterval(cargarActividadReciente, 30000);
+            }
+        }
 
         // Cargar modal selector si no está presente
         if (typeof window.abrirModalSeleccionPanel !== 'function' && !document.getElementById('script-panel-selector')) {

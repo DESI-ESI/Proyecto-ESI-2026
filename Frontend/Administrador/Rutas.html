@@ -57,7 +57,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
 
@@ -204,9 +204,9 @@
     </div>
 
     <script>
-        const rutasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
-        const contenedoresApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
-        const municipiosApi = 'http://localhost/DESIPROYECTO/Backend/get_municipios.php';
+        const rutasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const contenedoresApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+        const municipiosApi = 'http://localhost/Proyecto-ESI-2026/Backend/get_municipios.php';
         let rutasOriginales = [];
         let contenedoresDisponibles = [];
         let municipiosPorId = {};
@@ -300,7 +300,7 @@
         }
 
         function cargarCuadrillas() {
-            solicitarJson('http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
+            solicitarJson('http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
                 .then(respuesta => {
                     const lista = document.getElementById('cuadrillas-lista');
                     lista.innerHTML = (respuesta.data || []).map(c => `

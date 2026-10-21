@@ -57,7 +57,7 @@
 				<a href="Centros.html"><span>▦</span>Instalaciones</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-				<a href="Informes.html"><span>▤</span>Informes</a>
+				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
 
@@ -175,8 +175,8 @@
     </div>
 
     <script>
-        const cuadrillasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
-        const empleadosApi = 'http://localhost/DESIPROYECTO/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
+        const cuadrillasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
+        const empleadosApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
         const formularioCuadrilla = document.getElementById('crew-form');
         let cuadrillas = [];
         let empleados = [];
@@ -213,7 +213,7 @@
             }[caracter]));
         }
 
-        const rutasApi = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const rutasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
         let rutas = [];
 
         function nombreRuta(id) {

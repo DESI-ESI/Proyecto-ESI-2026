@@ -35,7 +35,7 @@
                 <a href="Centros.html" class="active"><span>▦</span>Instalaciones</a>
                 <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
                 <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
-                <a href="Informes.html"><span>▤</span>Informes</a>
+                <a href="Informes.html"><span>▤</span>Estadísticas</a>
                 <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
             </nav>
         </aside>
@@ -143,7 +143,7 @@
     <script src="../js/municipios-montevideo.js"></script>
     <script src="../js/geo-montevideo.js"></script>
     <script>
-        const apiUrl = 'http://localhost/DESIPROYECTO/Backend/apis/gestion/ApiGestion.php?recurso=centros';
+        const apiUrl = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=centros';
         const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
         const nombresEstado = { activo: 'Activo', inactivo: 'Inactivo', mantenimiento: 'En mantenimiento' };
 
@@ -156,7 +156,7 @@
 
         async function cargarMunicipios() {
             try {
-                const respuesta = await fetch('http://localhost/DESIPROYECTO/Backend/get_municipios.php');
+                const respuesta = await fetch('http://localhost/Proyecto-ESI-2026/Backend/get_municipios.php');
                 const resultado = await respuesta.json();
                 const select = document.getElementById('centro-municipio');
                 select.innerHTML = '<option value="">Municipio (se detecta por las calles)...</option>';

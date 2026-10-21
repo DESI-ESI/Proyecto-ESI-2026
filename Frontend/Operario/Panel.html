@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Operario - SIGERU</title>
-    <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <link rel="stylesheet" href="../Css/admin-panel.css?v=6">
 </head>
 
 <body>
@@ -52,6 +52,16 @@
                     Incidencias
                 </a>
 
+                <a href="Camiones.html">
+                    <span>▱</span>
+                    Camiones
+                </a>
+
+                <a href="Maquinaria.html">
+                    <span>⚙</span>
+                    Maquinaria
+                </a>
+
             </nav>
 
         </aside>
@@ -94,9 +104,34 @@
                     </div>
                 </a>
 
+                <a href="Camiones.html" class="stat-card">
+                    <div class="stat-icon">▱</div>
+                    <div>
+                        <h3>Camiones</h3>
+                        <span>Consultar camiones, estado y ruta asignada</span>
+                    </div>
+                </a>
+
+                <a href="Maquinaria.html" class="stat-card">
+                    <div class="stat-icon">⚙</div>
+                    <div>
+                        <h3>Maquinaria</h3>
+                        <span>Consultar maquinaria y estado de cada equipo</span>
+                    </div>
+                </a>
+
             </section>
 
             <section class="dashboard-grid">
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Actividad reciente</h2>
+                    </div>
+                    <div class="activity" id="activity-container">
+                        Cargando actividad reciente...
+                    </div>
+                </div>
 
                 <div class="panel">
 
@@ -131,7 +166,7 @@
         </main>
 
     </div>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=21" defer></script>
 </body>
 
 </html>
