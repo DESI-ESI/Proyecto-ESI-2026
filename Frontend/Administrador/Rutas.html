@@ -204,9 +204,9 @@
     </div>
 
     <script>
-        const rutasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
-        const contenedoresApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
-        const municipiosApi = 'http://localhost/Proyecto-ESI-2026/Backend/get_municipios.php';
+        const rutasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const contenedoresApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+        const municipiosApi = '../../Backend/get_municipios.php';
         let rutasOriginales = [];
         let contenedoresDisponibles = [];
         let municipiosPorId = {};
@@ -300,7 +300,7 @@
         }
 
         function cargarCuadrillas() {
-            solicitarJson('http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
+            solicitarJson('../../Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas')
                 .then(respuesta => {
                     const lista = document.getElementById('cuadrillas-lista');
                     lista.innerHTML = (respuesta.data || []).map(c => `

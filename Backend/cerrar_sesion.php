@@ -13,6 +13,6 @@ if (ini_get("session.use_cookies")) {
 
 session_destroy();
 
-header("Location: /Proyecto-ESI-2026/Frontend/index.php");
+header('Location: ../Frontend/index.php');
 exit;
 ?>

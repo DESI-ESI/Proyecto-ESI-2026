@@ -269,8 +269,8 @@
 
         function cargarEmpleados() {
             const url = rolSeleccionado === 'todos'
-                ? 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php'
-                : `http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=${rolSeleccionado}`;
+                ? '../../Backend/apis/empleado/ApiEmpleado.php'
+                : `../../Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=${rolSeleccionado}`;
             
             fetch(url)
                 .then(res => res.json())
@@ -400,7 +400,7 @@
                 }
             }
 
-            let url = 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php';
+            let url = '../../Backend/apis/empleado/ApiEmpleado.php';
             
             if (modoEdicion) {
                 datos.id = document.getElementById('Id').value;
@@ -508,7 +508,7 @@
                 return;
             }
 
-            fetch(`http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=eliminar&id=${id}`, {
+            fetch(`../../Backend/apis/empleado/ApiEmpleado.php?accion=eliminar&id=${id}`, {
                 method: 'POST'
             })
             .then(res => res.json())
@@ -524,7 +524,7 @@
         }
         
         function cargarMunicipios() {
-            fetch('http://localhost/Proyecto-ESI-2026/Backend/get_municipios.php')
+            fetch('../../Backend/get_municipios.php')
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {

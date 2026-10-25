@@ -52,10 +52,15 @@ CREATE TABLE `camion` (
 CREATE TABLE `centro_acopio` (
   `Id_Centro` int(11) NOT NULL AUTO_INCREMENT,
   `Nombre` varchar(30) NOT NULL,
+  `Tipo` varchar(30) NOT NULL DEFAULT 'centro_acopio',
   `Ubicacion` varchar(255) DEFAULT NULL,
   `Capacidad` decimal(10,2) NOT NULL CHECK (`Capacidad` > 0),
   `Cantidad_Almacenada` decimal(10,2) DEFAULT 0.00,
-  PRIMARY KEY (`Id_Centro`)
+  `Estado` varchar(30) NOT NULL DEFAULT 'activo',
+  `Tipos_Residuo` varchar(255) DEFAULT NULL,
+  `Id_Municipio` int(11) DEFAULT NULL,
+  PRIMARY KEY (`Id_Centro`),
+  KEY `idx_centro_acopio_municipio` (`Id_Municipio`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -189,8 +194,12 @@ CREATE TABLE `mantenimiento` (
 CREATE TABLE `maquinaria` (
   `Id_Maquinaria` int(11) NOT NULL AUTO_INCREMENT,
   `Id_Centro` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL DEFAULT 'Maquinaria',
+  `Tipo` varchar(50) DEFAULT NULL,
+  `Estado` varchar(30) NOT NULL DEFAULT 'operativa',
   PRIMARY KEY (`Id_Maquinaria`),
-  KEY `Id_Centro` (`Id_Centro`)
+  KEY `Id_Centro` (`Id_Centro`),
+  CONSTRAINT `fk_maquinaria_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -239,6 +248,22 @@ CREATE TABLE `operario` (
   PRIMARY KEY (`Id`),
   KEY `Id_Centro` (`Id_Centro`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `ingreso_acopio` (
+  `Id_Ingreso` int(11) NOT NULL AUTO_INCREMENT,
+  `Id_Centro` int(11) NOT NULL,
+  `Id_Empleado` int(11) DEFAULT NULL,
+  `Cantidad` decimal(10,2) NOT NULL,
+  `Tipo_Residuo` varchar(50) DEFAULT NULL,
+  `Fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`Id_Ingreso`),
+  KEY `idx_ingreso_acopio_centro` (`Id_Centro`),
+  KEY `idx_ingreso_acopio_empleado` (`Id_Empleado`),
+  CONSTRAINT `fk_ingreso_acopio_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ingreso_acopio_empleado` FOREIGN KEY (`Id_Empleado`) REFERENCES `empleado` (`Id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -299,6 +324,8 @@ ALTER TABLE `chofer`
   ADD CONSTRAINT `fk_chofer_cuadrilla` FOREIGN KEY (`idCuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE `limpiador`
   ADD CONSTRAINT `fk_limpiador_cuadrilla` FOREIGN KEY (`idCuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `centro_acopio`
+  ADD CONSTRAINT `fk_centro_acopio_municipio` FOREIGN KEY (`Id_Municipio`) REFERENCES `municipio` (`Id_Municipio`) ON DELETE SET NULL ON UPDATE CASCADE;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

@@ -256,7 +256,7 @@
         } catch (e) {}
 
         try {
-            const res = await fetch('/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=sesion', {
+            const res = await fetch(obtenerRutaBase() + '../Backend/apis/gestion/ApiGestion.php?recurso=sesion', {
                 credentials: 'same-origin'
             });
             const data = await res.json();

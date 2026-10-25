@@ -379,7 +379,7 @@ if ($resource === 'operario') {
                         CONCAT(e.Nombre, " ", e.Apellido) AS Operario
                  FROM ingreso_acopio i
                  JOIN centro_acopio c ON c.Id_Centro = i.Id_Centro
-                 JOIN empleado e ON e.Id = i.Id_Empleado
+                LEFT JOIN empleado e ON e.Id = i.Id_Empleado
                  ORDER BY i.Fecha DESC, i.Id_Ingreso DESC LIMIT 100'
             )->fetchAll(PDO::FETCH_ASSOC);
             respond(['status' => 'success', 'data' => ['centros' => $centros, 'ingresos' => $ingresos]]);

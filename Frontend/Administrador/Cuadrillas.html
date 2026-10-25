@@ -175,8 +175,8 @@
     </div>
 
     <script>
-        const cuadrillasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
-        const empleadosApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
+        const cuadrillasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=cuadrillas';
+        const empleadosApi = '../../Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
         const formularioCuadrilla = document.getElementById('crew-form');
         let cuadrillas = [];
         let empleados = [];
@@ -213,7 +213,7 @@
             }[caracter]));
         }
 
-        const rutasApi = 'http://localhost/Proyecto-ESI-2026/Backend/apis/gestion/ApiGestion.php?recurso=rutas';
+        const rutasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=rutas';
         let rutas = [];
 
         function nombreRuta(id) {
