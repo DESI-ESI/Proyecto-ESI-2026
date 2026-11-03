@@ -86,7 +86,7 @@
                 const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta', { credentials: 'same-origin' });
                 const datos = await respuesta.json();
                 if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message);
-                const { cuadrilla, ruta, contenedores = [], incidencias = [] } = datos.data;
+                const { cuadrilla, ruta, contenedores = [], incidencias = [] } = datos.data || {};
                 if (!cuadrilla) {
                     contenedor.innerHTML = '<p>No estás asignado a ninguna cuadrilla, por lo que no tenés una ruta.</p>';
                     return;

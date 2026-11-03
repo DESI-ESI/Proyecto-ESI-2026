@@ -266,6 +266,12 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
         }
         respond(['status' => 'success', 'message' => 'Recorrido completado. Se generó el informe, se resolvieron sus incidencias y la ruta dejó de estar asignada a tu cuadrilla.'], 201);
     }
+    $respuesta = [
+        'cuadrilla' => null,
+        'ruta' => null,
+        'contenedores' => [],
+        'incidencias' => []
+    ];
     if ($fila) {
         $respuesta['cuadrilla'] = ['Id_Cuadrilla' => $fila['Id_Cuadrilla'], 'Turno' => $fila['Turno']];
         if ($fila['Id_Ruta'] !== null) {
