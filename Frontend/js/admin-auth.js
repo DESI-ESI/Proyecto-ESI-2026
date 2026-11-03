@@ -798,13 +798,42 @@ try {
     if (guardada) document.addEventListener('DOMContentLoaded', () => aplicarSesion(guardada));
 } catch (error) {}
 
-fetch(backendBase + 'apis/gestion/ApiGestion.php?recurso=sesion', { credentials: 'same-origin' })
+fetch(backendBase + 'apis/gestion/ApiGestion.php?recurso=sesion', { credentials: 'same-origin', cache: 'no-store' })
     .then(response => response.json())
     .then(session => {
+        const sesionIncrustada = window.__SESION_USUARIO__;
+        let sesionCacheada = null;
+        try {
+            sesionCacheada = JSON.parse(sessionStorage.getItem(claveSesion));
+        } catch (error) {}
+
+        const respaldo = sesionIncrustada?.authenticated ? sesionIncrustada :
+            (sesionCacheada?.authenticated ? sesionCacheada : null);
+
+        if (!session.authenticated && respaldo) {
+            session = { ...respaldo, ...session, authenticated: true };
+        }
+
         sessionStorage.setItem(claveSesion, JSON.stringify(session));
         aplicarSesion(session);
     })
-    .catch(() => window.location.replace(paginaLogin));
+    .catch(() => {
+        const sesionIncrustada = window.__SESION_USUARIO__;
+        let sesionCacheada = null;
+        try {
+            sesionCacheada = JSON.parse(sessionStorage.getItem(claveSesion));
+        } catch (error) {}
+
+        const respaldo = sesionIncrustada?.authenticated ? sesionIncrustada :
+            (sesionCacheada?.authenticated ? sesionCacheada : null);
+
+        if (respaldo) {
+            sessionStorage.setItem(claveSesion, JSON.stringify(respaldo));
+            aplicarSesion(respaldo);
+        } else {
+            window.location.replace(paginaLogin);
+        }
+    });
 
 document.getElementById('logout-btn')?.addEventListener('click', () => {
     sessionStorage.removeItem(claveSesion);

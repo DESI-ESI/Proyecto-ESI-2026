@@ -147,9 +147,21 @@
 			}
 		}
 
-		async function solicitarJson(url, opciones) {
-			const respuesta = await fetch(url, opciones);
-			const datos = await respuesta.json();
+		async function solicitarJson(url, opciones = {}) {
+			const respuesta = await fetch(url, {
+				credentials: 'same-origin',
+				cache: 'no-store',
+				...opciones
+			});
+			const texto = await respuesta.text();
+			let datos;
+
+			try {
+				datos = texto ? JSON.parse(texto) : {};
+			} catch (error) {
+				throw new Error(`Respuesta inválida del servidor (HTTP ${respuesta.status}).`);
+			}
+
 			if (!respuesta.ok || datos.status === 'error') {
 				throw new Error(datos.message || 'No se pudo completar la solicitud.');
 			}
@@ -312,6 +324,6 @@
 		}
 	</script>
 	<script src="../js/row-selection.js?v=4" defer></script>
-	<script src="../js/admin-auth.js?v=31" defer></script>
+	<script src="../js/admin-auth.js?v=32" defer></script>
 </body>
 </html>

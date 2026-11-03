@@ -98,7 +98,7 @@ CREATE TABLE `centro_acopio` (
 CREATE TABLE `chofer` (
   `Id` int(11) NOT NULL,
   `idCuadrilla` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `chofer`
@@ -249,7 +249,7 @@ INSERT INTO `informe` (`Id_Informe`, `Fecha`, `Descripcion`, `Id_Ruta`, `Id_Cuad
 CREATE TABLE `limpiador` (
   `Id` int(11) NOT NULL,
   `idCuadrilla` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -736,7 +736,7 @@ ALTER TABLE `camion`
 -- Filtros para la tabla `chofer`
 --
 ALTER TABLE `chofer`
-  ADD CONSTRAINT `1` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_chofer_empleado` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `incidencia`
@@ -748,7 +748,7 @@ ALTER TABLE `incidencia`
 -- Filtros para la tabla `limpiador`
 --
 ALTER TABLE `limpiador`
-  ADD CONSTRAINT `1` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_limpiador_empleado` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `notificacion`

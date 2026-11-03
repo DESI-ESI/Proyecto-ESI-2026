@@ -316,7 +316,7 @@ window.__SESION_USUARIO__ = {
 };
 </script>
 <script src="js/panel-selector.js?v=7"></script>
-<script src="js/admin-auth.js?v=25"></script>
+<script src="js/admin-auth.js?v=26"></script>
 <?php endif; ?>
 
 </body>

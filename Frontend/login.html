@@ -54,7 +54,9 @@
 
             fetch('../Backend/Login.php', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin',
+                cache: 'no-store'
             })
             .then(async res => {
                 const text = await res.text();
@@ -73,9 +75,9 @@
                         : data.message;
 
                     setTimeout(() => {
-                        window.location.href = data.must_change_password
+                        window.location.replace(data.must_change_password
                             ? 'Configuracion.html?cambio-obligatorio=1'
-                            : 'index.php';
+                            : 'index.php?login=1');
                     }, 1000);
                 } else {
                     mensajeDiv.style.color = 'red';
