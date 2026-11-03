@@ -121,6 +121,7 @@ CREATE TABLE `contenedor` (
   `Capacidad` decimal(10,2) DEFAULT NULL,
   `Ubicacion` varchar(255) DEFAULT NULL,
   `Estado` varchar(50) DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL,
   `Id_Municipio` int(11) NOT NULL,
   `Id_Incidencia` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -159,7 +160,9 @@ CREATE TABLE `empleado` (
   `Area` varchar(30) DEFAULT NULL,
   `rol` varchar(20) DEFAULT NULL,
   `turno` varchar(20) NOT NULL DEFAULT 'Manana',
-  `cedula` varchar(20) NOT NULL
+  `cedula` varchar(20) NOT NULL,
+  `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
+  `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
 ) ;
 
 --

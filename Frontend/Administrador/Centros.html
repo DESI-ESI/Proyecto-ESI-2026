@@ -32,7 +32,8 @@
                 <a href="Camiones.html"><span>▱</span>Camiones</a>
                 <a href="contenedores.html"><span>♢</span>Contenedores</a>
                 <a href="Incidencias.html"><span>!</span>Incidencias</a>
-                <a href="Centros.html" class="active"><span>▦</span>Instalaciones</a>
+                <a href="Centros.html?tipo=centro_acopio" id="centro-acopio-link"><span>▦</span>Centro de acopio</a>
+                <a href="Centros.html?tipo=vertedero" id="vertedero-link"><span>▤</span>Vertedero</a>
                 <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
                 <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
                 <a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -357,6 +358,17 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const tipo = new URLSearchParams(window.location.search).get('tipo');
+            if (['centro_acopio', 'vertedero'].includes(tipo)) {
+                const centroAcopio = tipo === 'centro_acopio';
+                document.getElementById('filter-tipo').value = tipo;
+                document.getElementById(centroAcopio ? 'centro-acopio-link' : 'vertedero-link').classList.add('active');
+                document.title = `${centroAcopio ? 'Centro de acopio' : 'Vertedero'} - SIGERU`;
+                document.querySelector('.page-header h1').textContent = centroAcopio ? 'Centro de acopio' : 'Vertedero';
+                document.querySelector('.page-header p').textContent = centroAcopio
+                    ? 'Consulta y administra los centros de acopio registrados.'
+                    : 'Consulta y administra los vertederos registrados.';
+            }
             document.getElementById('form-centro').addEventListener('submit', procesarFormulario);
             ['centro-ubicacion', 'centro-ubicacion2'].forEach(id => document.getElementById(id).addEventListener('change', () => { deteccionMunicipio = detectarMunicipio(); }));
             cargarMunicipios();
@@ -367,7 +379,7 @@
         });
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 
 </html>

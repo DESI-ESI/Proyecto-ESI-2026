@@ -118,8 +118,19 @@
                         <thead><tr><th>N°</th><th>Ubicación</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
                         <tbody>${contenedores.map(c => `<tr><td>${escapar(c.Numero_Contenedor)}</td><td>${escapar(c.Ubicacion)}</td><td>${escapar(c.Tipo_Residuo)}</td><td>${escapar(c.Estado)}</td><td><button type="button" class="delete report-btn" data-num="${escapar(c.Numero_Contenedor)}">Reportar</button></td></tr>`).join('')}</tbody>
                     </table>` : ''}
-                    <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
-                        <button type="button" id="complete-btn" class="add-button">Completar recorrido</button>
+                    <form id="complete-form" style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: end;">
+                        <label>Volumen recolectado (kg)
+                            <input type="number" id="complete-volume" min="0.01" max="99999999.99" step="0.01" required>
+                        </label>
+                        <label>Tipo de residuo
+                            <select id="complete-waste-type">
+                                <option value="">Sin especificar</option>
+                                ${[...new Set(contenedores.map(c => c.Tipo_Residuo).filter(Boolean))].map(tipo => `<option value="${escapar(tipo)}">${escapar(tipo)}</option>`).join('')}
+                            </select>
+                        </label>
+                        <button type="submit" id="complete-btn" class="add-button">Completar recorrido</button>
+                    </form>
+                    <div style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
                         <button type="button" id="notdone-btn" class="add-button" style="background: #b3261e;">No se pudo completar</button>
                     </div>
                     <form id="notdone-form" style="display: none; margin-top: 16px;">
@@ -232,10 +243,19 @@
                         alert('No se pudo enviar el reporte.');
                     }
                 });
-                document.getElementById('complete-btn').addEventListener('click', async () => {
+                document.getElementById('complete-form').addEventListener('submit', async event => {
+                    event.preventDefault();
                     if (!confirm('¿Marcar el recorrido de hoy como completado? Se generará un informe, la ruta dejará de estar asignada a tu cuadrilla y sus incidencias se marcarán como resueltas.')) return;
                     try {
-                        const resp = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta&accion=completar', { method: 'POST', credentials: 'same-origin' });
+                        const resp = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta&accion=completar', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                volumen: document.getElementById('complete-volume').value,
+                                tipo_residuo: document.getElementById('complete-waste-type').value
+                            })
+                        });
                         const res = await resp.json();
                         alert(res.message);
                         if (resp.ok && res.status === 'success') window.location.reload();
@@ -248,6 +268,6 @@
             }
         })();
     </script>
-    <script src="../js/admin-auth.js?v=20" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

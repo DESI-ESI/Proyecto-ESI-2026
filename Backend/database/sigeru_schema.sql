@@ -38,8 +38,12 @@ CREATE TABLE `camion` (
   `Matricula` varchar(30) NOT NULL,
   `Capacidad` decimal(10,2) DEFAULT NULL,
   `Estado` varchar(50) NOT NULL DEFAULT 'disponible',
+  `Fecha_Baja` datetime DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL,
   `Id_Municipio` int(11) NOT NULL,
   `Id_Ruta` int(11) DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL,
   PRIMARY KEY (`Id_Camion`),
   UNIQUE KEY `Matricula` (`Matricula`),
   KEY `Id_Municipio` (`Id_Municipio`),
@@ -81,6 +85,7 @@ CREATE TABLE `contenedor` (
   `Capacidad` decimal(10,2) DEFAULT NULL,
   `Ubicacion` varchar(255) DEFAULT NULL,
   `Estado` varchar(50) DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL,
   `Id_Municipio` int(11) NOT NULL,
   `Id_Incidencia` int(11) DEFAULT NULL,
   `Latitud` decimal(10,7) DEFAULT NULL,
@@ -112,6 +117,8 @@ CREATE TABLE `empleado` (
   `rol` varchar(20) DEFAULT NULL,
   `turno` varchar(20) NOT NULL DEFAULT 'Manana',
   `cedula` varchar(20) NOT NULL,
+  `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
+  `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `Email` (`Email`),
   CONSTRAINT `chk_empleado_turno` CHECK (`turno` in ('Ma�ana','Tarde','Noche','Manana')),
@@ -144,6 +151,10 @@ CREATE TABLE `incidencia` (
   `Descripcion` text DEFAULT NULL,
   `Fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `Estado` varchar(20) NOT NULL DEFAULT 'abierta',
+  `Zona` varchar(120) DEFAULT NULL,
+  `Fecha_Resolucion` datetime DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL,
   `Numero_Contenedor` int(11) DEFAULT NULL,
   `Id_Cuadrilla` int(11) DEFAULT NULL,
   PRIMARY KEY (`Id_Incidencia`),
@@ -196,7 +207,10 @@ CREATE TABLE `maquinaria` (
   `Id_Centro` int(11) NOT NULL,
   `Nombre` varchar(60) NOT NULL DEFAULT 'Maquinaria',
   `Tipo` varchar(50) DEFAULT NULL,
+  `Descripcion` text DEFAULT NULL,
   `Estado` varchar(30) NOT NULL DEFAULT 'operativa',
+  `Fecha_Baja` datetime DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`Id_Maquinaria`),
   KEY `Id_Centro` (`Id_Centro`),
   CONSTRAINT `fk_maquinaria_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -281,6 +295,7 @@ CREATE TABLE `recoleccion` (
   `Fecha` datetime NOT NULL,
   `Estado_Recoleccion` varchar(30) NOT NULL DEFAULT 'pendiente',
   `Volumen` decimal(10,2) DEFAULT NULL,
+  `Tipo_Residuo` varchar(50) DEFAULT NULL,
   `Id_Ruta` int(11) NOT NULL,
   `Id_Cuadrilla` int(11) NOT NULL,
   PRIMARY KEY (`Id_Recoleccion`),
@@ -302,6 +317,21 @@ CREATE TABLE `ruta` (
   PRIMARY KEY (`Id_Ruta`),
   KEY `Id_Municipio` (`Id_Municipio`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+CREATE TABLE `asignacion_camion` (
+  `Id_Asignacion` int(11) NOT NULL AUTO_INCREMENT,
+  `Id_Camion` int(11) NOT NULL,
+  `Id_Ruta` int(11) NOT NULL,
+  `Fecha` date NOT NULL,
+  `Hora_Inicio` time NOT NULL,
+  `Hora_Fin` time NOT NULL,
+  `Estado` varchar(20) NOT NULL DEFAULT 'asignada',
+  PRIMARY KEY (`Id_Asignacion`),
+  KEY `idx_asignacion_camion_horario` (`Id_Camion`,`Fecha`,`Hora_Inicio`,`Hora_Fin`),
+  KEY `idx_asignacion_ruta_fecha` (`Id_Ruta`,`Fecha`),
+  CONSTRAINT `fk_asignacion_camion_camion` FOREIGN KEY (`Id_Camion`) REFERENCES `camion` (`Id_Camion`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_asignacion_camion_ruta` FOREIGN KEY (`Id_Ruta`) REFERENCES `ruta` (`Id_Ruta`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;

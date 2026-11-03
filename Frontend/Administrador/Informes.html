@@ -21,6 +21,7 @@
         .bar-value { width: 28px; text-align: right; font-weight: 700; }
         .empty { color: #7a8680; font-size: 13px; padding: 10px 0; }
         .section-title { margin: 28px 0 0; font-size: 18px; color: #26322c; }
+        #recolecciones-tabla { width: 100%; }
     </style>
 </head>
 
@@ -52,7 +53,8 @@
 				<a href="Camiones.html"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html" class="active"><span>▤</span>Estadísticas</a>
@@ -89,6 +91,108 @@
                 </div>
             </div>
 
+            <h2 class="section-title">Reporte de residuos recolectados</h2>
+            <form id="recolecciones-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="recolecciones-desde"></label>
+                <label>Hasta <input type="date" id="recolecciones-hasta"></label>
+                <select id="recolecciones-ruta"><option value="">Todas las rutas</option></select>
+                <select id="recolecciones-cuadrilla"><option value="">Todas las cuadrillas</option></select>
+                <select id="recolecciones-municipio"><option value="">Todos los municipios</option></select>
+                <select id="recolecciones-tipo"><option value="">Todos los residuos</option></select>
+                <button type="submit" class="add-button">Consultar reporte</button>
+            </form>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h3>Volumen recolectado en el período (kg)</h3>
+                    <p class="number" id="volumen-recolectado">0</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Recolecciones registradas</h3>
+                    <p class="number" id="cantidad-recolecciones">0</p>
+                </div>
+            </div>
+            <section class="data-table" style="margin-top: 18px;">
+                <table id="recolecciones-tabla">
+                    <thead><tr><th>Fecha</th><th>Ruta</th><th>Cuadrilla</th><th>Municipio</th><th>Tipo de residuo</th><th>Volumen (kg)</th></tr></thead>
+                    <tbody id="recolecciones-body"><tr><td colspan="6">Cargando...</td></tr></tbody>
+                </table>
+            </section>
+
+            <h2 class="section-title">Tablero configurable</h2>
+            <form id="dashboard-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="dashboard-desde"></label>
+                <label>Hasta <input type="date" id="dashboard-hasta"></label>
+                <select id="dashboard-municipio"><option value="">Todos los municipios</option></select>
+                <select id="dashboard-modulo">
+                    <option value="todos">Todos los módulos</option>
+                    <option value="incidencias">Incidencias</option>
+                    <option value="rutas">Rutas</option>
+                    <option value="recolecciones">Recolecciones</option>
+                    <option value="recursos">Recursos</option>
+                </select>
+                <button type="submit" class="add-button">Actualizar tablero</button>
+            </form>
+            <div class="stats-grid" id="dashboard-totales"></div>
+            <div class="two-cols"><div class="box"><h2>Indicadores del período</h2><div id="dashboard-barras"></div></div></div>
+
+            <h2 class="section-title">Reportes de incidencias abiertas y cerradas</h2>
+            <form id="incidencias-reporte-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="incidencias-desde"></label>
+                <label>Hasta <input type="date" id="incidencias-hasta"></label>
+                <select id="incidencias-estado">
+                    <option value="abiertas">Abiertas</option>
+                    <option value="cerradas">Cerradas / resueltas</option>
+                    <option value="todas">Todas</option>
+                </select>
+                <select id="incidencias-tipo">
+                    <option value="">Todos los tipos</option>
+                    <option value="rotura">Rotura</option>
+                    <option value="desborde">Desborde</option>
+                    <option value="falta de recolección">Falta de recolección</option>
+                </select>
+                <input type="search" id="incidencias-zona" placeholder="Zona o ubicación">
+                <input type="number" id="incidencias-contenedor" min="1" placeholder="N.º de contenedor">
+                <button type="submit" class="add-button">Consultar</button>
+            </form>
+            <section class="data-table" style="margin-top: 12px;">
+                <table><thead><tr><th>ID</th><th>Tipo</th><th>Descripción</th><th>Zona</th><th>Contenedor</th><th>Fecha de registro</th><th>Fecha de resolución</th><th>Estado</th></tr></thead>
+                <tbody id="incidencias-reporte-body"><tr><td colspan="8">Selecciona los filtros y consulta.</td></tr></tbody></table>
+            </section>
+
+            <h2 class="section-title">Zonas críticas por incidencias</h2>
+            <form id="zonas-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="zonas-desde"></label>
+                <label>Hasta <input type="date" id="zonas-hasta"></label>
+                <button type="submit" class="add-button">Consultar zonas</button>
+            </form>
+            <div class="two-cols"><div class="box"><div id="zonas-criticas"></div></div></div>
+
+            <h2 class="section-title">Tiempo de resolución de incidencias</h2>
+            <form id="resolucion-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="resolucion-desde"></label>
+                <label>Hasta <input type="date" id="resolucion-hasta"></label>
+                <button type="submit" class="add-button">Consultar tiempos</button>
+            </form>
+            <div class="stats-grid"><div class="stat-box"><h3>Promedio de resolución (horas)</h3><p class="number" id="resolucion-promedio">0</p></div></div>
+            <section class="data-table" style="margin-top: 12px;">
+                <table><thead><tr><th>ID</th><th>Tipo</th><th>Zona</th><th>Contenedor</th><th>Registro</th><th>Resolución</th><th>Horas</th></tr></thead>
+                <tbody id="resolucion-body"><tr><td colspan="7">Selecciona el período y consulta.</td></tr></tbody></table>
+            </section>
+
+            <h2 class="section-title">Frecuencia de recolección</h2>
+            <form id="frecuencia-filtros" class="filters" style="margin-top: 12px;">
+                <label>Desde <input type="date" id="frecuencia-desde"></label>
+                <label>Hasta <input type="date" id="frecuencia-hasta"></label>
+                <select id="frecuencia-ruta"><option value="">Todas las rutas</option></select>
+                <input type="search" id="frecuencia-zona" placeholder="Zona o ubicación">
+                <input type="number" id="frecuencia-contenedor" min="1" placeholder="N.º de contenedor">
+                <button type="submit" class="add-button">Consultar frecuencia</button>
+            </form>
+            <section class="data-table" style="margin-top: 12px;">
+                <table><thead><tr><th>Ruta</th><th>Frecuencia programada</th><th>Recolecciones completadas</th><th>Volumen acumulado (kg)</th><th>Última recolección</th></tr></thead>
+                <tbody id="frecuencia-body"><tr><td colspan="5">Selecciona los filtros y consulta.</td></tr></tbody></table>
+            </section>
+
         </main>
 
     </div>
@@ -103,7 +207,30 @@
             const hoy = new Date();
             document.getElementById('mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             document.getElementById('mes').addEventListener('change', cargar);
+            document.getElementById('recolecciones-filtros').addEventListener('submit', event => {
+                event.preventDefault();
+                cargarReporte();
+            });
             cargar();
+            const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            const fechaHoy = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+            const inicioPeriodo = `${primerDiaMes.getFullYear()}-${String(primerDiaMes.getMonth() + 1).padStart(2, '0')}-${String(primerDiaMes.getDate()).padStart(2, '0')}`;
+            document.getElementById('recolecciones-desde').value = `${primerDiaMes.getFullYear()}-${String(primerDiaMes.getMonth() + 1).padStart(2, '0')}-${String(primerDiaMes.getDate()).padStart(2, '0')}`;
+            document.getElementById('recolecciones-hasta').value = fechaHoy;
+            ['dashboard', 'incidencias', 'zonas', 'resolucion', 'frecuencia'].forEach(prefijo => {
+                document.getElementById(`${prefijo}-desde`).value = inicioPeriodo;
+                document.getElementById(`${prefijo}-hasta`).value = fechaHoy;
+            });
+            document.getElementById('dashboard-filtros').addEventListener('submit', event => { event.preventDefault(); cargarDashboard(); });
+            document.getElementById('incidencias-reporte-filtros').addEventListener('submit', event => { event.preventDefault(); cargarReporteIncidencias(); });
+            document.getElementById('zonas-filtros').addEventListener('submit', event => { event.preventDefault(); cargarZonasCriticas(); });
+            document.getElementById('resolucion-filtros').addEventListener('submit', event => { event.preventDefault(); cargarTiemposResolucion(); });
+            document.getElementById('frecuencia-filtros').addEventListener('submit', event => { event.preventDefault(); cargarFrecuencia(); });
+            cargarReporte();
+            cargarReporteIncidencias();
+            cargarZonasCriticas();
+            cargarTiemposResolucion();
+            cargarFrecuencia();
         });
 
         function cargar() {
@@ -148,7 +275,7 @@
                 cont.innerHTML = `<div class="empty">${vacio}</div>`;
                 return;
             }
-            const max = Math.max(...datos.map(x => x.valor));
+            const max = Math.max(1, ...datos.map(x => x.valor));
             cont.innerHTML = datos.map(x => `
                 <div class="bar-row">
                     <span class="bar-label" title="${esc(x.etiqueta)}">${esc(x.etiqueta)}</span>
@@ -156,8 +283,165 @@
                     <span class="bar-value">${x.valor}</span>
                 </div>`).join('');
         }
+
+        async function cargarReporte() {
+            const params = new URLSearchParams({
+                recurso: 'reporte_recolecciones',
+                desde: document.getElementById('recolecciones-desde').value,
+                hasta: document.getElementById('recolecciones-hasta').value,
+                ruta: document.getElementById('recolecciones-ruta').value,
+                cuadrilla: document.getElementById('recolecciones-cuadrilla').value,
+                municipio: document.getElementById('recolecciones-municipio').value,
+                tipo: document.getElementById('recolecciones-tipo').value
+            });
+            const cuerpo = document.getElementById('recolecciones-body');
+            try {
+                const respuesta = await fetch(`${API}?${params}`, { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudo cargar el reporte.');
+                }
+
+                const { data } = resultado;
+                poblarFiltro('recolecciones-ruta', data.opciones.rutas, 'Todas las rutas', r => [r.Id_Ruta, `#${r.Id_Ruta} - ${r.Recorrido}`]);
+                poblarFiltro('recolecciones-cuadrilla', data.opciones.cuadrillas, 'Todas las cuadrillas', c => [c.Id_Cuadrilla, `#${c.Id_Cuadrilla} - ${c.Turno}`]);
+                poblarFiltro('recolecciones-municipio', data.opciones.municipios, 'Todos los municipios', m => [m.Id_Municipio, m.Nombre]);
+                poblarFiltro('recolecciones-tipo', data.opciones.tipos.map(tipo => ({ tipo })), 'Todos los residuos', t => [t.tipo, t.tipo]);
+                poblarFiltro('dashboard-municipio', data.opciones.municipios, 'Todos los municipios', m => [m.Id_Municipio, m.Nombre]);
+                poblarFiltro('frecuencia-ruta', data.opciones.rutas, 'Todas las rutas', r => [r.Id_Ruta, `#${r.Id_Ruta} - ${r.Recorrido}`]);
+                document.getElementById('volumen-recolectado').textContent = Number(data.volumen_total).toFixed(2);
+                document.getElementById('cantidad-recolecciones').textContent = data.recolecciones.length;
+                cuerpo.innerHTML = data.recolecciones.length ? data.recolecciones.map(r => `
+                    <tr><td>${esc(r.Fecha)}</td><td>#${esc(r.Id_Ruta)} - ${esc(r.Recorrido)}</td>
+                    <td>#${esc(r.Id_Cuadrilla)}</td><td>${esc(r.Municipio)}</td>
+                    <td>${esc(r.Tipo_Residuo || 'Sin especificar')}</td><td>${Number(r.Volumen || 0).toFixed(2)}</td></tr>
+                `).join('') : '<tr><td colspan="6">No hay recolecciones para los filtros seleccionados.</td></tr>';
+                cargarDashboard();
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="6">${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        async function consultarReporte(recurso, parametros) {
+                const query = new URLSearchParams({ recurso, ...parametros });
+                const respuesta = await fetch(`${API}?${query}`, { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudo consultar el reporte.');
+                }
+                return resultado.data;
+            }
+
+        async function cargarDashboard() {
+                const params = {
+                    desde: document.getElementById('dashboard-desde').value,
+                    hasta: document.getElementById('dashboard-hasta').value,
+                    municipio: document.getElementById('dashboard-municipio').value,
+                    modulo: document.getElementById('dashboard-modulo').value
+                };
+                const contenedor = document.getElementById('dashboard-totales');
+                try {
+                    const datos = await consultarReporte('dashboard', params);
+                    const items = [
+                        ['Incidencias', datos.incidencias], ['Rutas', datos.rutas], ['Recolecciones', datos.recolecciones],
+                        ['Contenedores', datos.contenedores], ['Camiones', datos.camiones], ['Maquinaria', datos.maquinaria]
+                    ];
+                    contenedor.innerHTML = items.map(([titulo, valor]) =>
+                        `<div class="stat-box"><h3>${esc(titulo)}</h3><p class="number">${Number(valor)}</p></div>`).join('');
+                    renderBarras('dashboard-barras', items.map(([etiqueta, valor]) => ({ etiqueta, valor: Number(valor) })), 'No hay registros para los filtros seleccionados.');
+                } catch (error) {
+                    contenedor.innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+                }
+        }
+
+        async function cargarReporteIncidencias() {
+                const cuerpo = document.getElementById('incidencias-reporte-body');
+                try {
+                    const datos = await consultarReporte('reporte_incidencias', {
+                        desde: document.getElementById('incidencias-desde').value,
+                        hasta: document.getElementById('incidencias-hasta').value,
+                        estado: document.getElementById('incidencias-estado').value,
+                        tipo: document.getElementById('incidencias-tipo').value,
+                        zona: document.getElementById('incidencias-zona').value.trim(),
+                        contenedor: document.getElementById('incidencias-contenedor').value
+                    });
+                    cuerpo.innerHTML = datos.length ? datos.map(i => `<tr>
+                        <td>${esc(i.Id_Incidencia)}</td><td>${esc(i.Tipo)}</td><td>${esc(i.Descripcion)}</td>
+                        <td>${esc(i.Zona || i.Ubicacion || '-')}</td><td>${esc(i.Numero_Contenedor || '-')}</td>
+                        <td>${esc(i.Fecha)}</td><td>${esc(i.Fecha_Resolucion || '-')}</td><td>${esc(i.Estado)}</td>
+                    </tr>`).join('') : '<tr><td colspan="8">No hay incidencias que coincidan con los filtros.</td></tr>';
+                } catch (error) {
+                    cuerpo.innerHTML = `<tr><td colspan="8">${esc(error.message)}</td></tr>`;
+                }
+        }
+
+        async function cargarZonasCriticas() {
+                const contenedor = document.getElementById('zonas-criticas');
+                try {
+                    const datos = await consultarReporte('zonas_criticas', {
+                        desde: document.getElementById('zonas-desde').value,
+                        hasta: document.getElementById('zonas-hasta').value
+                    });
+                    renderBarras('zonas-criticas', datos.map(z => ({
+                        etiqueta: `${z.Zona} (${z.Abiertas} abiertas / ${z.Resueltas} resueltas)`,
+                        valor: Number(z.Incidencias)
+                    })), 'No hay incidencias en ese período.');
+                } catch (error) {
+                    contenedor.innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+                }
+        }
+
+        async function cargarTiemposResolucion() {
+                const cuerpo = document.getElementById('resolucion-body');
+                try {
+                    const datos = await consultarReporte('tiempos_resolucion', {
+                        desde: document.getElementById('resolucion-desde').value,
+                        hasta: document.getElementById('resolucion-hasta').value
+                    });
+                    document.getElementById('resolucion-promedio').textContent = Number(datos.promedio_horas).toFixed(2);
+                    cuerpo.innerHTML = datos.incidencias.length ? datos.incidencias.map(i => `<tr>
+                        <td>${esc(i.Id_Incidencia)}</td><td>${esc(i.Tipo)}</td><td>${esc(i.Zona || '-')}</td>
+                        <td>${esc(i.Numero_Contenedor || '-')}</td><td>${esc(i.Fecha)}</td>
+                        <td>${esc(i.Fecha_Resolucion)}</td><td>${Number(i.Horas_Resolucion).toFixed(2)}</td>
+                    </tr>`).join('') : '<tr><td colspan="7">No hay incidencias resueltas en ese período.</td></tr>';
+                } catch (error) {
+                    document.getElementById('resolucion-promedio').textContent = '-';
+                    cuerpo.innerHTML = `<tr><td colspan="7">${esc(error.message)}</td></tr>`;
+                }
+        }
+
+        async function cargarFrecuencia() {
+                const cuerpo = document.getElementById('frecuencia-body');
+                try {
+                    const datos = await consultarReporte('frecuencia_recoleccion', {
+                        desde: document.getElementById('frecuencia-desde').value,
+                        hasta: document.getElementById('frecuencia-hasta').value,
+                        ruta: document.getElementById('frecuencia-ruta').value,
+                        zona: document.getElementById('frecuencia-zona').value.trim(),
+                        contenedor: document.getElementById('frecuencia-contenedor').value
+                    });
+                    cuerpo.innerHTML = datos.length ? datos.map(r => `<tr>
+                        <td>#${esc(r.Id_Ruta)} - ${esc(r.Recorrido)}</td><td>${esc(r.Frecuencia || '-')}</td>
+                        <td>${esc(r.Recolecciones)}</td><td>${Number(r.Volumen_Total).toFixed(2)}</td>
+                        <td>${esc(r.Ultima_Recoleccion)}</td>
+                    </tr>`).join('') : '<tr><td colspan="5">No hay recolecciones completadas para esos filtros.</td></tr>';
+                } catch (error) {
+                    cuerpo.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        function poblarFiltro(id, opciones, textoInicial, mapear) {
+            const select = document.getElementById(id);
+            const seleccionado = select.value;
+            const valorInicial = select.options[0]?.value || '';
+            select.innerHTML = `<option value="${valorInicial}">${textoInicial}</option>` + opciones.map(opcion => {
+                const [valor, etiqueta] = mapear(opcion);
+                return `<option value="${esc(valor)}">${esc(etiqueta)}</option>`;
+            }).join('');
+            if ([...select.options].some(option => option.value === seleccionado)) select.value = seleccionado;
+        }
     </script>
 
-    <script src="../js/admin-auth.js?v=19" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

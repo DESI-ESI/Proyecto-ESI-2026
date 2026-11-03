@@ -36,7 +36,8 @@
 				<a href="Camiones.html"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -97,6 +98,11 @@
                     <option value="limpiador">Limpiador</option>
                 </select>
 
+                <select name="estado_cuenta" id="estadoCuentaSelect" required>
+                    <option value="activa" selected>Cuenta activa</option>
+                    <option value="inactiva">Cuenta inactiva</option>
+                </select>
+
                 <div class="search" id="grupo-municipio"> 
                     <select id="Id_Municipio" required>
                         <option value="" disabled selected>Municipio...</option>
@@ -127,6 +133,7 @@
 
                 <select id="filter-rol">
                     <option value="todos">Todos los roles</option>
+                    <option value="empleado">Empleado</option>
                     <option value="admi_municipal">Admin Municipal</option>
                     <option value="operario">Operario</option>
                     <option value="limpiador">Limpiador</option>
@@ -138,6 +145,12 @@
                     <option value="mañana">Mañana</option>
                     <option value="tarde">Tarde</option>
                     <option value="noche">Noche</option>
+                </select>
+
+                <select id="filter-estado-cuenta">
+                    <option value="todos">Todos los estados</option>
+                    <option value="activa">Cuenta activa</option>
+                    <option value="inactiva">Cuenta inactiva</option>
                 </select>
             </div>
 
@@ -152,6 +165,7 @@
                             <th>Email</th>
                             <th>Rol</th>
                             <th>Turno</th>
+                            <th>Estado de cuenta</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -192,6 +206,7 @@
             document.getElementById('search-empleado')?.addEventListener('input', aplicarFiltrosEmpleados);
             document.getElementById('filter-rol')?.addEventListener('change', aplicarFiltrosEmpleados);
             document.getElementById('filter-turno')?.addEventListener('change', aplicarFiltrosEmpleados);
+            document.getElementById('filter-estado-cuenta')?.addEventListener('change', aplicarFiltrosEmpleados);
 
             document.querySelectorAll('.rol-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -233,7 +248,7 @@
             const rolFormulario = rol === 'todos' ? rolSelect.value : rol;
             const esAdminMunicipal = rolFormulario === 'admi_municipal';
 
-            const pedirMunicipio = !modoEdicion || esAdminMunicipal;
+            const pedirMunicipio = esAdminMunicipal;
             grupoMunicipio.style.display = pedirMunicipio ? '' : 'none';
             muniInput.required = pedirMunicipio;
             if (!pedirMunicipio) muniInput.value = '';
@@ -248,11 +263,14 @@
             const turnoFiltro = document.getElementById('filter-turno')?.value || 'todos';
 
             const filtrados = empleadosOriginales.filter(user => {
-                const nombreCompleto = normalizarTexto(`${user.Nombre || user.nombre || ''} ${user.Apellido || user.apellido || ''} ${user.cedula || ''} ${user.Email || user.email || ''} ${user.Rol || user.rol || ''} ${user.turno || ''}`);
+                const nombreCompleto = normalizarTexto(`${user.Nombre || user.nombre || ''} ${user.Apellido || user.apellido || ''} ${user.cedula || ''} ${user.Email || user.email || ''} ${user.Rol || user.rol || ''} ${user.turno || ''} ${user.Estado_Cuenta || 'activa'}`);
                 const coincideTexto = terminos.every(termino => nombreCompleto.includes(termino));
                 const coincideRol = rolFiltro === 'todos' || String(user.Rol || user.rol || '').toLowerCase() === rolFiltro;
                 const coincideTurno = turnoFiltro === 'todos' || normalizarTexto(user.turno || '') === normalizarTexto(turnoFiltro);
-                return coincideTexto && coincideRol && coincideTurno;
+                const estadoCuenta = String(user.Estado_Cuenta || 'activa').toLowerCase();
+                const estadoFiltro = document.getElementById('filter-estado-cuenta')?.value || 'todos';
+                const coincideEstado = estadoFiltro === 'todos' || estadoCuenta === estadoFiltro;
+                return coincideTexto && coincideRol && coincideTurno && coincideEstado;
             });
 
             mostrarEmpleados(filtrados);
@@ -301,7 +319,7 @@
                                     : rolSeleccionado === 'chofer' ? 'Choferes'
                                     : rolSeleccionado === 'limpiador' ? 'Limpiadores'
                                     : 'Empleados';
-                contenedor.innerHTML = `<tr><td colspan="8" class="empty-table-message">No se encontraron ${rolNombre}</td></tr>`;
+                contenedor.innerHTML = `<tr><td colspan="9" class="empty-table-message">No se encontraron ${rolNombre}</td></tr>`;
                 return;
             }
             
@@ -317,7 +335,8 @@
                     user.Apellido || user.apellido || '-',
                     user.Email || user.email || '-',
                     rol,
-                    user.turno || '-'
+                    user.turno || '-',
+                    user.Estado_Cuenta || 'activa'
                 ].forEach(valor => {
                     const celda = document.createElement('td');
                     celda.textContent = String(valor);
@@ -341,7 +360,8 @@
                         user.Email || user.email || '',
                         rol,
                         user.turno || '',
-                        user.Id_Municipio || ''
+                        user.Id_Municipio || '',
+                        user.Estado_Cuenta || 'activa'
                     ));
                 }
 
@@ -374,7 +394,8 @@
                 confirm_password: document.getElementById('confirm_password').value,
                 rol: document.getElementById('rolSelect').value,
                 turno: document.getElementById('turnoSelect').value,
-                id_municipio: document.getElementById('Id_Municipio').value
+                id_municipio: document.getElementById('Id_Municipio').value,
+                estado_cuenta: document.getElementById('estadoCuentaSelect').value
             };
 
             if (datos.password && datos.password !== datos.confirm_password) {
@@ -391,6 +412,7 @@
                     String(empleadoEditando.rol || '') === String(datos.rol || '') &&
                     String(empleadoEditando.turno || '') === String(datos.turno || '') &&
                     String(empleadoEditando.id_municipio || '') === String(datos.id_municipio || '') &&
+                    String(empleadoEditando.estado_cuenta || 'activa') === String(datos.estado_cuenta || 'activa') &&
                     (datos.password === '' || datos.password === undefined);
 
                 if (sinCambios) {
@@ -427,7 +449,7 @@
             .catch(err => console.error('Error de conexión:', err));
         }
 
-        function prepararEdicion(id, cedula, nombre, apellido, email, rol, turno, idMunicipio) {
+        function prepararEdicion(id, cedula, nombre, apellido, email, rol, turno, idMunicipio, estadoCuenta) {
             empleadoEditando = {
                 id,
                 cedula,
@@ -436,7 +458,8 @@
                 email,
                 rol,
                 turno,
-                id_municipio: idMunicipio || ''
+                id_municipio: idMunicipio || '',
+                estado_cuenta: estadoCuenta || 'activa'
             };
 
             document.getElementById('Id').value = id;
@@ -459,6 +482,7 @@
                 noche: 'Noche'
             })[turnoNormalizado] || '';
             document.getElementById('Id_Municipio').value = idMunicipio || '';
+            document.getElementById('estadoCuentaSelect').value = estadoCuenta || 'activa';
             
             document.getElementById('password').required = false;
             document.getElementById('password').placeholder = "Contraseña (dejar en blanco si no cambia)";
@@ -542,7 +566,7 @@
         }
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=20" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 
 </html>

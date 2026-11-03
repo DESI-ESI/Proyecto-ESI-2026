@@ -96,6 +96,8 @@ public static function listar(PDO $pdo): array {
     $stmt = $pdo->query(
         'SELECT r.Id_Ruta, r.Recorrido, r.Horario_Inicio, r.Horario_Fin, r.Frecuencia,
                 r.Distancia, r.Estado, r.Id_Municipio,
+                (SELECT c.Id_Camion FROM camion c WHERE c.Id_Ruta = r.Id_Ruta ORDER BY c.Id_Camion LIMIT 1) AS Id_Camion,
+                (SELECT c.Matricula FROM camion c WHERE c.Id_Ruta = r.Id_Ruta ORDER BY c.Id_Camion LIMIT 1) AS Matricula_Camion,
                 (SELECT GROUP_CONCAT(re.Id_Cuadrilla ORDER BY re.Id_Cuadrilla) FROM realiza re WHERE re.Id_Ruta = r.Id_Ruta) AS Cuadrillas,
                 (SELECT GROUP_CONCAT(e.Id_Contenedor ORDER BY e.Id_Contenedor) FROM existe e WHERE e.Id_Ruta = r.Id_Ruta) AS Contenedores,
                 (SELECT GROUP_CONCAT(c.Numero_Contenedor ORDER BY c.Numero_Contenedor) FROM existe e JOIN contenedor c ON c.Id_Contenedor = e.Id_Contenedor WHERE e.Id_Ruta = r.Id_Ruta) AS Numeros_Contenedores

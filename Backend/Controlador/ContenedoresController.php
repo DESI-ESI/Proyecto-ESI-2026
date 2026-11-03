@@ -9,14 +9,26 @@ class ContenedoresController
         return Contenedores::listar($pdo);
     }
 
-    public function registrar(PDO $pdo, Contenedores $contenedor, int $idMunicipio, ?int $numero = null): bool
+    public function registrar(
+        PDO $pdo,
+        Contenedores $contenedor,
+        int $idMunicipio,
+        ?int $numero = null,
+        ?float $latitud = null,
+        ?float $longitud = null
+    ): bool
     {
-        return $contenedor->registrarContenedor($pdo, $idMunicipio, $numero);
+        return $contenedor->registrarContenedor($pdo, $idMunicipio, $numero, $latitud, $longitud);
     }
 
-    public function darBaja(PDO $pdo, int $idContenedor): void
+    public function darBaja(PDO $pdo, int $idContenedor, string $motivo): bool
     {
-        Contenedores::darBajaContenedor($pdo, $idContenedor);
+        $motivo = trim($motivo);
+        if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('Indicá un motivo de baja de hasta 500 caracteres.');
+        }
+
+        return Contenedores::darBajaContenedor($pdo, $idContenedor, $motivo);
     }
 
     public function modificarUbicacion(PDO $pdo, int $idContenedor, string $ubicacion): void

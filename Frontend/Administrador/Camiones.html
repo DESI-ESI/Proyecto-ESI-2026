@@ -36,7 +36,8 @@
 				<a href="Camiones.html" class="active"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -83,6 +84,9 @@
                 <select id="id_ruta">
                      <option value="">Sin ruta asignada</option>
                 </select>
+                <input type="number" id="latitud" min="-90" max="90" step="0.0000001" placeholder="Latitud GPS (opcional)">
+                <input type="number" id="longitud" min="-180" max="180" step="0.0000001" placeholder="Longitud GPS (opcional)">
+                <small>Si no hay GPS, el mapa mostrará una ubicación simulada según la ruta.</small>
             </form>
 
             <div class="filters" style="margin-top: 18px;">
@@ -97,6 +101,7 @@
                     <option value="Mantenimiento">En mantenimiento</option>
                     <option value="Roto">Roto</option>
                     <option value="Fuera de servicio">Fuera de servicio</option>
+                    <option value="baja">Dado de baja</option>
                 </select>
 
                 <select id="filter-municipio">
@@ -105,6 +110,7 @@
 
             </div>
 
+            <p id="truck-count" aria-live="polite"></p>
             <section class="users-table">
                 <table data-bulk-delete="camiones">
                     <thead>
@@ -114,12 +120,36 @@
                             <th>Estado</th>
                             <th>Municipio</th>
                             <th>Ruta</th>
+                            <th>Fecha de baja</th>
+                            <th>Motivo de baja</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-camiones-body">
 
                     </tbody>
+                </table>
+            </section>
+
+            <h2 class="section-title">Asignar camión a una ruta</h2>
+            <form id="form-asignacion-camion" class="filters">
+                <select id="asignacion-camion" required>
+                    <option value="">Camión disponible...</option>
+                </select>
+                <select id="asignacion-ruta" required>
+                    <option value="">Ruta activa...</option>
+                </select>
+                <label>Fecha <input type="date" id="asignacion-fecha" required></label>
+                <label>Hora de inicio <input type="time" id="asignacion-inicio" required></label>
+                <label>Hora de fin <input type="time" id="asignacion-fin" required></label>
+                <button type="submit" class="add-button">Asignar</button>
+            </form>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Horario</th><th>Camión</th><th>Ruta</th><th>Municipio</th><th>Estado</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="tabla-asignaciones-body"><tr><td colspan="7">Cargando asignaciones...</td></tr></tbody>
                 </table>
             </section>
 
@@ -131,13 +161,17 @@
         
         let modoEdicion = false;
         let camionesOriginales = [];
+        let rutasDisponibles = [];
         let municipiosPorId = {};
         let camionEditando = null;
         const API = '../../Backend/apis/gestion/ApiGestion.php';
 
         document.addEventListener('DOMContentLoaded', () => {
             Promise.all([cargarMunicipios(), cargarRutas()])
-                .then(cargarCamiones)
+                .then(async () => {
+                    await cargarCamiones();
+                    await cargarAsignaciones();
+                })
                 .catch(error => mostrarErrorTabla(error.message));
 
             const formulario = document.getElementById('form-camion');
@@ -152,6 +186,10 @@
 
             document.getElementById('filter-municipio')?.addEventListener('change', filtrarCamiones);
             document.getElementById('filter-estado')?.addEventListener('change', filtrarCamiones);
+            document.getElementById('form-asignacion-camion').addEventListener('submit', guardarAsignacion);
+            const fecha = new Date();
+            fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+            document.getElementById('asignacion-fecha').value = fecha.toISOString().slice(0, 10);
         });
 
         function filtrarCamiones() {
@@ -167,7 +205,9 @@
                 const nombreMunicipio = municipiosPorId[String(idMunicipio)] || '';
                 const texto = `${matricula} ${estado} ${capacidad} ${idMunicipio} ${nombreMunicipio}`.toLowerCase();
                 const coincideMunicipio = municipioSeleccionado === 'todos' || String(idMunicipio) === municipioSeleccionado;
-                const coincideEstado = estadoSeleccionado === 'todos' || String(estado).toLowerCase() === estadoSeleccionado.toLowerCase();
+                const dadoDeBaja = Boolean(camion.Fecha_Baja);
+                const coincideEstado = estadoSeleccionado === 'todos'
+                    || (estadoSeleccionado === 'baja' ? dadoDeBaja : !dadoDeBaja && String(estado).toLowerCase() === estadoSeleccionado.toLowerCase());
 
                 return texto.includes(termino) && coincideMunicipio && coincideEstado;
             });
@@ -178,15 +218,17 @@
         function renderCamiones(camiones) {
             const tbody = document.getElementById('tabla-camiones-body');
             tbody.innerHTML = '';
+            document.getElementById('truck-count').textContent =
+                `${camiones.length} camiones encontrados con los filtros actuales (${camionesOriginales.length} en total)`;
 
             if (camiones.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666; padding: 20px;">No se encontraron camiones</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #666; padding: 20px;">No se encontraron camiones</td></tr>`;
                 return;
             }
 
             camiones.forEach(camion => {
                 let estadoClase = 'status';
-                if (camion.estado === 'Disponible') estadoClase += ' active-status';
+                if (!camion.Fecha_Baja && camion.estado === 'Disponible') estadoClase += ' active-status';
 
                 let idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
                 let nombreMunicipio = municipiosPorId[String(idMunicipio)] || idMunicipio || '-';
@@ -195,9 +237,11 @@
                 const valores = [
                     camion.matricula,
                     `${camion.capacidad} kg`,
-                    camion.estado,
+                    camion.Fecha_Baja ? 'Dado de baja' : camion.estado,
                     nombreMunicipio,
-                    camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-'
+                    camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-',
+                    camion.Fecha_Baja || '-',
+                    camion.Motivo_Baja || '-'
                 ];
                 valores.forEach((valor, indice) => {
                     const celda = document.createElement('td');
@@ -220,13 +264,15 @@
                 const editar = document.createElement('button');
                 editar.type = 'button';
                 editar.className = 'edit';
-                editar.textContent = 'Editar';
-                editar.addEventListener('click', () => prepararEdicion(camion));
+                editar.textContent = camion.Fecha_Baja ? 'Retirado' : 'Editar';
+                editar.disabled = Boolean(camion.Fecha_Baja);
+                if (!camion.Fecha_Baja) editar.addEventListener('click', () => prepararEdicion(camion));
                 const eliminar = document.createElement('button');
                 eliminar.type = 'button';
                 eliminar.className = 'delete';
-                eliminar.textContent = 'Eliminar';
-                eliminar.addEventListener('click', () => eliminarCamion(camion.matricula));
+                eliminar.textContent = camion.Fecha_Baja ? 'Baja registrada' : 'Dar de baja';
+                eliminar.disabled = Boolean(camion.Fecha_Baja);
+                if (!camion.Fecha_Baja) eliminar.addEventListener('click', () => eliminarCamion(camion.matricula));
                 acciones.append(editar, eliminar);
                 fila.appendChild(acciones);
                 tbody.appendChild(fila);
@@ -274,15 +320,19 @@
         async function cargarRutas() {
             try {
                 const res = await leerRespuesta(await fetch(`${API}?recurso=rutas`));
-                const select = document.getElementById('id_ruta');
-                select.innerHTML = '<option value="">Sin ruta asignada</option>';
-                (res.data || []).forEach(ruta => {
+                rutasDisponibles = Array.isArray(res.data) ? res.data : [];
+                actualizarRutasCamion();
+                const asignacionSelect = document.getElementById('asignacion-ruta');
+                asignacionSelect.innerHTML = '<option value="">Ruta activa...</option>';
+                rutasDisponibles.forEach(ruta => {
                     const id = ruta.Id_Ruta ?? ruta.id_ruta;
                     const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = `#${id} - ${recorrido}`;
-                    select.appendChild(option);
+                    if (String(ruta.Estado ?? ruta.estado ?? 'activa').toLowerCase() === 'activa') {
+                        const option = document.createElement('option');
+                        option.value = id;
+                        option.textContent = `#${id} - ${recorrido}`;
+                        asignacionSelect.appendChild(option.cloneNode(true));
+                    }
                 });
             } catch (error) {
                 console.error('Error al cargar rutas:', error);
@@ -295,9 +345,90 @@
                 const res = await leerRespuesta(await fetch(`${API}?recurso=camiones&accion=listar`));
                 camionesOriginales = Array.isArray(res.data) ? res.data : [];
                 renderCamiones(camionesOriginales);
+                actualizarRutasCamion();
+                const selector = document.getElementById('asignacion-camion');
+                selector.innerHTML = '<option value="">Camión disponible...</option>' +
+                    camionesOriginales.filter(c => !c.Fecha_Baja && String(c.Estado ?? c.estado).toLowerCase() === 'disponible')
+                        .map(c => `<option value="${escapar(c.Id_Camion)}">${escapar(c.Matricula ?? c.matricula)}</option>`).join('');
             } catch (error) {
                 console.error('Error al cargar la tabla:', error);
                 mostrarErrorTabla(`No se pudieron cargar los camiones: ${error.message}`);
+            }
+        }
+
+        function escapar(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[caracter]));
+        }
+
+        function actualizarRutasCamion() {
+            const select = document.getElementById('id_ruta');
+            const idCamionActual = camionEditando ? String(camionEditando.Id_Camion || '') : '';
+            const idRutaActual = camionEditando ? String(camionEditando.id_ruta || '') : '';
+            select.innerHTML = '<option value="">Sin ruta asignada</option>' +
+                rutasDisponibles.filter(ruta => {
+                    const asignado = String(ruta.Id_Camion || '');
+                    return !asignado || asignado === idCamionActual || String(ruta.Id_Ruta) === idRutaActual;
+                }).map(ruta => {
+                    const id = ruta.Id_Ruta ?? ruta.id_ruta;
+                    const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
+                    return `<option value="${escapar(id)}">#${escapar(id)} - ${escapar(recorrido)}</option>`;
+                }).join('');
+            select.value = idRutaActual;
+        }
+
+        async function cargarAsignaciones() {
+                const cuerpo = document.getElementById('tabla-asignaciones-body');
+                try {
+                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion`));
+                    const asignaciones = respuesta.data || [];
+                    cuerpo.innerHTML = asignaciones.length ? asignaciones.map(a => `
+                        <tr><td>${escapar(a.Fecha)}</td><td>${escapar(a.Hora_Inicio)} - ${escapar(a.Hora_Fin)}</td>
+                        <td>${escapar(a.Matricula)}</td><td>#${escapar(a.Id_Ruta)} - ${escapar(a.Recorrido)}</td>
+                        <td>${escapar(a.Municipio)}</td><td>${escapar(a.Estado)}</td>
+                        <td>${a.Estado === 'asignada' ? `<button type="button" class="delete" data-asignacion="${escapar(a.Id_Asignacion)}">Cancelar</button>` : '-'}</td></tr>
+                    `).join('') : '<tr><td colspan="7">No hay asignaciones registradas.</td></tr>';
+                    cuerpo.querySelectorAll('[data-asignacion]').forEach(boton => boton.addEventListener('click', () => cancelarAsignacion(boton.dataset.asignacion)));
+                } catch (error) {
+                    cuerpo.innerHTML = `<tr><td colspan="7">${escapar(error.message)}</td></tr>`;
+                }
+        }
+
+        async function guardarAsignacion(event) {
+                event.preventDefault();
+                const datos = {
+                    id_camion: document.getElementById('asignacion-camion').value,
+                    id_ruta: document.getElementById('asignacion-ruta').value,
+                    fecha: document.getElementById('asignacion-fecha').value,
+                    hora_inicio: document.getElementById('asignacion-inicio').value,
+                    hora_fin: document.getElementById('asignacion-fin').value
+                };
+                try {
+                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos)
+                    }));
+                    alert(respuesta.message);
+                    event.target.reset();
+                    const fecha = new Date();
+                    fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                    document.getElementById('asignacion-fecha').value = fecha.toISOString().slice(0, 10);
+                    await cargarAsignaciones();
+                } catch (error) {
+                    alert(error.message);
+                }
+        }
+
+        async function cancelarAsignacion(id) {
+                if (!confirm('¿Cancelar esta asignación?')) return;
+                try {
+                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion&accion=cancelar`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+                    }));
+                    alert(respuesta.message);
+                    await cargarAsignaciones();
+                } catch (error) {
+                    alert(error.message);
             }
         }
 
@@ -308,20 +439,26 @@
             const idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
             const idRuta = camion.Id_Ruta ?? camion.id_ruta ?? '';
             camionEditando = {
+                Id_Camion: camion.Id_Camion ?? camion.id_camion ?? '',
                 matricula,
                 capacidad,
                 estado,
                 id_municipio: idMunicipio || '',
-                id_ruta: idRuta || ''
+                id_ruta: idRuta || '',
+                latitud: camion.Latitud ?? '',
+                longitud: camion.Longitud ?? ''
             };
+            modoEdicion = true;
+            actualizarRutasCamion();
             document.getElementById('id_ruta').value = idRuta || '';
 
-            modoEdicion = true;
             document.getElementById('matricula').value = matricula;
             document.getElementById('matricula').readOnly = true;
             document.getElementById('capacidad').value = capacidad;
             document.getElementById('estado').value = estado;
             document.getElementById('id_municipio').value = idMunicipio;
+            document.getElementById('latitud').value = camionEditando.latitud;
+            document.getElementById('longitud').value = camionEditando.longitud;
             
             const btn = document.getElementById('add-camion-btn');
             if(btn) btn.textContent = 'Guardar cambios';
@@ -332,6 +469,7 @@
             camionEditando = null;
             const formulario = document.getElementById('form-camion');
             if(formulario) formulario.reset();
+            actualizarRutasCamion();
             const inputMatricula = document.getElementById('matricula');
             if(inputMatricula) inputMatricula.readOnly = false;
             
@@ -347,7 +485,9 @@
                 capacidad: document.getElementById('capacidad').value,
                 estado: document.getElementById('estado').value,
                 id_municipio: document.getElementById('id_municipio').value,
-                id_ruta: document.getElementById('id_ruta').value
+                id_ruta: document.getElementById('id_ruta').value,
+                latitud: document.getElementById('latitud').value,
+                longitud: document.getElementById('longitud').value
             };
 
             if (modoEdicion && camionEditando) {
@@ -356,7 +496,9 @@
                     String(camionEditando.capacidad || '') === String(datos.capacidad || '') &&
                     String(camionEditando.estado || '') === String(datos.estado || '') &&
                     String(camionEditando.id_municipio || '') === String(datos.id_municipio || '') &&
-                    String(camionEditando.id_ruta || '') === String(datos.id_ruta || '');
+                    String(camionEditando.id_ruta || '') === String(datos.id_ruta || '') &&
+                    String(camionEditando.latitud || '') === String(datos.latitud || '') &&
+                    String(camionEditando.longitud || '') === String(datos.longitud || '');
 
                 if (sinCambios) {
                     alert('No se realizaron cambios(Se canceló la edición).');
@@ -378,13 +520,17 @@
                 alert(res.message || (modoEdicion ? '¡Camión actualizado!' : '¡Camión registrado!'));
                 resetearFormulario();
                 cargarCamiones();
+                cargarRutas();
             })
             .catch(err => alert('No se pudo guardar el camión: ' + err.message));
         }
 
         function eliminarCamion(matricula) {
-            if (!confirm(`¿Estás seguro de que querés eliminar el camión ${matricula}?`)) {
-                return; 
+            if (!confirm(`¿Dar de baja el camión ${matricula}? El registro y su historial se conservarán.`)) return;
+            const motivo = window.prompt('Indicá el motivo de la baja (máximo 500 caracteres):');
+            if (!motivo || !motivo.trim() || motivo.trim().length > 500) {
+                alert('La baja requiere un motivo de hasta 500 caracteres.');
+                return;
             }
 
             const url = `${API}?recurso=camiones&accion=eliminar`;
@@ -392,7 +538,7 @@
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ matricula: matricula })
+                body: JSON.stringify({ matricula, motivo: motivo.trim() })
             })
             .then(leerRespuesta)
             .then(res => {
@@ -406,7 +552,7 @@
             const tbody = document.getElementById('tabla-camiones-body');
             const fila = document.createElement('tr');
             const celda = document.createElement('td');
-            celda.colSpan = 6;
+            celda.colSpan = 8;
             celda.style.textAlign = 'center';
             celda.style.padding = '20px';
             celda.textContent = mensaje;
@@ -416,6 +562,6 @@
     </script>
     
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

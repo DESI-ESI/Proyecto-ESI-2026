@@ -6,23 +6,39 @@ class incidencia
     private string $fecha;
     private string $tipo;
     private string $estado;
+    private ?string $zona;
     private ?int $numeroContenedor;
     private ?int $idCuadrilla;
+    private ?float $latitud;
+    private ?float $longitud;
 
-    public function __construct(string $descripcion, string $fecha, string $tipo, string $estado, ?int $numeroContenedor = null, ?int $idCuadrilla = null)
+    public function __construct(
+        string $descripcion,
+        string $fecha,
+        string $tipo,
+        string $estado,
+        ?int $numeroContenedor = null,
+        ?int $idCuadrilla = null,
+        ?string $zona = null,
+        ?float $latitud = null,
+        ?float $longitud = null
+    )
     {
         $this->descripcion = $descripcion;
         $this->fecha = $fecha;
         $this->tipo = $tipo;
         $this->estado = $estado;
+        $this->zona = $zona;
         $this->numeroContenedor = $numeroContenedor;
         $this->idCuadrilla = $idCuadrilla;
+        $this->latitud = $latitud;
+        $this->longitud = $longitud;
     }
 
     public static function listar(PDO $pdo): array
     {
         $stmt = $pdo->query(
-            'SELECT Id_Incidencia, Tipo, Descripcion, Fecha, Estado, Numero_Contenedor, Id_Cuadrilla
+            'SELECT Id_Incidencia, Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla
              FROM incidencia
              ORDER BY Fecha DESC, Id_Incidencia DESC'
         );
@@ -33,8 +49,8 @@ class incidencia
     public function guardar(PDO $pdo): bool
     {
         $stmt = $pdo->prepare(
-            'INSERT INTO incidencia (Tipo, Descripcion, Fecha, Estado, Numero_Contenedor, Id_Cuadrilla)
-             VALUES (:tipo, :descripcion, :fecha, :estado, :numero, :cuadrilla)'
+            'INSERT INTO incidencia (Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla)
+             VALUES (:tipo, :descripcion, :fecha, :estado, :zona, :fecha_resolucion, :latitud, :longitud, :numero, :cuadrilla)'
         );
 
         return $stmt->execute([
@@ -42,6 +58,10 @@ class incidencia
             ':descripcion' => $this->descripcion,
             ':fecha' => $this->fecha,
             ':estado' => $this->estado,
+            ':zona' => $this->zona,
+            ':fecha_resolucion' => $this->estado === 'resuelta' ? date('Y-m-d H:i:s') : null,
+            ':latitud' => $this->latitud,
+            ':longitud' => $this->longitud,
             ':numero' => $this->numeroContenedor,
             ':cuadrilla' => $this->idCuadrilla
         ]);
@@ -50,15 +70,22 @@ class incidencia
     public function actualizar(PDO $pdo, int $id): bool
     {
         $stmt = $pdo->prepare(
-            'UPDATE incidencia
-             SET Tipo = :tipo, Descripcion = :descripcion, Fecha = :fecha, Estado = :estado, Numero_Contenedor = :numero, Id_Cuadrilla = :cuadrilla
-             WHERE Id_Incidencia = :id'
+            "UPDATE incidencia
+             SET Tipo = :tipo, Descripcion = :descripcion, Fecha = :fecha,
+                 Fecha_Resolucion = CASE WHEN :estado_resolucion = 'resuelta' THEN COALESCE(Fecha_Resolucion, NOW()) ELSE NULL END,
+                 Estado = :estado, Zona = :zona, Latitud = :latitud, Longitud = :longitud,
+                 Numero_Contenedor = :numero, Id_Cuadrilla = :cuadrilla
+             WHERE Id_Incidencia = :id"
         );
         $stmt->execute([
             ':tipo' => $this->tipo,
             ':descripcion' => $this->descripcion,
             ':fecha' => $this->fecha,
             ':estado' => $this->estado,
+            ':zona' => $this->zona,
+            ':estado_resolucion' => $this->estado,
+            ':latitud' => $this->latitud,
+            ':longitud' => $this->longitud,
             ':numero' => $this->numeroContenedor,
             ':cuadrilla' => $this->idCuadrilla,
             ':id' => $id

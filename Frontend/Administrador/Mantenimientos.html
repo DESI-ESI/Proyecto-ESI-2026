@@ -6,6 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mantenimientos - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <style>
+        .maintenance-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .maintenance-tabs button {
+            border: 1px solid #dce3df;
+            border-radius: 8px;
+            padding: 10px 16px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .maintenance-tabs button[aria-pressed="true"] {
+            border-color: #238b57;
+            background: #238b57;
+            color: white;
+        }
+
+        #mant-view-title {
+            margin: 0;
+            padding: 18px 18px 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -36,7 +64,8 @@
 				<a href="Camiones.html"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html" class="active"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -69,17 +98,16 @@
                 </select>
 
                 <div class="search">
-                    <input type="datetime-local" id="mant-fecha" title="Fecha de inicio">
+                    <input type="datetime-local" id="mant-fecha" title="Fecha de inicio" required>
                 </div>
 
                 <select id="mant-estado" required>
-                    <option value="" disabled selected>Estado...</option>
-                    <option value="en proceso">En proceso</option>
+                    <option value="en proceso" selected>En proceso</option>
                     <option value="finalizado">Finalizado</option>
                 </select>
 
                 <div class="search">
-                    <input type="text" id="mant-descripcion" placeholder="Descripción">
+                    <input type="text" id="mant-descripcion" placeholder="Descripción" required>
                 </div>
             </form>
 
@@ -94,18 +122,20 @@
                     <option value="correctivo">Correctivo</option>
                 </select>
 
-                <select id="filter-estado">
-                    <option value="todos">Todos los estados</option>
-                    <option value="en proceso">En proceso</option>
-                    <option value="finalizado">Finalizado</option>
-                </select>
-
                 <select id="filter-camion">
                     <option value="todos">Todos los camiones</option>
                 </select>
+                <label>Desde <input type="date" id="filter-desde"></label>
+                <label>Hasta <input type="date" id="filter-hasta"></label>
+            </div>
+
+            <div class="maintenance-tabs" aria-label="Registros de mantenimiento">
+                <button type="button" id="tab-en-curso" aria-pressed="true" onclick="cambiarVista('en proceso')">En curso</button>
+                <button type="button" id="tab-historial" aria-pressed="false" onclick="cambiarVista('finalizado')">Historial</button>
             </div>
 
             <section class="users-table">
+                <h2 id="mant-view-title">Mantenimientos en curso</h2>
                 <table data-bulk-delete="mantenimientos">
                     <thead>
                         <tr>
@@ -115,7 +145,7 @@
                             <th>Fin</th>
                             <th>Estado</th>
                             <th>Descripción</th>
-                            <th>Acciones</th>
+                            <th id="mant-actions-heading">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-mant-body"></tbody>
@@ -131,14 +161,17 @@
         let mantenimientos = [];
         let camiones = [];
         let editando = null;
+        let vistaActual = 'en proceso';
 
         document.addEventListener('DOMContentLoaded', () => {
             cargarCamiones();
             cargarMantenimientos();
 
             document.getElementById('form-mant').addEventListener('submit', procesarFormulario);
+            document.getElementById('mant-estado').disabled = true;
+            document.getElementById('mant-tipo').addEventListener('change', () => llenarSelectCamiones());
             document.getElementById('search-mant').addEventListener('input', filtrar);
-            ['filter-tipo', 'filter-estado', 'filter-camion'].forEach(id =>
+            ['filter-tipo', 'filter-camion', 'filter-desde', 'filter-hasta'].forEach(id =>
                 document.getElementById(id).addEventListener('change', filtrar));
         });
 
@@ -166,9 +199,11 @@
             const select = document.getElementById('mant-camion');
             select.innerHTML = '<option value="" disabled selected>Camión...</option>';
             const ocupados = mantenimientos.filter(m => m.Estado === 'en proceso').map(m => String(m.Id_Camion));
+            const tipo = document.getElementById('mant-tipo').value;
+            const estadosPermitidos = tipo === 'correctivo' ? ['Mantenimiento', 'Roto'] : ['Disponible', 'Mantenimiento'];
             camiones
                 .filter(c => String(c.Id_Camion) === String(idIncluir) ||
-                    (['Mantenimiento', 'Roto'].includes(c.estado) && !ocupados.includes(String(c.Id_Camion))))
+                    (!c.Fecha_Baja && estadosPermitidos.includes(c.estado) && !ocupados.includes(String(c.Id_Camion))))
                 .forEach(c => {
                     select.innerHTML += `<option value="${c.Id_Camion}">${c.matricula} (${c.estado})</option>`;
                 });
@@ -190,16 +225,35 @@
         function filtrar() {
             const termino = document.getElementById('search-mant').value.toLowerCase().trim();
             const tipo = document.getElementById('filter-tipo').value;
-            const estado = document.getElementById('filter-estado').value;
             const camion = document.getElementById('filter-camion').value;
+            const desde = document.getElementById('filter-desde').value;
+            const hasta = document.getElementById('filter-hasta').value;
 
-            render(mantenimientos.filter(m => {
+            const lista = mantenimientos.filter(m => {
                 const texto = `${m.Matricula} ${m.Descripcion || ''}`.toLowerCase();
-                return texto.includes(termino)
+                return m.Estado === vistaActual
+                    && texto.includes(termino)
                     && (tipo === 'todos' || m.Tipo_Mantenimiento === tipo)
-                    && (estado === 'todos' || m.Estado === estado)
-                    && (camion === 'todos' || String(m.Id_Camion) === camion);
-            }));
+                    && (camion === 'todos' || String(m.Id_Camion) === camion)
+                    && (!desde || String(m.Fecha_Inicio).slice(0, 10) >= desde)
+                    && (!hasta || String(m.Fecha_Inicio).slice(0, 10) <= hasta);
+            });
+            if (vistaActual === 'finalizado') {
+                lista.sort((a, b) => String(b.Fecha_Fin || '').localeCompare(String(a.Fecha_Fin || '')));
+            }
+            render(lista);
+        }
+
+        function cambiarVista(estado) {
+            vistaActual = estado;
+            const esHistorial = estado === 'finalizado';
+            document.getElementById('tab-en-curso').setAttribute('aria-pressed', String(!esHistorial));
+            document.getElementById('tab-historial').setAttribute('aria-pressed', String(esHistorial));
+            document.getElementById('mant-actions-heading').hidden = esHistorial;
+            document.getElementById('mant-view-title').textContent = esHistorial
+                ? 'Historial de mantenimientos'
+                : 'Mantenimientos en curso';
+            filtrar();
         }
 
         function render(lista) {
@@ -207,12 +261,21 @@
             tbody.innerHTML = '';
 
             if (lista.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666; padding: 20px;">No se encontraron mantenimientos</td></tr>';
+                const mensaje = vistaActual === 'finalizado'
+                    ? 'Todavía no hay mantenimientos finalizados para mostrar en el historial.'
+                    : 'No se encontraron mantenimientos en curso.';
+                tbody.innerHTML = `<tr><td colspan="${vistaActual === 'finalizado' ? 6 : 7}" style="text-align: center; color: #666; padding: 20px;">${mensaje}</td></tr>`;
                 return;
             }
 
             lista.forEach(m => {
                 const clase = m.Estado === 'finalizado' ? 'status active-status' : 'status';
+                const acciones = vistaActual === 'en proceso'
+                    ? `<td>
+                            <button class="edit" onclick="prepararEdicion(${m.Id_Mantenimiento})">Editar</button>
+                            <button class="delete" onclick="eliminar(${m.Id_Mantenimiento})">Eliminar</button>
+                        </td>`
+                    : '';
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${m.Matricula}</strong></td>
@@ -221,10 +284,7 @@
                         <td>${m.Fecha_Fin || '-'}</td>
                         <td><span class="${clase}">${m.Estado}</span></td>
                         <td>${m.Descripcion || '-'}</td>
-                        <td>
-                            <button class="edit" onclick="prepararEdicion(${m.Id_Mantenimiento})">Editar</button>
-                            <button class="delete" onclick="eliminar(${m.Id_Mantenimiento})">Eliminar</button>
-                        </td>
+                        ${acciones}
                     </tr>
                 `;
             });
@@ -259,6 +319,7 @@
             document.getElementById('mant-tipo').value = editando.tipo;
             document.getElementById('mant-fecha').value = editando.fecha_inicio;
             document.getElementById('mant-estado').value = editando.estado;
+            document.getElementById('mant-estado').disabled = false;
             document.getElementById('mant-descripcion').value = editando.descripcion;
             document.getElementById('add-mant-btn').textContent = 'Guardar cambios';
         }
@@ -267,6 +328,8 @@
             editando = null;
             document.getElementById('form-mant').reset();
             document.getElementById('mant-camion').disabled = false;
+            document.getElementById('mant-estado').disabled = true;
+            document.getElementById('mant-estado').value = 'en proceso';
             llenarSelectCamiones();
             document.getElementById('add-mant-btn').textContent = '+ Nuevo mantenimiento';
         }
@@ -297,6 +360,7 @@
                 .then(res => {
                     if (res.status === 'success') {
                         alert(editando ? '¡Mantenimiento actualizado!' : '¡Mantenimiento registrado!');
+                        cambiarVista(datos.estado);
                         resetearFormulario();
                         cargarCamiones();
                         cargarMantenimientos();
@@ -326,6 +390,6 @@
     </script>
 
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

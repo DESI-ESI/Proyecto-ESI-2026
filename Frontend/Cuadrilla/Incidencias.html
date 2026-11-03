@@ -5,6 +5,10 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Incidencias - SIGERU</title>
 	<link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+	<style>
+		.pending-incidents-section h2 { margin-bottom: 6px; }
+		.pending-incidents-section > p { margin-bottom: 12px; }
+	</style>
 </head>
 <body>
 	<header class="topbar">
@@ -71,7 +75,7 @@
 			<button type="submit" form="incident-form" class="add-button" id="save-incident-btn">+ Nueva incidencia</button>
 		</div>
 
-		<section style="margin-bottom: 20px;">
+		<section class="pending-incidents-section" style="margin-bottom: 20px;">
 			<h2>Incidencias pendientes de aceptar</h2>
 			<p>Al aceptar una incidencia, pasará a estar en curso y dejará de aparecer en esta lista.</p>
 			<div class="data-table">
@@ -327,6 +331,6 @@
 		}
 	</script>
 	<script src="../js/row-selection.js?v=4" defer></script>
-	<script src="../js/admin-auth.js?v=18" defer></script>
+	<script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

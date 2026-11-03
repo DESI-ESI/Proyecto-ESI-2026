@@ -9,8 +9,9 @@ class Empleado {
     private string $telefono;
     private string $rol;
     private string $turno;
+    private bool $debeCambiarContrasena;
 
-    public function __construct(int $id, string $cedula, string $nombre, string $apellido, string $email, string $telefono, string $rol, string $turno, string $area = '') {
+    public function __construct(int $id, string $cedula, string $nombre, string $apellido, string $email, string $telefono, string $rol, string $turno, string $area = '', bool $debeCambiarContrasena = false) {
         $this->id = $id;
         $this->cedula = $cedula;
         $this->nombre = $nombre;
@@ -19,6 +20,7 @@ class Empleado {
         $this->telefono = $telefono;
         $this->rol = $rol;
         $this->turno = $turno;
+        $this->debeCambiarContrasena = $debeCambiarContrasena;
     }
 
     public function getId(): int { return $this->id; }
@@ -29,8 +31,9 @@ class Empleado {
     public function getTelefono(): string { return $this->telefono; }
     public function getRol(): string { return $this->rol; }
     public function getTurno(): string { return $this->turno; }
+    public function debeCambiarContrasena(): bool { return $this->debeCambiarContrasena; }
 
-    public function registrarse(PDO $pdo, string $password, ?string $area = null, ?string $turno = null, ?int $idMunicipio = null): bool
+    public function registrarse(PDO $pdo, string $password, ?string $area = null, ?string $turno = null, ?int $idMunicipio = null, string $estadoCuenta = 'activa'): bool
     {
         try {
             $pdo->beginTransaction();
@@ -38,8 +41,8 @@ class Empleado {
             $this->password = password_hash($password, PASSWORD_DEFAULT);
             $this->turno = $turno ?? ($this->turno !== '' ? $this->turno : 'mañana');
 
-            $sql = 'INSERT INTO empleado (cedula, Nombre, Apellido, Email, password, Rol, turno)
-                    VALUES (:cedula, :nombre, :apellido, :email, :password, :rol, :turno)';
+            $sql = 'INSERT INTO empleado (cedula, Nombre, Apellido, Email, password, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena)
+                    VALUES (:cedula, :nombre, :apellido, :email, :password, :rol, :turno, :estado_cuenta, 1)';
             $stmt = $pdo->prepare($sql);
             
             $stmt->execute([
@@ -49,10 +52,15 @@ class Empleado {
                 ':email' => $this->email,
                 ':password' => $this->password,
                 ':rol' => $this->rol,
-                ':turno' => $this->turno
+                ':turno' => $this->turno,
+                ':estado_cuenta' => $estadoCuenta
             ]);
 
             $empleadoId = (int) $pdo->lastInsertId();
+            if ($this->telefono !== '') {
+                $telefono = $pdo->prepare('INSERT INTO telefono (Id, Telefono) VALUES (:id, :telefono)');
+                $telefono->execute([':id' => $empleadoId, ':telefono' => $this->telefono]);
+            }
 
             $rolLimpio = strtolower(trim($this->rol));
 
@@ -89,6 +97,9 @@ class Empleado {
         if (!$datos || !password_verify($password, $datos['password'])) {
             return null;
         }
+        if (strtolower((string) ($datos['Estado_Cuenta'] ?? 'activa')) !== 'activa') {
+            return null;
+        }
 
         return new self(
             (int) ($datos['Id'] ?? $datos['id'] ?? 0),
@@ -98,18 +109,20 @@ class Empleado {
             (string) ($datos['Email'] ?? $email),
             (string) ($datos['Telefono'] ?? ''),
             (string) ($datos['rol'] ?? $datos['Rol'] ?? ''),
-            (string) ($datos['turno'] ?? 'mañana')
+            (string) ($datos['turno'] ?? 'mañana'),
+            '',
+            (bool) ($datos['Debe_Cambiar_Contrasena'] ?? false)
         );
     }
 
     public static function listar(PDO $pdo, ?string $rol = null): array
     {
         if ($rol === null || trim($rol) === '' || strtolower($rol) === 'todos') {
-            $stmt = $pdo->query('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno FROM empleado');
+            $stmt = $pdo->query('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado');
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        $stmt = $pdo->prepare('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno FROM empleado WHERE Rol = :rol');
+        $stmt = $pdo->prepare('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado WHERE Rol = :rol');
         $stmt->execute([':rol' => $rol]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -134,15 +147,17 @@ class Empleado {
                 ':apellido' => trim((string) ($datos['apellido'] ?? '')),
                 ':email' => trim((string) ($datos['email'] ?? '')),
                 ':turno' => trim((string) ($datos['turno'] ?? 'mañana')),
+                ':estado_cuenta' => trim((string) ($datos['estado_cuenta'] ?? 'activa')),
                 ':id' => $id
             ];
 
             $sql = 'UPDATE empleado SET Nombre = :nombre, Apellido = :apellido,
-                    Email = :email, turno = :turno, Rol = :rol';
+                    Email = :email, turno = :turno, Rol = :rol, Estado_Cuenta = :estado_cuenta';
             $valores[':rol'] = $rolNuevo;
 
             if (!empty($datos['password'])) {
                 $sql .= ', password = :password';
+                $sql .= ', Debe_Cambiar_Contrasena = 1';
                 $valores[':password'] = password_hash($datos['password'], PASSWORD_DEFAULT);
             }
 

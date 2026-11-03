@@ -28,7 +28,8 @@
 				<a href="Camiones.html"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html" class="active"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -62,6 +63,15 @@
 			<div class="search">
 				<input type="datetime-local" id="incident-date" required>
 			</div>
+			<div class="search">
+				<input type="text" id="incident-zone" maxlength="120" placeholder="Zona (opcional)">
+			</div>
+			<div class="search">
+				<input type="number" id="incident-latitude" min="-90" max="90" step="0.0000001" placeholder="Latitud (opcional)">
+			</div>
+			<div class="search">
+				<input type="number" id="incident-longitude" min="-180" max="180" step="0.0000001" placeholder="Longitud (opcional)">
+			</div>
 			<select id="incident-status" required>
 				<option value="" disabled selected>Estado de la incidencia...</option>
 				<option value="abierta">Abierta</option>
@@ -89,11 +99,16 @@
 				<option value="en curso">En curso</option>
 				<option value="resuelta">Resuelta</option>
 			</select>
+			<div class="search">
+				<input type="text" id="filter-zona" placeholder="Filtrar por zona">
+			</div>
+			<label>Desde <input type="datetime-local" id="filter-desde"></label>
+			<label>Hasta <input type="datetime-local" id="filter-hasta"></label>
 		</div>
 
 		<section class="data-table">
 			<table data-bulk-delete="incidencias">
-				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Cuadrilla responsable</th><th>Acciones</th></tr></thead>
+				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Zona</th><th>Estado</th><th>Cuadrilla responsable</th><th>Acciones</th></tr></thead>
 				<tbody id="incidents-container"></tbody>
 			</table>
 		</section>
@@ -111,6 +126,8 @@
 			document.getElementById('search-incidencia').addEventListener('input', filtrarIncidencias);
 			document.getElementById('filter-estado').addEventListener('change', filtrarIncidencias);
 			document.getElementById('filter-tipo').addEventListener('change', filtrarIncidencias);
+			['filter-zona', 'filter-desde', 'filter-hasta'].forEach(id =>
+				document.getElementById(id).addEventListener(id === 'filter-zona' ? 'input' : 'change', filtrarIncidencias));
 			formularioIncidencia.addEventListener('submit', guardarIncidencia);
 			establecerFechaActual();
 			cargarContenedores();
@@ -171,7 +188,7 @@
 				filtrarIncidencias();
 			} catch (error) {
 				document.getElementById('incidents-container').innerHTML =
-					`<tr><td colspan="8" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+					`<tr><td colspan="9" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
 			}
 		}
 
@@ -179,9 +196,18 @@
 			const texto = document.getElementById('search-incidencia').value.trim().toLowerCase();
 			const estado = document.getElementById('filter-estado').value;
 			const tipo = document.getElementById('filter-tipo').value;
+			const zona = document.getElementById('filter-zona').value.trim().toLowerCase();
+			const desde = document.getElementById('filter-desde').value;
+			const hasta = document.getElementById('filter-hasta').value;
 			const filtradas = incidencias.filter(incidencia => {
-				const contenido = `${incidencia.Id_Incidencia} ${incidencia.Numero_Contenedor ?? ''} ${incidencia.Tipo} ${incidencia.Descripcion} ${incidencia.Fecha} ${incidencia.Estado} ${incidencia.Id_Cuadrilla ?? ''}`.toLowerCase();
-				return contenido.includes(texto) && (estado === 'todos' || incidencia.Estado === estado) && (tipo === 'todos' || incidencia.Tipo === tipo);
+				const fecha = String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16);
+				const contenido = `${incidencia.Id_Incidencia} ${incidencia.Numero_Contenedor ?? ''} ${incidencia.Tipo} ${incidencia.Descripcion} ${incidencia.Fecha} ${incidencia.Zona || ''} ${incidencia.Estado} ${incidencia.Id_Cuadrilla ?? ''}`.toLowerCase();
+				return contenido.includes(texto)
+					&& (estado === 'todos' || incidencia.Estado === estado)
+					&& (tipo === 'todos' || incidencia.Tipo === tipo)
+					&& String(incidencia.Zona || '').toLowerCase().includes(zona)
+					&& (!desde || fecha >= desde)
+					&& (!hasta || fecha <= hasta);
 			});
 
 			const tbody = document.getElementById('incidents-container');
@@ -192,11 +218,12 @@
 					<td>${escaparHtml(incidencia.Tipo)}</td>
 					<td>${escaparHtml(incidencia.Descripcion)}</td>
 					<td>${escaparHtml(incidencia.Fecha)}</td>
+					<td>${escaparHtml(incidencia.Zona || '-')}</td>
 					<td>${escaparHtml(incidencia.Estado)}</td>
 					<td>${incidencia.Id_Cuadrilla ? 'Cuadrilla #' + escaparHtml(incidencia.Id_Cuadrilla) : 'Sin asignar'}</td>
 					<td><button class="edit" type="button">Editar</button> <button class="delete" type="button">Eliminar</button></td>
 				</tr>
-			`).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron incidencias</td></tr>';
+			`).join('') : '<tr><td colspan="9" class="empty-table-message">No se encontraron incidencias</td></tr>';
 
 			tbody.querySelectorAll('.edit').forEach((boton, indice) => {
 				boton.addEventListener('click', () => editarIncidencia(filtradas[indice]));
@@ -212,6 +239,9 @@
 				Descripcion: incidencia.Descripcion || '',
 				Fecha: String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16),
 				Estado: incidencia.Estado || 'abierta',
+				Zona: incidencia.Zona || '',
+				Latitud: incidencia.Latitud ?? '',
+				Longitud: incidencia.Longitud ?? '',
 				Numero_Contenedor: incidencia.Numero_Contenedor ? String(incidencia.Numero_Contenedor) : '',
 				Id_Cuadrilla: incidencia.Id_Cuadrilla ? String(incidencia.Id_Cuadrilla) : ''
 			};
@@ -220,6 +250,9 @@
 			document.getElementById('incident-description').value = incidencia.Descripcion || '';
 			document.getElementById('incident-date').value = String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16);
 			document.getElementById('incident-status').value = incidencia.Estado || 'abierta';
+			document.getElementById('incident-zone').value = incidencia.Zona || '';
+			document.getElementById('incident-latitude').value = incidencia.Latitud ?? '';
+			document.getElementById('incident-longitude').value = incidencia.Longitud ?? '';
 			document.getElementById('incident-container').value = incidencia.Numero_Contenedor || '';
 			document.getElementById('incident-crew').value = incidencia.Id_Cuadrilla || '';
 			document.getElementById('incident-type').focus();
@@ -233,6 +266,9 @@
 				Descripcion: document.getElementById('incident-description').value.trim(),
 				Fecha: document.getElementById('incident-date').value,
 				Estado: document.getElementById('incident-status').value,
+				Zona: document.getElementById('incident-zone').value.trim(),
+				Latitud: document.getElementById('incident-latitude').value,
+				Longitud: document.getElementById('incident-longitude').value,
 				Numero_Contenedor: document.getElementById('incident-container').value,
 				Id_Cuadrilla: document.getElementById('incident-crew').value
 			};
@@ -276,6 +312,6 @@
 		}
 	</script>
 	<script src="../js/row-selection.js?v=4" defer></script>
-	<script src="../js/admin-auth.js?v=18" defer></script>
+	<script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 </html>

@@ -234,6 +234,62 @@
                 text-align: center;
                 animation: animCardPop 0.18s ease-out;
             }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modal-panel-box,
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card {
+                background: #1b2520 !important;
+                border-color: #34423a !important;
+                color: #e5ece8 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card.bloqueada {
+                background: #17201b !important;
+                border-color: #46544c !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .btn-cerrar-modal {
+                background: #26372e !important;
+                border-color: #46544c !important;
+                color: #e5ece8 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .btn-cerrar-modal:hover {
+                background: #34423a !important;
+                color: #ffffff !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modal-header h2,
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card h3 {
+                color: #e5ece8 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modal-header p,
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card p {
+                color: #aab8b0 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modal-header .modal-badge-top,
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-icono {
+                background: #203b2e !important;
+                color: #9fe0b9 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card.bloqueada .modulo-icono {
+                background: #26332c !important;
+                color: #aab8b0 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card.habilitada .modulo-tag {
+                background: #203b2e !important;
+                color: #9fe0b9 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card.bloqueada .modulo-tag {
+                background: #402727 !important;
+                color: #ffb4ad !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modulo-card.bloqueada .btn-modulo {
+                background: #34423a !important;
+                color: #e5ece8 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .pagina-principal-link {
+                color: #9fe0b9 !important;
+            }
+            html[data-sigeru-theme="dark"] #${MODAL_ID} .modal-aviso {
+                background: #402727 !important;
+                border-color: #704040 !important;
+                color: #ffb4ad !important;
+            }
             @keyframes animOverlayFade {
                 from { opacity: 0; }
                 to { opacity: 1; }

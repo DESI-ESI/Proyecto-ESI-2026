@@ -24,31 +24,44 @@ class MantenimientoController
         $idCamion = (int) ($datos['id_camion'] ?? 0);
         $tipo = $this->validarTipo($datos['tipo'] ?? '');
         $descripcion = trim((string) ($datos['descripcion'] ?? ''));
-        $fecha = $this->normalizarFecha($datos['fecha_inicio'] ?? '') ?? date('Y-m-d H:i:s');
+        $fechaOriginal = trim((string) ($datos['fecha_inicio'] ?? ''));
+        $fecha = $this->normalizarFecha($fechaOriginal);
 
-        if ($idCamion <= 0 || !$this->existeCamion($pdo, $idCamion)) {
+        if ($idCamion <= 0) {
             throw new InvalidArgumentException('Selecciona un camión válido.');
         }
-        $estadoCamion = $pdo->prepare('SELECT Estado FROM camion WHERE Id_Camion = :id');
-        $estadoCamion->execute([':id' => $idCamion]);
-        if (!in_array($estadoCamion->fetchColumn(), ['Mantenimiento', 'Roto'], true)) {
-            throw new InvalidArgumentException('Solo se puede registrar mantenimiento a camiones en estado Mantenimiento o Roto.');
+        if ($fecha === null) {
+            throw new InvalidArgumentException('La fecha de inicio del mantenimiento es obligatoria.');
         }
-        $abierto = $pdo->prepare("SELECT COUNT(*) FROM mantenimiento WHERE Id_Camion = :id AND Estado = 'en proceso'");
-        $abierto->execute([':id' => $idCamion]);
-        if ((int) $abierto->fetchColumn() > 0) {
-            throw new InvalidArgumentException('Ese camión ya tiene un mantenimiento en proceso.');
+        if ($descripcion === '') {
+            throw new InvalidArgumentException('La descripción del mantenimiento es obligatoria.');
         }
-
         $pdo->beginTransaction();
         try {
+            $estadoCamion = $pdo->prepare('SELECT Estado, Fecha_Baja FROM camion WHERE Id_Camion = :id FOR UPDATE');
+            $estadoCamion->execute([':id' => $idCamion]);
+            $datosCamion = $estadoCamion->fetch(PDO::FETCH_ASSOC);
+            $estadosPermitidos = $tipo === 'preventivo' ? ['Disponible', 'Mantenimiento'] : ['Mantenimiento', 'Roto'];
+            if (!$datosCamion || $datosCamion['Fecha_Baja'] !== null || !in_array($datosCamion['Estado'], $estadosPermitidos, true)) {
+                $mensaje = $tipo === 'preventivo'
+                    ? 'El mantenimiento preventivo requiere un camión activo disponible o ya en mantenimiento.'
+                    : 'El mantenimiento correctivo requiere un camión activo en estado Mantenimiento o Roto.';
+                throw new InvalidArgumentException($mensaje);
+            }
+            $abierto = $pdo->prepare("SELECT COUNT(*) FROM mantenimiento WHERE Id_Camion = :id AND Estado = 'en proceso'");
+            $abierto->execute([':id' => $idCamion]);
+            if ((int) $abierto->fetchColumn() > 0) {
+                throw new InvalidArgumentException('Ese camión ya tiene un mantenimiento en proceso.');
+            }
             $stmt = $pdo->prepare("INSERT INTO mantenimiento (Fecha_Inicio, Tipo_Mantenimiento, Descripcion, Estado, Id_Camion)
                                    VALUES (:fecha, :tipo, :descripcion, 'en proceso', :camion)");
             $stmt->execute([':fecha' => $fecha, ':tipo' => $tipo, ':descripcion' => $descripcion, ':camion' => $idCamion]);
             $pdo->prepare("UPDATE camion SET Estado = 'Mantenimiento', Id_Ruta = NULL WHERE Id_Camion = :id")->execute([':id' => $idCamion]);
             $pdo->commit();
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             throw $e;
         }
         return true;
@@ -125,13 +138,6 @@ class MantenimientoController
         $stmt = $pdo->prepare('SELECT * FROM mantenimiento WHERE Id_Mantenimiento = :id');
         $stmt->execute([':id' => $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    }
-
-    private function existeCamion(PDO $pdo, int $id): bool
-    {
-        $stmt = $pdo->prepare('SELECT 1 FROM camion WHERE Id_Camion = :id');
-        $stmt->execute([':id' => $id]);
-        return (bool) $stmt->fetchColumn();
     }
 
     private function validarTipo($tipo): string

@@ -27,8 +27,22 @@ $datos = is_array($datos) ? $datos : $_POST;
 
 $accion = strtolower(trim((string) ($_GET['accion'] ?? $datos['accion'] ?? '')));
 
-if (!in_array($accion, ['login', 'registro'], true) && !empleadoEsAdministrador()) {
+if ($accion !== 'login' && $accion !== 'logout' && !empleadoEsAdministrador()) {
     responderEmpleados(['status' => 'error', 'message' => 'Se requiere rol administrador.'], 403);
+}
+
+$sesionDebeCambiarContrasena = false;
+if (!empty($_SESSION['empleado_id'])) {
+    $estadoSesion = $pdo->prepare('SELECT Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado WHERE Id = :id LIMIT 1');
+    $estadoSesion->execute([':id' => (int) $_SESSION['empleado_id']]);
+    $datosSesion = $estadoSesion->fetch(PDO::FETCH_ASSOC);
+    $sesionDebeCambiarContrasena = (bool) ($datosSesion['Debe_Cambiar_Contrasena'] ?? false);
+    if (!$datosSesion || strtolower((string) $datosSesion['Estado_Cuenta']) !== 'activa') {
+        $_SESSION = [];
+        $sesionDebeCambiarContrasena = false;
+    } elseif ($sesionDebeCambiarContrasena && !in_array($accion, ['logout'], true)) {
+        responderEmpleados(['status' => 'error', 'message' => 'Debes cambiar tu contraseña antes de continuar.'], 403);
+    }
 }
 
 $pathInfo = $_SERVER['PATH_INFO'] ?? '';
@@ -66,9 +80,6 @@ try {
                 }
             } elseif ($accion === 'login') {
                 responderEmpleados($controller->iniciarSesion($pdo, $datos));
-            } elseif ($accion === 'registro') {
-                $datos['rol'] = 'empleado';
-                responderEmpleados($controller->registrarse($pdo, $datos));
             } elseif ($accion === 'logout') {
                 $controller->cerrarSesion();
                 responderEmpleados(['status' => 'success', 'message' => 'Sesión cerrada']);
@@ -151,6 +162,16 @@ function responderEmpleados(array $respuesta, int $codigo = 200): void
 
 function empleadoEsAdministrador(): bool
 {
+    global $pdo;
     $rol = strtolower(trim((string) ($_SESSION['rol'] ?? '')));
-    return !empty($_SESSION['empleado_id']) && $rol === 'admi_municipal';
+    if (empty($_SESSION['empleado_id']) || $rol !== 'admi_municipal') {
+        return false;
+    }
+
+    $estado = $pdo->prepare('SELECT Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado WHERE Id = :id LIMIT 1');
+    $estado->execute([':id' => (int) $_SESSION['empleado_id']]);
+    $usuario = $estado->fetch(PDO::FETCH_ASSOC);
+    return $usuario
+        && strtolower((string) $usuario['Estado_Cuenta']) === 'activa'
+        && !(bool) $usuario['Debe_Cambiar_Contrasena'];
 }

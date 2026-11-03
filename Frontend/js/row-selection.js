@@ -142,13 +142,31 @@
         const detalle = recurso === 'centros'
             ? ' También se borrarán su maquinaria y sus ingresos.'
             : '';
-        if (!confirm(`Se eliminarán ${registros.length} registros seleccionados.${detalle} Esta acción no se puede deshacer. ¿Continuar?`)) return;
+        const requiereMotivoBaja = ['contenedores', 'camiones', 'maquinaria'].includes(recurso);
+        const accion = requiereMotivoBaja ? 'Se darán de baja' : 'Se eliminarán';
+        const irreversibilidad = requiereMotivoBaja
+            ? ' El registro y el historial se conservarán.'
+            : ' Esta acción no se puede deshacer.';
+        if (!confirm(`${accion} ${registros.length} registros seleccionados.${detalle}${irreversibilidad} ¿Continuar?`)) return;
+
+        const motivoBaja = requiereMotivoBaja
+            ? window.prompt(`Indicá el motivo de baja para ${registros.length} registros seleccionados (máximo 500 caracteres):`)
+            : null;
+        if (requiereMotivoBaja && (!motivoBaja || !motivoBaja.trim() || motivoBaja.trim().length > 500)) {
+            alert('La baja requiere un motivo de hasta 500 caracteres.');
+            return;
+        }
 
         const errores = [];
         let eliminados = 0;
         for (const [clave, registro] of registros) {
             try {
                 const [url, opciones] = solicitudEliminar(recurso, registro.id);
+                if (requiereMotivoBaja) {
+                    opciones.headers = { ...(opciones.headers || {}), 'Content-Type': 'application/json' };
+                    const cuerpo = opciones.body ? JSON.parse(opciones.body) : {};
+                    opciones.body = JSON.stringify({ ...cuerpo, motivo: motivoBaja.trim() });
+                }
                 const respuesta = await fetch(url, opciones);
                 const datos = await respuesta.json();
                 if (!respuesta.ok || datos.status !== 'success') {
@@ -164,7 +182,7 @@
         const recargar = window[recargadores[recurso]];
         if (eliminados && typeof recargar === 'function') await recargar();
 
-        const resumen = `${eliminados} de ${registros.length} registros eliminados.`;
+        const resumen = `${eliminados} de ${registros.length} registros procesados.`;
         alert(errores.length ? `${resumen}\nNo se pudieron eliminar:\n${errores.join('\n')}` : resumen);
     }
 

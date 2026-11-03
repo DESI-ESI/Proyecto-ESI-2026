@@ -88,12 +88,18 @@ class Contenedores
 
    
 
-    public function registrarContenedor(PDO $pdo, int $idMunicipio, ?int $numero = null): bool
+    public function registrarContenedor(
+        PDO $pdo,
+        int $idMunicipio,
+        ?int $numero = null,
+        ?float $latitud = null,
+        ?float $longitud = null
+    ): bool
     {
         $sql = "INSERT INTO contenedor
-            (Numero_Contenedor, Tipo_Residuo, Capacidad, Ubicacion, Estado, Id_Municipio)
+            (Numero_Contenedor, Tipo_Residuo, Capacidad, Ubicacion, Estado, Id_Municipio, Latitud, Longitud)
             VALUES
-            (:numero, :tipo, :capacidad, :ubicacion, :estado, :municipio)";
+            (:numero, :tipo, :capacidad, :ubicacion, :estado, :municipio, :latitud, :longitud)";
 
         $stmt = $pdo->prepare($sql);
 
@@ -103,23 +109,25 @@ class Contenedores
             ':capacidad' => $this->capacidad,
             ':ubicacion' => $this->ubicacion,
             ':estado' => $this->estado,
-            ':municipio' => $idMunicipio
+            ':municipio' => $idMunicipio,
+            ':latitud' => $latitud,
+            ':longitud' => $longitud
         ]);
     }
 
 
     
 
-    public static function darBajaContenedor(PDO $pdo, int $idContenedor): void
+    public static function darBajaContenedor(PDO $pdo, int $idContenedor, string $motivo): bool
     {
         $stmt = $pdo->prepare(
-            "DELETE FROM contenedor
-             WHERE Id_Contenedor = :id"
+            "UPDATE contenedor
+             SET Estado = 'inactivo', Motivo_Baja = :motivo
+             WHERE Id_Contenedor = :id AND (Estado IS NULL OR Estado <> 'inactivo')"
         );
 
-        $stmt->execute([
-            ':id' => $idContenedor
-        ]);
+        $stmt->execute([':motivo' => $motivo, ':id' => $idContenedor]);
+        return $stmt->rowCount() > 0;
     }
 
 
@@ -277,6 +285,7 @@ class Contenedores
                     Capacidad,
                     Ubicacion,
                     Estado,
+                    Motivo_Baja,
                     Id_Municipio,
                     Id_Incidencia,
                     Latitud,

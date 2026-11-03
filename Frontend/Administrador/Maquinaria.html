@@ -32,7 +32,8 @@
                 <a href="Camiones.html"><span>▱</span>Camiones</a>
                 <a href="contenedores.html"><span>♢</span>Contenedores</a>
                 <a href="Incidencias.html"><span>!</span>Incidencias</a>
-                <a href="Centros.html"><span>▦</span>Instalaciones</a>
+                <a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+                <a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
                 <a href="Maquinaria.html" class="active"><span>⚙</span>Maquinaria</a>
                 <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
                 <a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -59,7 +60,10 @@
                 </div>
 
                 <div class="search">
-                    <input type="text" id="maquina-tipo" placeholder="Tipo (Ej: Compactadora, Cinta, Balanza)" maxlength="50">
+                    <input type="text" id="maquina-tipo" placeholder="Tipo (Ej: Compactadora, Cinta, Balanza)" maxlength="50" required>
+                </div>
+                <div class="search">
+                    <input type="text" id="maquina-descripcion" placeholder="Descripción" maxlength="2000" required>
                 </div>
 
                 <select id="maquina-centro" required>
@@ -90,6 +94,7 @@
                     <option value="operativa">Operativa</option>
                     <option value="mantenimiento">En mantenimiento</option>
                     <option value="fuera_de_servicio">Fuera de servicio</option>
+                    <option value="baja">Dada de baja</option>
                 </select>
             </div>
 
@@ -100,8 +105,11 @@
                             <th>ID</th>
                             <th>Nombre</th>
                             <th>Tipo</th>
+                            <th>Descripción</th>
                             <th>Instalación</th>
                             <th>Estado</th>
+                            <th>Fecha de baja</th>
+                            <th>Motivo de baja</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -129,6 +137,7 @@
             return {
                 nombre: document.getElementById('maquina-nombre').value.trim(),
                 tipo: document.getElementById('maquina-tipo').value.trim(),
+                descripcion: document.getElementById('maquina-descripcion').value.trim(),
                 id_centro: document.getElementById('maquina-centro').value,
                 estado: document.getElementById('maquina-estado').value
             };
@@ -147,29 +156,32 @@
             const tbody = document.getElementById('tabla-maquinaria-body');
 
             const listado = maquinas.filter(m => {
-                const texto = `${m.Nombre} ${m.Tipo || ''} ${m.Centro}`.toLowerCase();
+                const texto = `${m.Nombre} ${m.Tipo || ''} ${m.Descripcion || ''} ${m.Motivo_Baja || ''} ${m.Centro}`.toLowerCase();
                 return texto.includes(termino)
                     && (instalacion === 'todos' || m.Tipo_Instalacion === instalacion)
-                    && (estado === 'todos' || m.Estado === estado);
+                    && (estado === 'todos' || (estado === 'baja' ? Boolean(m.Fecha_Baja) : !m.Fecha_Baja && m.Estado === estado));
             });
 
             if (listado.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666; padding: 20px;">No se encontró maquinaria</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666; padding: 20px;">No se encontró maquinaria</td></tr>';
                 return;
             }
 
             tbody.innerHTML = listado.map(m => {
-                const clase = m.Estado === 'operativa' ? 'status active-status' : 'status';
+                const clase = !m.Fecha_Baja && m.Estado === 'operativa' ? 'status active-status' : 'status';
                 return `
                     <tr>
                         <td>${Number(m.Id_Maquinaria)}</td>
                         <td><strong>${esc(m.Nombre)}</strong></td>
                         <td>${esc(m.Tipo || '-')}</td>
+                        <td>${esc(m.Descripcion || '-')}</td>
                         <td>${esc(m.Centro)} (${esc(nombresInstalacion[m.Tipo_Instalacion] || m.Tipo_Instalacion)})</td>
-                        <td><span class="${clase}">${esc(nombresEstado[m.Estado] || m.Estado)}</span></td>
+                        <td><span class="${clase}">${m.Fecha_Baja ? 'Dada de baja' : esc(nombresEstado[m.Estado] || m.Estado)}</span></td>
+                        <td>${esc(m.Fecha_Baja || '-')}</td>
+                        <td>${esc(m.Motivo_Baja || '-')}</td>
                         <td>
-                            <button class="edit" onclick="prepararEdicion(${Number(m.Id_Maquinaria)})">Editar</button>
-                            <button class="delete" onclick="eliminarMaquina(${Number(m.Id_Maquinaria)})">Eliminar</button>
+                            ${m.Fecha_Baja ? '<button class="edit" disabled>Retirada</button>' : `<button class="edit" onclick="prepararEdicion(${Number(m.Id_Maquinaria)})">Editar</button>
+                            <button class="delete" onclick="eliminarMaquina(${Number(m.Id_Maquinaria)})">Dar de baja</button>`}
                         </td>
                     </tr>`;
             }).join('');
@@ -206,9 +218,11 @@
             const m = maquinas.find(x => Number(x.Id_Maquinaria) === id);
             if (!m) return;
 
-            maquinaEditando = { id, nombre: m.Nombre, tipo: m.Tipo || '', id_centro: String(m.Id_Centro), estado: m.Estado };
+            if (m.Fecha_Baja) return;
+            maquinaEditando = { id, nombre: m.Nombre, tipo: m.Tipo || '', descripcion: m.Descripcion || '', id_centro: String(m.Id_Centro), estado: m.Estado };
             document.getElementById('maquina-nombre').value = maquinaEditando.nombre;
             document.getElementById('maquina-tipo').value = maquinaEditando.tipo;
+            document.getElementById('maquina-descripcion').value = maquinaEditando.descripcion;
             document.getElementById('maquina-centro').value = maquinaEditando.id_centro;
             document.getElementById('maquina-estado').value = maquinaEditando.estado;
             document.getElementById('add-maquina-btn').textContent = 'Guardar cambios';
@@ -219,7 +233,7 @@
             const datos = leerFormulario();
 
             if (maquinaEditando) {
-                const sinCambios = ['nombre', 'tipo', 'id_centro', 'estado'].every(k => String(maquinaEditando[k]) === String(datos[k]));
+                const sinCambios = ['nombre', 'tipo', 'descripcion', 'id_centro', 'estado'].every(k => String(maquinaEditando[k]) === String(datos[k]));
                 if (sinCambios) {
                     alert('No se realizaron cambios (se canceló la edición).');
                     resetearFormulario();
@@ -252,10 +266,20 @@
         }
 
         async function eliminarMaquina(id) {
-            if (!confirm('¿Eliminar esta maquinaria?')) return;
+            if (!confirm('¿Dar de baja esta maquinaria? Su registro e historial se conservarán.')) return;
+            const motivo = window.prompt('Indicá el motivo de la baja (máximo 500 caracteres):');
+            if (!motivo || !motivo.trim() || motivo.trim().length > 500) {
+                alert('La baja requiere un motivo de hasta 500 caracteres.');
+                return;
+            }
 
             try {
-                const respuesta = await fetch(apiBase + `maquinaria&id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+                const respuesta = await fetch(apiBase + `maquinaria&id=${id}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ motivo: motivo.trim() })
+                });
                 const resultado = await respuesta.json();
                 alert(resultado.message || 'Listo.');
                 if (maquinaEditando && maquinaEditando.id === id) resetearFormulario();
@@ -275,7 +299,7 @@
         });
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 
 </html>

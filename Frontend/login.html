@@ -66,11 +66,16 @@
             })
             .then(data => {
                 if (data.status === 'success') {
+                    sessionStorage.removeItem('sigeru_sesion');
                     mensajeDiv.style.color = 'green';
-                    mensajeDiv.textContent = data.message;
+                    mensajeDiv.textContent = data.must_change_password
+                        ? 'Primer ingreso: tenés que cambiar tu contraseña para continuar.'
+                        : data.message;
 
                     setTimeout(() => {
-                        window.location.href = 'index.php';
+                        window.location.href = data.must_change_password
+                            ? 'Configuracion.html?cambio-obligatorio=1'
+                            : 'index.php';
                     }, 1000);
                 } else {
                     mensajeDiv.style.color = 'red';

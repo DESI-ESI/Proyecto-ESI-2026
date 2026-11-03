@@ -54,7 +54,8 @@
 				<a href="Camiones.html"><span>▱</span>Camiones</a>
 				<a href="contenedores.html"><span>♢</span>Contenedores</a>
 				<a href="Incidencias.html"><span>!</span>Incidencias</a>
-				<a href="Centros.html"><span>▦</span>Instalaciones</a>
+				<a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
@@ -143,6 +144,10 @@
                      <option value="" disabled selected>Municipio...</option>
                 </select>
 
+                <select id="Id_Camion">
+                    <option value="">Sin camión asignado...</option>
+                </select>
+
                 <details class="multi-cuadrillas" id="cuadrillas-box">
                     <summary id="cuadrillas-resumen">Cuadrillas (opcional)...</summary>
                     <div id="cuadrillas-lista"></div>
@@ -185,6 +190,7 @@
                             <th>Frecuencia</th>
                             <th>Distancia</th>
                             <th>Municipio</th>
+                            <th>Camión</th>
                             <th>Cuadrillas</th>
                             <th>Contenedores</th>
                             <th>Estado</th>
@@ -210,6 +216,7 @@
         let rutasOriginales = [];
         let contenedoresDisponibles = [];
         let municipiosPorId = {};
+        let camionesDisponibles = [];
         let modoEdicion = false;
         let rutaEditando = null;
 
@@ -280,7 +287,8 @@
         function cargarContenedores() {
             return solicitarJson(contenedoresApi)
                 .then(respuesta => {
-                    contenedoresDisponibles = Array.isArray(respuesta.data) ? respuesta.data : [];
+                    contenedoresDisponibles = (Array.isArray(respuesta.data) ? respuesta.data : [])
+                        .filter(contenedor => String(contenedor.Estado || '').toLowerCase() !== 'inactivo');
                     const lista = document.getElementById('contenedores-lista');
                     lista.innerHTML = contenedoresDisponibles.map(contenedor => `
                         <label>
@@ -313,6 +321,35 @@
                 .catch(error => console.error('Error al cargar cuadrillas:', error));
         }
 
+        function cargarCamiones() {
+            return solicitarJson('../../Backend/apis/gestion/ApiGestion.php?recurso=camiones')
+                .then(respuesta => {
+                    camionesDisponibles = Array.isArray(respuesta.data) ? respuesta.data : [];
+                    actualizarSelectCamiones();
+                })
+                .catch(error => {
+                    document.getElementById('Id_Camion').innerHTML =
+                        '<option value="">Error al cargar camiones</option>';
+                    console.error('Error al cargar camiones:', error);
+                });
+        }
+
+        function actualizarSelectCamiones(idRuta = document.getElementById('Id_Ruta').value) {
+            const select = document.getElementById('Id_Camion');
+            const idCamionActual = modoEdicion && rutaEditando ? String(rutaEditando.Id_Camion || '') : '';
+            const elegibles = camionesDisponibles.filter(camion => {
+                const estado = String(camion.estado || '').toLowerCase();
+                const asignadoEstaRuta = String(camion.Id_Ruta || '') === String(idRuta || '');
+                return !camion.Fecha_Baja
+                    && ['disponible', 'en ruta'].includes(estado)
+                    && (!camion.Id_Ruta || asignadoEstaRuta || String(camion.Id_Camion) === idCamionActual);
+            });
+            select.innerHTML = '<option value="">Sin camión asignado...</option>' + elegibles.map(camion =>
+                `<option value="${escaparHtml(camion.Id_Camion)}">${escaparHtml(camion.matricula)} (${escaparHtml(camion.estado)})</option>`
+            ).join('');
+            select.value = idCamionActual;
+        }
+
         document.addEventListener('click', event => {
             const caja = document.getElementById('cuadrillas-box');
             const cajaContenedores = document.getElementById('contenedores-box');
@@ -326,12 +363,13 @@
             document.getElementById('form-ruta').reset();
             marcarCuadrillas([]);
             marcarContenedores([]);
+            actualizarSelectCamiones();
             document.getElementById('Id_Ruta').value = '';
             document.getElementById('add-route-btn').textContent = '+ Nueva ruta';
             actualizarFrecuencia();
         }
 
-        function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, cuadrillas, contenedoresAsignados) {
+        function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, camion, cuadrillas, contenedoresAsignados) {
             horarioInicio = String(horarioInicio || '').slice(0, 5);
             horarioFin = String(horarioFin || '').slice(0, 5);
             rutaEditando = {
@@ -343,6 +381,7 @@
                 Distancia: distancia,
                 Estado: estado,
                 Id_Municipio: idMunicipio || '',
+                Id_Camion: camion || '',
                 Cuadrillas: cuadrillas || '',
                 Contenedores: contenedoresAsignados || ''
             };
@@ -364,6 +403,8 @@
             document.getElementById('Distancia').value = distancia;
             document.getElementById('estado').value = estado;
             document.getElementById('id_municipio').value = idMunicipio;
+            actualizarSelectCamiones(idRuta);
+            document.getElementById('Id_Camion').value = camion || '';
             document.getElementById('add-route-btn').textContent = 'Guardar cambios';
             actualizarFrecuencia();
             document.getElementById('Recorrido').focus();
@@ -424,6 +465,7 @@
                         <td>${escaparHtml(ruta.Frecuencia)}</td>
                         <td>${escaparHtml(ruta.Distancia)} km</td>
                         <td>${escaparHtml(municipio)}</td>
+                        <td>${escaparHtml(ruta.Matricula_Camion || '-')}</td>
                         <td>${ruta.Cuadrillas ? escaparHtml(ruta.Cuadrillas.split(',').map(id => '#' + id).join(', ')) : '-'}</td>
                         <td>${ruta.Numeros_Contenedores ? escaparHtml(ruta.Numeros_Contenedores.split(',').map(numero => 'N° ' + numero).join(', ')) : '-'}</td>
                         <td>${escaparHtml(ruta.Estado)}</td>
@@ -432,7 +474,7 @@
                             <button class="delete" type="button">Eliminar</button>
                         </td>
                     </tr>`;
-            }).join('') : '<tr><td colspan="10" class="empty-table-message">No se encontraron rutas</td></tr>';
+            }).join('') : '<tr><td colspan="11" class="empty-table-message">No se encontraron rutas</td></tr>';
 
             tbody.querySelectorAll('.edit').forEach((boton, indice) => {
                 boton.addEventListener('click', () => {
@@ -446,6 +488,7 @@
                         ruta.Distancia ?? '',
                         ruta.Estado || '',
                         ruta.Id_Municipio ?? ruta.id_municipio ?? '',
+                        ruta.Id_Camion ?? '',
                         ruta.Cuadrillas || '',
                         ruta.Contenedores || ''
                     );
@@ -464,7 +507,7 @@
                 })
                 .catch(error => {
                     document.getElementById('routes-container').innerHTML =
-                        `<tr><td colspan="10" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
+                        `<tr><td colspan="11" class="empty-table-message">${escaparHtml(error.message || 'Error de conexión')}</td></tr>`;
                 });
         }
 
@@ -475,7 +518,7 @@
             const filtradas = rutasOriginales.filter(ruta => {
                 const idMunicipio = ruta.Id_Municipio ?? ruta.id_municipio ?? '';
                 const nombreMunicipio = municipiosPorId[String(idMunicipio)] || '';
-                const texto = `${ruta.Id_Ruta || ''} ${ruta.Recorrido || ''} ${ruta.Estado || ''} ${ruta.Horario_Inicio || ''} ${ruta.Horario_Fin || ''} ${ruta.Frecuencia || ''} ${ruta.Distancia || ''} ${ruta.Id_Municipio || ''} ${nombreMunicipio}`.toLowerCase();
+                const texto = `${ruta.Id_Ruta || ''} ${ruta.Recorrido || ''} ${ruta.Estado || ''} ${ruta.Horario_Inicio || ''} ${ruta.Horario_Fin || ''} ${ruta.Frecuencia || ''} ${ruta.Distancia || ''} ${ruta.Id_Municipio || ''} ${nombreMunicipio} ${ruta.Matricula_Camion || ''}`.toLowerCase();
                 const coincideTexto = texto.includes(termino);
                 const coincideEstado = estadoSeleccionado === 'todos' || String(ruta.Estado || '').toLowerCase() === estadoSeleccionado;
                 const coincideMunicipio = municipioSeleccionado === 'todos' || String(idMunicipio) === municipioSeleccionado;
@@ -501,6 +544,7 @@
                 Distancia: document.getElementById('Distancia').value,
                 Estado: document.getElementById('estado').value,
                 Id_Municipio: document.getElementById('id_municipio').value,
+                Id_Camion: document.getElementById('Id_Camion').value,
                 cuadrillas: cuadrillasSeleccionadas(),
                 contenedores: contenedoresSeleccionados()
             };
@@ -514,6 +558,7 @@
                     String(rutaEditando.Distancia || '') === String(datos.Distancia || '') &&
                     String(rutaEditando.Estado || '') === String(datos.Estado || '') &&
                     String(rutaEditando.Id_Municipio || '') === String(datos.Id_Municipio || '') &&
+                    String(rutaEditando.Id_Camion || '') === String(datos.Id_Camion || '') &&
                     String(rutaEditando.Cuadrillas || '') === datos.cuadrillas.join(',') &&
                     String(rutaEditando.Contenedores || '') === datos.contenedores.join(',');
 
@@ -536,6 +581,7 @@
                     resetearFormulario();
                     cargarCuadrillas();
                     cargarRutas();
+                    cargarCamiones();
                 }
             })
             .catch(error => alert(error.message));
@@ -543,12 +589,13 @@
 
         cargarMunicipios();
         cargarCuadrillas();
+        cargarCamiones();
         cargarContenedores().then(cargarRutas);
         resetearFormulario();
     </script>
 
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=18" defer></script>
+    <script src="../js/admin-auth.js?v=31" defer></script>
 </body>
 
 </html>

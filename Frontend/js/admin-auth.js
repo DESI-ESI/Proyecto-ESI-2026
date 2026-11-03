@@ -8,6 +8,7 @@ const enSubcarpetaFrontend = ['/administrador/', '/empleados/', '/operario/', '/
 const backendBase = enSubcarpetaFrontend ? '../../Backend/' : '../Backend/';
 const paginaLogin = enSubcarpetaFrontend ? '../login.html' : 'login.html';
 const paginaInicio = enSubcarpetaFrontend ? '../index.php' : 'index.php';
+const paginaConfiguracion = enSubcarpetaFrontend ? '../Configuracion.html' : 'Configuracion.html';
 const clavePreferenciaNotificaciones = 'sigeru_mostrar_notificaciones';
 const clavePreferenciaTema = 'sigeru_tema';
 
@@ -54,6 +55,8 @@ function instalarEstilosTema() {
         html[data-sigeru-theme="dark"] .filters,
         html[data-sigeru-theme="dark"] .data-table,
         html[data-sigeru-theme="dark"] .users-table,
+        html[data-sigeru-theme="dark"] .stat-box,
+        html[data-sigeru-theme="dark"] .box,
         html[data-sigeru-theme="dark"] .settings-card,
         html[data-sigeru-theme="dark"] .tarjeta,
         html[data-sigeru-theme="dark"] .contacto-item,
@@ -69,6 +72,13 @@ function instalarEstilosTema() {
             color: #e5ece8 !important;
             border-color: #34423a !important;
         }
+        html[data-sigeru-theme="dark"] .stat-icon,
+        html[data-sigeru-theme="dark"] .activity-icon,
+        html[data-sigeru-theme="dark"] .action > span,
+        html[data-sigeru-theme="dark"] .account-menu-avatar {
+            background-color: #203b2e !important;
+            color: #9fe0b9 !important;
+        }
         html[data-sigeru-theme="dark"] .sidebar a,
         html[data-sigeru-theme="dark"] .menu a,
         html[data-sigeru-theme="dark"] .admin-info,
@@ -76,6 +86,9 @@ function instalarEstilosTema() {
         html[data-sigeru-theme="dark"] .welcome h1,
         html[data-sigeru-theme="dark"] .page-header h1,
         html[data-sigeru-theme="dark"] .seccion h2,
+        html[data-sigeru-theme="dark"] .section-title,
+        html[data-sigeru-theme="dark"] .box h2,
+        html[data-sigeru-theme="dark"] .stat-box h3,
         html[data-sigeru-theme="dark"] .account-menu-name,
         html[data-sigeru-theme="dark"] .notif-title,
         html[data-sigeru-theme="dark"] .panel-header h2,
@@ -107,24 +120,148 @@ function instalarEstilosTema() {
         html[data-sigeru-theme="dark"] .welcome p,
         html[data-sigeru-theme="dark"] .settings-heading p,
         html[data-sigeru-theme="dark"] .settings-account dt,
-        html[data-sigeru-theme="dark"] .settings-account dd,
         html[data-sigeru-theme="dark"] .seccion-texto,
         html[data-sigeru-theme="dark"] .tarjeta p,
         html[data-sigeru-theme="dark"] .account-menu-role,
         html[data-sigeru-theme="dark"] .account-theme-state,
+        html[data-sigeru-theme="dark"] .empty,
         html[data-sigeru-theme="dark"] .notif-menu li,
         html[data-sigeru-theme="dark"] .notif-menu li small {
             color: #aab8b0 !important;
         }
+        html[data-sigeru-theme="dark"] .settings-heading h1,
+        html[data-sigeru-theme="dark"] .settings-card h2,
+        html[data-sigeru-theme="dark"] .settings-account dd,
+        html[data-sigeru-theme="dark"] .settings-option,
+        html[data-sigeru-theme="dark"] .password-field,
+        html[data-sigeru-theme="dark"] .account-menu-action,
+        html[data-sigeru-theme="dark"] .notif-menu li {
+            color: #e5ece8 !important;
+        }
+        html[data-sigeru-theme="dark"] .password-help {
+            color: #aab8b0 !important;
+        }
+        html[data-sigeru-theme="dark"] .password-status[data-status="success"] {
+            color: #9fe0b9 !important;
+        }
+        html[data-sigeru-theme="dark"] .password-status[data-status="error"] {
+            color: #ffb4ad !important;
+        }
+        html[data-sigeru-theme="dark"] .settings-home {
+            color: #9fe0b9 !important;
+        }
+        html[data-sigeru-theme="dark"] .settings-actions .add-button {
+            background: #176b43 !important;
+            border: 1px solid #34423a !important;
+            color: #ffffff !important;
+        }
+        html[data-sigeru-theme="dark"] .settings-actions .add-button:hover {
+            background: #1b7a4d !important;
+            border-color: #46544c !important;
+        }
+        html[data-sigeru-theme="dark"] .notif-btn {
+            background: #1b2520 !important;
+            border-color: #34423a !important;
+            color: #c4d2ca !important;
+        }
+        html[data-sigeru-theme="dark"] .notif-btn:hover,
+        html[data-sigeru-theme="dark"] .notif-btn[aria-expanded="true"] {
+            background: #26372e !important;
+            border-color: #46544c !important;
+            color: #9fe0b9 !important;
+        }
+        html[data-sigeru-theme="dark"] .account-menu-trigger {
+            background: #203b2e !important;
+            border: 1px solid #34423a !important;
+            color: #9fe0b9 !important;
+        }
+        html[data-sigeru-theme="dark"] .account-menu-trigger:hover,
+        html[data-sigeru-theme="dark"] .account-menu-trigger[aria-expanded="true"] {
+            background: #26372e !important;
+            border-color: #46544c !important;
+        }
+        html[data-sigeru-theme="dark"] .notif-menu li.nueva {
+            background-color: #26372e !important;
+        }
+        html[data-sigeru-theme="dark"] .notif-menu li {
+            border-bottom-color: #34423a !important;
+        }
         html[data-sigeru-theme="dark"] table thead,
         html[data-sigeru-theme="dark"] th,
+        html[data-sigeru-theme="dark"] td,
         html[data-sigeru-theme="dark"] .panel-header,
         html[data-sigeru-theme="dark"] .activity-item,
         html[data-sigeru-theme="dark"] .action,
         html[data-sigeru-theme="dark"] .account-menu-profile,
-        html[data-sigeru-theme="dark"] .account-menu-separator,
         html[data-sigeru-theme="dark"] .notif-title {
             border-color: #34423a !important;
+        }
+        html[data-sigeru-theme="dark"] .account-menu-separator {
+            background-color: #34423a !important;
+        }
+        html[data-sigeru-theme="dark"] table thead,
+        html[data-sigeru-theme="dark"] table th {
+            background-color: #1b2520 !important;
+        }
+        html[data-sigeru-theme="dark"] .bar-track {
+            background-color: #34423a !important;
+        }
+        html[data-sigeru-theme="dark"] input[type="checkbox"] {
+            background-color: #121a16 !important;
+            border-color: #64736a !important;
+        }
+        html[data-sigeru-theme="dark"] input[type="checkbox"]:checked {
+            background-color: #238b57 !important;
+            border-color: #238b57 !important;
+        }
+        html[data-sigeru-theme="dark"] .row-select-action,
+        html[data-sigeru-theme="dark"] .multi-empleados summary,
+        html[data-sigeru-theme="dark"] .multi-cuadrillas summary,
+        html[data-sigeru-theme="dark"] #crew-employee-list label {
+            color: #e5ece8 !important;
+        }
+        html[data-sigeru-theme="dark"] .multi-empleados summary,
+        html[data-sigeru-theme="dark"] .multi-cuadrillas summary,
+        html[data-sigeru-theme="dark"] #crew-employee-list {
+            background-color: #1b2520 !important;
+            border-color: #46544c !important;
+        }
+        html[data-sigeru-theme="dark"] #crew-employee-list label:hover {
+            background-color: #26372e !important;
+        }
+        html[data-sigeru-theme="dark"] #crew-employee-list small {
+            color: #aab8b0 !important;
+        }
+        html[data-sigeru-theme="dark"] #cuadrillas-lista,
+        html[data-sigeru-theme="dark"] #contenedores-lista {
+            background-color: #1b2520 !important;
+            border-color: #34423a !important;
+        }
+        html[data-sigeru-theme="dark"] #cuadrillas-lista label,
+        html[data-sigeru-theme="dark"] #contenedores-lista label {
+            color: #e5ece8 !important;
+        }
+        html[data-sigeru-theme="dark"] #cuadrillas-lista small,
+        html[data-sigeru-theme="dark"] #contenedores-lista small {
+            color: #aab8b0 !important;
+        }
+        html[data-sigeru-theme="dark"] #cuadrillas-lista label:hover,
+        html[data-sigeru-theme="dark"] #contenedores-lista label:hover {
+            background-color: #26372e !important;
+        }
+        html[data-sigeru-theme="dark"] .edit {
+            background-color: #203b2e !important;
+            color: #9fe0b9 !important;
+        }
+        html[data-sigeru-theme="dark"] .edit:hover {
+            background-color: #2a503d !important;
+        }
+        html[data-sigeru-theme="dark"] .delete {
+            background-color: #402727 !important;
+            color: #ffb4ad !important;
+        }
+        html[data-sigeru-theme="dark"] .delete:hover {
+            background-color: #593232 !important;
         }
         html[data-sigeru-theme="dark"] .tarjetas .tarjeta,
         html[data-sigeru-theme="dark"] .empty-table-message {
@@ -162,7 +299,7 @@ actualizarApiNotificaciones();
 if (typeof window.abrirModalSeleccionPanel !== 'function' && !document.getElementById('script-panel-selector')) {
     const s = document.createElement('script');
     s.id = 'script-panel-selector';
-    s.src = enSubcarpetaFrontend ? '../js/panel-selector.js?v=7' : 'js/panel-selector.js?v=7';
+    s.src = enSubcarpetaFrontend ? '../js/panel-selector.js?v=8' : 'js/panel-selector.js?v=8';
     document.head.appendChild(s);
 }
 
@@ -492,6 +629,11 @@ function aplicarSesion(session) {
         panelActual = esAdmin ? 'admin' : 'empleado';
         actualizarApiNotificaciones();
 
+        if (session.must_change_password && !enConfiguracion) {
+            window.location.replace(paginaConfiguracion + '?cambio-obligatorio=1');
+            return;
+        }
+
         // Protección de acceso al panel de Administrador
         if (!enPanelEmpleado && !enConfiguracion && !enPaginaPrincipal && !esAdmin) {
             window.location.replace(paginaInicio);
@@ -543,7 +685,7 @@ function aplicarSesion(session) {
                         ? 'Panel operario'
                         : esPaginaOperario
                             ? 'Panel operario'
-                            : 'Panel cuadrilla (Admin)';
+                            : 'Panel cuadrilla';
                 }
                 document.querySelectorAll('#operario-link, #operario-link-card, a[href="Operario.html"]').forEach(e => {
                     e.style.display = '';
@@ -562,6 +704,16 @@ function aplicarSesion(session) {
         document.getElementById('config-account-role')?.replaceChildren(document.createTextNode(esAdmin ? 'Administrador municipal' : rolActual));
         const configForm = document.getElementById('config-form');
         const configNotifications = document.getElementById('config-notifications');
+        const cambioObligatorio = Boolean(session.must_change_password);
+        if (cambioObligatorio) {
+            document.body.classList.add('force-password-change');
+            document.querySelector('.settings-heading h1').textContent = 'Cambio obligatorio de contraseña';
+            document.querySelector('.settings-heading p').textContent = 'Por seguridad, tenés que cambiar tu contraseña antes de usar SIGERU.';
+            document.querySelector('#password-form h2').textContent = 'Elegí una contraseña nueva';
+        }
+        if (configForm && cambioObligatorio) configForm.hidden = true;
+        document.querySelector('.settings-home')?.toggleAttribute('hidden', cambioObligatorio);
+        document.querySelector('[aria-labelledby="account-settings-title"]')?.toggleAttribute('hidden', cambioObligatorio);
         if (configNotifications) {
             configNotifications.checked = localStorage.getItem(clavePreferenciaNotificaciones) !== 'false';
         }
@@ -606,6 +758,11 @@ function aplicarSesion(session) {
                     status.textContent = resultado.message;
                     status.dataset.status = 'success';
                     passwordForm.reset();
+                    if (cambioObligatorio) {
+                        sessionStorage.removeItem(claveSesion);
+                        window.setTimeout(() => window.location.replace(paginaInicio), 800);
+                        return;
+                    }
                 } catch (error) {
                     status.textContent = error.message || 'No se pudo conectar para cambiar la contraseña.';
                     status.dataset.status = 'error';
@@ -614,6 +771,8 @@ function aplicarSesion(session) {
                 }
             });
         }
+
+        if (cambioObligatorio) return;
 
         crearMenuCuenta(session, esAdmin, rolActual);
         if (document.getElementById('activity-container')) {

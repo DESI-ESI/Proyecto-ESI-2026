@@ -1,5 +1,5 @@
 <?php
-require_once 'config/Conexion.php';
+require_once __DIR__ . '/config/Conexion.php';
 session_start();
 
 ini_set('display_errors', 0);
@@ -28,6 +28,12 @@ if (!$user) {
     exit;
 }
 
+$estadoCuenta = strtolower((string) ($user['Estado_Cuenta'] ?? 'activa'));
+if ($estadoCuenta !== 'activa') {
+    echo json_encode(['status' => 'error', 'message' => 'La cuenta está inactiva. Contactá al administrador.']);
+    exit;
+}
+
 $hash = $user['password'] ?? $user['Password'] ?? null;
 if (!$hash || !password_verify($password, $hash)) {
     echo json_encode(['status' => 'error', 'message' => 'Cédula o contraseña incorrectos.']);
@@ -38,10 +44,12 @@ session_regenerate_id(true);
 $_SESSION['empleado_id'] = $user['Id'] ?? $user['id'] ?? null;
 $_SESSION['nombre_empleado'] = $user['Nombre'] ?? $user['nombre'] ?? 'Empleado';
 $_SESSION['rol'] = $user['Rol'] ?? $user['rol'] ?? 'empleado';
+$_SESSION['debe_cambiar_contrasena'] = (bool) ($user['Debe_Cambiar_Contrasena'] ?? false);
 
 echo json_encode([
     'status' => 'success',
     'message' => '¡Inicio de sesión exitoso!',
-    'nombre' => $_SESSION['nombre_empleado']
+    'nombre' => $_SESSION['nombre_empleado'],
+    'must_change_password' => $_SESSION['debe_cambiar_contrasena']
 ]);
 ?>

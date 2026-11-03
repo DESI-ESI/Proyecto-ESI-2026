@@ -29,6 +29,19 @@ require_once __DIR__ . '/../../Controlador/CuadrillaController.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $jsonData = json_decode(file_get_contents('php://input'), true);
 $data = is_array($jsonData) ? $jsonData : $_POST;
+$sesionUsuarioActiva = false;
+$sesionDebeCambiarContrasena = false;
+if (!empty($_SESSION['empleado_id'])) {
+    $estadoSesion = $pdo->prepare('SELECT Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado WHERE Id = :id LIMIT 1');
+    $estadoSesion->execute([':id' => (int) $_SESSION['empleado_id']]);
+    $datosSesion = $estadoSesion->fetch(PDO::FETCH_ASSOC);
+    $sesionUsuarioActiva = $datosSesion && strtolower((string) $datosSesion['Estado_Cuenta']) === 'activa';
+    $sesionDebeCambiarContrasena = $sesionUsuarioActiva && (bool) $datosSesion['Debe_Cambiar_Contrasena'];
+    if (!$sesionUsuarioActiva) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+    }
+}
 
 $pathInfo = trim((string) ($_SERVER['PATH_INFO'] ?? ''), '/');
 $segments = $pathInfo === '' ? [] : explode('/', $pathInfo);
@@ -36,9 +49,14 @@ $resource = strtolower(trim((string) ($_GET['recurso'] ?? ($segments[0] ?? '')))
 $action = strtolower(trim((string) ($_GET['accion'] ?? '')));
 $resourceId = $segments[1] ?? ($_GET['id'] ?? null);
 
+if ($sesionDebeCambiarContrasena && !($resource === 'sesion' && $method === 'GET')
+    && !($resource === 'contrasena' && $method === 'POST')) {
+    respond(['status' => 'error', 'message' => 'Debes cambiar tu contraseña antes de continuar.'], 403);
+}
+
 if ($resource === 'sesion' && $method === 'GET') {
     if (!empty($_SESSION['empleado_id'])) {
-        $stmt = $pdo->prepare('SELECT Rol, Nombre, Apellido FROM empleado WHERE Id = :id');
+        $stmt = $pdo->prepare('SELECT rol AS Rol, Nombre, Apellido, Debe_Cambiar_Contrasena FROM empleado WHERE Id = :id');
         $stmt->execute([':id' => $_SESSION['empleado_id']]);
         $empleadoActual = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($empleadoActual) {
@@ -56,7 +74,8 @@ if ($resource === 'sesion' && $method === 'GET') {
         'operario' => esOperario(),
         'cuadrilla' => esCuadrilla(),
         'rol' => $rol,
-        'nombre' => $_SESSION['nombre_empleado'] ?? ''
+        'nombre' => $_SESSION['nombre_empleado'] ?? '',
+        'must_change_password' => $sesionDebeCambiarContrasena
     ]);
 }
 
@@ -95,13 +114,18 @@ if ($resource === 'contrasena' && $method === 'POST') {
         }
 
         $hashNuevo = password_hash($contrasenaNueva, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare('UPDATE empleado SET password = :password WHERE Id = :id');
+        $stmt = $pdo->prepare('UPDATE empleado SET password = :password, Debe_Cambiar_Contrasena = 0 WHERE Id = :id');
         $stmt->execute([
             ':password' => $hashNuevo,
             ':id' => (int) $_SESSION['empleado_id']
         ]);
+        $_SESSION['debe_cambiar_contrasena'] = false;
 
-        responderCambioContrasena(['status' => 'success', 'message' => 'La contraseña se actualizó correctamente.']);
+        responderCambioContrasena([
+            'status' => 'success',
+            'message' => 'La contraseña se actualizó correctamente.',
+            'must_change_password' => false
+        ]);
     } catch (Throwable $error) {
         error_log('Error al cambiar la contraseña del empleado autenticado: ' . $error->getMessage());
         responderCambioContrasena(['status' => 'error', 'message' => 'No se pudo cambiar la contraseña. Inténtalo nuevamente.'], 500);
@@ -213,19 +237,27 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             respond(['status' => 'success', 'message' => 'Incidencia reportada correctamente.'], 201);
         }
 
+        $volumen = filter_var($data['volumen'] ?? null, FILTER_VALIDATE_FLOAT);
+        $tipoResiduo = trim((string) ($data['tipo_residuo'] ?? ''));
+        if ($volumen === false || $volumen <= 0 || !is_finite((float) $volumen) || $volumen > 99999999.99
+            || mb_strlen($tipoResiduo, 'UTF-8') > 50) {
+            respond(['status' => 'error', 'message' => 'Ingresá un volumen mayor a cero y un tipo de residuo válido.'], 400);
+        }
+
         $cantidad = $pdo->prepare('SELECT COUNT(*) FROM existe WHERE Id_Ruta = :ruta');
         $cantidad->execute([':ruta' => $fila['Id_Ruta']]);
         $descripcion = sprintf(
-            'Recorrido completado: ruta #%d (%s), turno %s, %d contenedores, horario %s a %s.',
+            'Recorrido completado: ruta #%d (%s), turno %s, %d contenedores, horario %s a %s. Volumen recolectado: %s kg.',
             $fila['Id_Ruta'],
             $fila['Recorrido'],
             $fila['Turno'],
             (int) $cantidad->fetchColumn(),
             substr((string) $fila['Horario_Inicio'], 0, 5),
-            substr((string) $fila['Horario_Fin'], 0, 5)
+            substr((string) $fila['Horario_Fin'], 0, 5),
+            number_format((float) $volumen, 2, '.', '')
         );
 
-        $resultado = registrarResultadoRecorrido($pdo, $fila, $descripcion);
+        $resultado = registrarResultadoRecorrido($pdo, $fila, $descripcion, null, (float) $volumen, $tipoResiduo);
         if ($resultado === 'repetido') {
             respond(['status' => 'error', 'message' => 'El recorrido de hoy ya fue marcado como completado.'], 409);
         }
@@ -247,7 +279,7 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             $respuesta['contenedores'] = $contenedores->fetchAll(PDO::FETCH_ASSOC);
 
             $incidencias = $pdo->prepare(
-                "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Numero_Contenedor, i.Id_Cuadrilla
+                "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Zona, i.Numero_Contenedor, i.Id_Cuadrilla
                  FROM incidencia i
                  WHERE i.Estado IN ('abierta', 'en curso')
                    AND (i.Id_Cuadrilla IS NULL OR i.Id_Cuadrilla = :cuadrilla)
@@ -512,6 +544,300 @@ if ($resource === 'operario') {
         respond(['status' => 'error', 'message' => 'Error interno del servidor.'], 500);
     }
 }
+if ($resource === 'reporte_recolecciones') {
+    if (!esAdministrador()) {
+        respond(['status' => 'error', 'message' => 'Solo administración puede consultar este reporte.'], 403);
+    }
+    if ($method !== 'GET') {
+        respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
+    }
+
+    try {
+    $desde = trim((string) ($_GET['desde'] ?? ''));
+    $hasta = trim((string) ($_GET['hasta'] ?? ''));
+    $ruta = (int) ($_GET['ruta'] ?? 0);
+    $cuadrilla = (int) ($_GET['cuadrilla'] ?? 0);
+    $municipio = (int) ($_GET['municipio'] ?? 0);
+    $tipo = trim((string) ($_GET['tipo'] ?? ''));
+    foreach (['desde' => $desde, 'hasta' => $hasta] as $campo => $fecha) {
+        $fechaValida = $fecha === '' ? true
+            : preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) === 1
+                && DateTime::createFromFormat('!Y-m-d', $fecha) !== false
+                && DateTime::createFromFormat('!Y-m-d', $fecha)->format('Y-m-d') === $fecha;
+        if (!$fechaValida) {
+            respond(['status' => 'error', 'message' => "La fecha $campo no es válida."], 400);
+        }
+    }
+    if ($desde !== '' && $hasta !== '' && $desde > $hasta) {
+        respond(['status' => 'error', 'message' => 'La fecha inicial no puede ser posterior a la fecha final.'], 400);
+    }
+
+    $condiciones = ["r.Estado_Recoleccion = 'completada'"];
+    $parametros = [];
+    if ($desde !== '') {
+        $condiciones[] = 'r.Fecha >= :desde';
+        $parametros[':desde'] = $desde . ' 00:00:00';
+    }
+    if ($hasta !== '') {
+        $condiciones[] = 'r.Fecha < DATE_ADD(:hasta, INTERVAL 1 DAY)';
+        $parametros[':hasta'] = $hasta . ' 00:00:00';
+    }
+    if ($ruta > 0) {
+        $condiciones[] = 'r.Id_Ruta = :ruta';
+        $parametros[':ruta'] = $ruta;
+    }
+    if ($cuadrilla > 0) {
+        $condiciones[] = 'r.Id_Cuadrilla = :cuadrilla';
+        $parametros[':cuadrilla'] = $cuadrilla;
+    }
+    if ($municipio > 0) {
+        $condiciones[] = 'rt.Id_Municipio = :municipio';
+        $parametros[':municipio'] = $municipio;
+    }
+    if ($tipo !== '') {
+        $condiciones[] = 'r.Tipo_Residuo = :tipo';
+        $parametros[':tipo'] = $tipo;
+    }
+
+    $sql = 'SELECT r.Id_Recoleccion, r.Fecha, r.Volumen, r.Tipo_Residuo, r.Id_Ruta, rt.Recorrido,
+                   rt.Id_Municipio, m.Nombre AS Municipio, r.Id_Cuadrilla
+            FROM recoleccion r
+            JOIN ruta rt ON rt.Id_Ruta = r.Id_Ruta
+            JOIN municipio m ON m.Id_Municipio = rt.Id_Municipio
+            WHERE ' . implode(' AND ', $condiciones) . '
+            ORDER BY r.Fecha DESC, r.Id_Recoleccion DESC';
+    $consulta = $pdo->prepare($sql);
+    $consulta->execute($parametros);
+    $registros = $consulta->fetchAll(PDO::FETCH_ASSOC);
+    $volumenTotal = array_sum(array_map(static fn(array $registro): float => (float) $registro['Volumen'], $registros));
+
+    $opciones = [
+        'rutas' => $pdo->query('SELECT Id_Ruta, Recorrido FROM ruta ORDER BY Id_Ruta DESC')->fetchAll(PDO::FETCH_ASSOC),
+        'cuadrillas' => $pdo->query('SELECT Id_Cuadrilla, Turno FROM cuadrilla ORDER BY Id_Cuadrilla')->fetchAll(PDO::FETCH_ASSOC),
+        'municipios' => $pdo->query('SELECT Id_Municipio, Nombre FROM municipio ORDER BY Nombre')->fetchAll(PDO::FETCH_ASSOC),
+        'tipos' => $pdo->query("SELECT DISTINCT Tipo_Residuo FROM recoleccion WHERE Tipo_Residuo IS NOT NULL AND Tipo_Residuo <> '' ORDER BY Tipo_Residuo")->fetchAll(PDO::FETCH_COLUMN),
+    ];
+    respond(['status' => 'success', 'data' => [
+        'desde' => $desde,
+        'hasta' => $hasta,
+        'volumen_total' => $volumenTotal,
+        'recolecciones' => $registros,
+        'opciones' => $opciones,
+    ]]);
+    } catch (Throwable $error) {
+        error_log('Error al generar el reporte de recolecciones: ' . $error->getMessage());
+        respond(['status' => 'error', 'message' => 'No se pudo generar el reporte de recolecciones.'], 500);
+    }
+}
+
+if (in_array($resource, ['reporte_incidencias', 'zonas_criticas', 'tiempos_resolucion', 'frecuencia_recoleccion', 'dashboard'], true)) {
+    if (!esAdministrador()) {
+        respond(['status' => 'error', 'message' => 'Solo administración puede consultar estos reportes.'], 403);
+    }
+    if ($method !== 'GET') {
+        respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
+    }
+
+    $desde = trim((string) ($_GET['desde'] ?? ''));
+    $hasta = trim((string) ($_GET['hasta'] ?? ''));
+    foreach (['desde' => $desde, 'hasta' => $hasta] as $campo => $fecha) {
+        if ($fecha !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)
+            || DateTime::createFromFormat('!Y-m-d', $fecha) === false
+            || DateTime::createFromFormat('!Y-m-d', $fecha)->format('Y-m-d') !== $fecha)) {
+            respond(['status' => 'error', 'message' => "La fecha $campo no es válida."], 400);
+        }
+    }
+    if ($desde !== '' && $hasta !== '' && $desde > $hasta) {
+        respond(['status' => 'error', 'message' => 'La fecha inicial no puede ser posterior a la fecha final.'], 400);
+    }
+    $periodoIncidencias = [];
+    $parametrosPeriodo = [];
+    if ($desde !== '') {
+        $periodoIncidencias[] = 'i.Fecha >= :desde';
+        $parametrosPeriodo[':desde'] = $desde . ' 00:00:00';
+    }
+    if ($hasta !== '') {
+        $periodoIncidencias[] = 'i.Fecha < DATE_ADD(:hasta, INTERVAL 1 DAY)';
+        $parametrosPeriodo[':hasta'] = $hasta . ' 00:00:00';
+    }
+
+    try {
+        if ($resource === 'reporte_incidencias') {
+            $estado = (string) ($_GET['estado'] ?? 'abiertas');
+            $estadosValidos = ['abiertas' => "i.Estado <> 'resuelta'", 'cerradas' => "i.Estado = 'resuelta'", 'todas' => '1 = 1'];
+            if (!isset($estadosValidos[$estado])) {
+                respond(['status' => 'error', 'message' => 'El estado del reporte no es válido.'], 400);
+            }
+            $condiciones = [$estadosValidos[$estado], ...$periodoIncidencias];
+            $zona = trim((string) ($_GET['zona'] ?? ''));
+            $tipo = trim((string) ($_GET['tipo'] ?? ''));
+            $contenedor = (int) ($_GET['contenedor'] ?? 0);
+            $parametros = $parametrosPeriodo;
+            if ($zona !== '') {
+                $condiciones[] = '(i.Zona LIKE :zona OR c.Ubicacion LIKE :zona)';
+                $parametros[':zona'] = '%' . $zona . '%';
+            }
+            if ($tipo !== '') {
+                $condiciones[] = 'i.Tipo = :tipo';
+                $parametros[':tipo'] = $tipo;
+            }
+            if ($contenedor > 0) {
+                $condiciones[] = 'i.Numero_Contenedor = :contenedor';
+                $parametros[':contenedor'] = $contenedor;
+            }
+            $consulta = $pdo->prepare(
+                'SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Fecha_Resolucion,
+                        i.Zona, i.Numero_Contenedor, c.Ubicacion
+                 FROM incidencia i LEFT JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
+                 WHERE ' . implode(' AND ', $condiciones) . '
+                 ORDER BY i.Fecha DESC, i.Id_Incidencia DESC'
+            );
+            $consulta->execute($parametros);
+            respond(['status' => 'success', 'data' => $consulta->fetchAll(PDO::FETCH_ASSOC)]);
+        }
+
+        if ($resource === 'zonas_criticas') {
+            $consulta = $pdo->prepare(
+                'SELECT COALESCE(NULLIF(i.Zona, \'\'), NULLIF(c.Ubicacion, \'\'), \'Sin zona especificada\') AS Zona,
+                        COUNT(*) AS Incidencias,
+                        SUM(i.Estado <> \'resuelta\') AS Abiertas,
+                        SUM(i.Estado = \'resuelta\') AS Resueltas
+                 FROM incidencia i LEFT JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
+                 WHERE ' . ($periodoIncidencias ? implode(' AND ', $periodoIncidencias) : '1 = 1') . '
+                 GROUP BY Zona ORDER BY Incidencias DESC, Zona ASC LIMIT 50'
+            );
+            $consulta->execute($parametrosPeriodo);
+            respond(['status' => 'success', 'data' => $consulta->fetchAll(PDO::FETCH_ASSOC)]);
+        }
+
+        if ($resource === 'tiempos_resolucion') {
+            $consulta = $pdo->prepare(
+                'SELECT i.Id_Incidencia, i.Tipo, i.Zona, i.Numero_Contenedor, i.Fecha, i.Fecha_Resolucion,
+                        ROUND(TIMESTAMPDIFF(MINUTE, i.Fecha, i.Fecha_Resolucion) / 60, 2) AS Horas_Resolucion
+                 FROM incidencia i
+                 WHERE i.Estado = \'resuelta\' AND i.Fecha_Resolucion IS NOT NULL'
+                    . ($periodoIncidencias ? ' AND ' . implode(' AND ', $periodoIncidencias) : '') . '
+                 ORDER BY i.Fecha_Resolucion DESC, i.Id_Incidencia DESC'
+            );
+            $consulta->execute($parametrosPeriodo);
+            $registros = $consulta->fetchAll(PDO::FETCH_ASSOC);
+            $promedio = count($registros)
+                ? array_sum(array_map(static fn(array $fila): float => (float) $fila['Horas_Resolucion'], $registros)) / count($registros)
+                : 0;
+            respond(['status' => 'success', 'data' => ['promedio_horas' => round($promedio, 2), 'incidencias' => $registros]]);
+        }
+
+        if ($resource === 'frecuencia_recoleccion') {
+            $condiciones = ["r.Estado_Recoleccion = 'completada'"];
+            $parametros = [];
+            if ($desde !== '') {
+                $condiciones[] = 'r.Fecha >= :desde';
+                $parametros[':desde'] = $desde . ' 00:00:00';
+            }
+            if ($hasta !== '') {
+                $condiciones[] = 'r.Fecha < DATE_ADD(:hasta, INTERVAL 1 DAY)';
+                $parametros[':hasta'] = $hasta . ' 00:00:00';
+            }
+            $ruta = (int) ($_GET['ruta'] ?? 0);
+            $contenedor = (int) ($_GET['contenedor'] ?? 0);
+            $zona = trim((string) ($_GET['zona'] ?? ''));
+            if ($ruta > 0) {
+                $condiciones[] = 'r.Id_Ruta = :ruta';
+                $parametros[':ruta'] = $ruta;
+            }
+            if ($contenedor > 0 || $zona !== '') {
+                $condiciones[] = 'EXISTS (
+                    SELECT 1 FROM existe x JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
+                    WHERE x.Id_Ruta = r.Id_Ruta'
+                    . ($contenedor > 0 ? ' AND c.Numero_Contenedor = :contenedor' : '')
+                    . ($zona !== '' ? ' AND c.Ubicacion LIKE :zona' : '') . ')';
+                if ($contenedor > 0) $parametros[':contenedor'] = $contenedor;
+                if ($zona !== '') $parametros[':zona'] = '%' . $zona . '%';
+            }
+            $consulta = $pdo->prepare(
+                'SELECT r.Id_Ruta, rt.Recorrido, rt.Frecuencia, COUNT(*) AS Recolecciones,
+                        ROUND(SUM(COALESCE(r.Volumen, 0)), 2) AS Volumen_Total,
+                        MAX(r.Fecha) AS Ultima_Recoleccion
+                 FROM recoleccion r JOIN ruta rt ON rt.Id_Ruta = r.Id_Ruta
+                 WHERE ' . implode(' AND ', $condiciones) . '
+                 GROUP BY r.Id_Ruta, rt.Recorrido, rt.Frecuencia
+                 ORDER BY Recolecciones DESC, r.Id_Ruta'
+            );
+            $consulta->execute($parametros);
+            respond(['status' => 'success', 'data' => $consulta->fetchAll(PDO::FETCH_ASSOC)]);
+        }
+
+        $municipio = (int) ($_GET['municipio'] ?? 0);
+        $modulo = (string) ($_GET['modulo'] ?? 'todos');
+        if (!in_array($modulo, ['todos', 'incidencias', 'rutas', 'recolecciones', 'recursos'], true)) {
+            respond(['status' => 'error', 'message' => 'El módulo seleccionado no es válido.'], 400);
+        }
+        $filtroFechaIncidencias = $periodoIncidencias;
+        $filtroFechaRecolecciones = [];
+        $paramsReco = [];
+        if ($desde !== '') {
+            $filtroFechaRecolecciones[] = 'r.Fecha >= :desde';
+            $paramsReco[':desde'] = $desde . ' 00:00:00';
+        }
+        if ($hasta !== '') {
+            $filtroFechaRecolecciones[] = 'r.Fecha < DATE_ADD(:hasta, INTERVAL 1 DAY)';
+            $paramsReco[':hasta'] = $hasta . ' 00:00:00';
+        }
+        $incidenciasCondiciones = $filtroFechaIncidencias;
+        $paramsIncidencias = $parametrosPeriodo;
+        if ($municipio > 0) {
+            $incidenciasCondiciones[] = 'EXISTS (SELECT 1 FROM contenedor c WHERE c.Numero_Contenedor = i.Numero_Contenedor AND c.Id_Municipio = :municipio)';
+            $paramsIncidencias[':municipio'] = $municipio;
+        }
+        $rutasCondiciones = [];
+        $paramsRutas = [];
+        if ($municipio > 0) {
+            $rutasCondiciones[] = 'Id_Municipio = :municipio';
+            $paramsRutas[':municipio'] = $municipio;
+        }
+        $recoleccionesCondiciones = ["r.Estado_Recoleccion = 'completada'", ...$filtroFechaRecolecciones];
+        if ($municipio > 0) {
+            $recoleccionesCondiciones[] = 'rt.Id_Municipio = :municipio';
+            $paramsReco[':municipio'] = $municipio;
+        }
+        $incidenciasTotal = $pdo->prepare('SELECT COUNT(*) FROM incidencia i WHERE ' . ($incidenciasCondiciones ? implode(' AND ', $incidenciasCondiciones) : '1 = 1'));
+        $incidenciasTotal->execute($paramsIncidencias);
+        $rutasTotal = $pdo->prepare('SELECT COUNT(*) FROM ruta WHERE ' . ($rutasCondiciones ? implode(' AND ', $rutasCondiciones) : '1 = 1'));
+        $rutasTotal->execute($paramsRutas);
+        $recoleccionesTotal = $pdo->prepare('SELECT COUNT(*) FROM recoleccion r JOIN ruta rt ON rt.Id_Ruta = r.Id_Ruta WHERE ' . implode(' AND ', $recoleccionesCondiciones));
+        $recoleccionesTotal->execute($paramsReco);
+        $contenedores = $pdo->prepare('SELECT COUNT(*) FROM contenedor' . ($municipio > 0 ? ' WHERE Id_Municipio = :municipio' : ''));
+        $contenedores->execute($municipio > 0 ? [':municipio' => $municipio] : []);
+        $camiones = $pdo->prepare('SELECT COUNT(*) FROM camion' . ($municipio > 0 ? ' WHERE Id_Municipio = :municipio' : ''));
+        $camiones->execute($municipio > 0 ? [':municipio' => $municipio] : []);
+        $maquinaria = $pdo->prepare(
+            'SELECT COUNT(*) FROM maquinaria ma LEFT JOIN centro_acopio ce ON ce.Id_Centro = ma.Id_Centro'
+                . ($municipio > 0 ? ' WHERE ce.Id_Municipio = :municipio' : '')
+        );
+        $maquinaria->execute($municipio > 0 ? [':municipio' => $municipio] : []);
+        $totalesDashboard = [
+            'incidencias' => (int) $incidenciasTotal->fetchColumn(),
+            'rutas' => (int) $rutasTotal->fetchColumn(),
+            'recolecciones' => (int) $recoleccionesTotal->fetchColumn(),
+            'contenedores' => (int) $contenedores->fetchColumn(),
+            'camiones' => (int) $camiones->fetchColumn(),
+            'maquinaria' => (int) $maquinaria->fetchColumn(),
+        ];
+        if ($modulo !== 'todos') {
+            foreach (array_keys($totalesDashboard) as $clave) {
+                $permitido = $modulo === 'recursos'
+                    ? in_array($clave, ['contenedores', 'camiones', 'maquinaria'], true)
+                    : $clave === $modulo;
+                if (!$permitido) $totalesDashboard[$clave] = 0;
+            }
+        }
+        respond(['status' => 'success', 'data' => $totalesDashboard]);
+    } catch (Throwable $error) {
+        error_log('Error al generar reporte ' . $resource . ': ' . $error->getMessage());
+        respond(['status' => 'error', 'message' => 'No se pudo generar el reporte solicitado.'], 500);
+    }
+}
+
 $recursosEmpleado = ['incidencias', 'contenedores', 'municipios', 'centros', 'centros_acopio'];
 $recursosLecturaOperario = ['camiones', 'maquinaria'];
 $accesoLecturaOperario = esOperario()
@@ -563,6 +889,95 @@ try {
 
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
 
+        case 'asignaciones_camion':
+            if ($method === 'GET') {
+                $consulta = $pdo->query(
+                    'SELECT a.Id_Asignacion, a.Id_Camion, c.Matricula, a.Id_Ruta, r.Recorrido,
+                            r.Id_Municipio, m.Nombre AS Municipio, a.Fecha, a.Hora_Inicio, a.Hora_Fin, a.Estado
+                     FROM asignacion_camion a
+                     JOIN camion c ON c.Id_Camion = a.Id_Camion
+                     JOIN ruta r ON r.Id_Ruta = a.Id_Ruta
+                     JOIN municipio m ON m.Id_Municipio = r.Id_Municipio
+                     ORDER BY a.Fecha DESC, a.Hora_Inicio DESC, a.Id_Asignacion DESC'
+                );
+                respond(['status' => 'success', 'data' => $consulta->fetchAll(PDO::FETCH_ASSOC)]);
+            }
+
+            if ($method === 'POST' && $action === 'cancelar') {
+                $id = (int) ($data['id'] ?? $resourceId ?? 0);
+                $cancelar = $pdo->prepare("UPDATE asignacion_camion SET Estado = 'cancelada' WHERE Id_Asignacion = :id AND Estado = 'asignada'");
+                $cancelar->execute([':id' => $id]);
+                respond([
+                    'status' => $cancelar->rowCount() ? 'success' : 'error',
+                    'message' => $cancelar->rowCount() ? 'Asignación cancelada.' : 'No se encontró una asignación activa con ese ID.'
+                ], $cancelar->rowCount() ? 200 : 404);
+            }
+
+            if ($method === 'POST') {
+                $idCamion = filter_var($data['id_camion'] ?? null, FILTER_VALIDATE_INT);
+                $idRuta = filter_var($data['id_ruta'] ?? null, FILTER_VALIDATE_INT);
+                $fecha = trim((string) ($data['fecha'] ?? ''));
+                $inicio = trim((string) ($data['hora_inicio'] ?? ''));
+                $fin = trim((string) ($data['hora_fin'] ?? ''));
+                if (!$idCamion || !$idRuta || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)
+                    || DateTime::createFromFormat('!Y-m-d', $fecha) === false
+                    || DateTime::createFromFormat('!Y-m-d', $fecha)->format('Y-m-d') !== $fecha
+                    || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/', $inicio)
+                    || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/', $fin)
+                    || $inicio >= $fin) {
+                    respond(['status' => 'error', 'message' => 'Ingresá camión, ruta, fecha y un horario válido donde el fin sea posterior al inicio.'], 400);
+                }
+
+                $pdo->beginTransaction();
+                try {
+                    $camion = $pdo->prepare('SELECT Estado, Fecha_Baja FROM camion WHERE Id_Camion = :id FOR UPDATE');
+                    $camion->execute([':id' => $idCamion]);
+                    $datosCamion = $camion->fetch(PDO::FETCH_ASSOC);
+                    if (!$datosCamion || $datosCamion['Fecha_Baja'] !== null || $datosCamion['Estado'] !== 'Disponible') {
+                        throw new InvalidArgumentException('Solo se pueden asignar camiones activos y disponibles.');
+                    }
+                    $rutaValida = $pdo->prepare("SELECT COUNT(*) FROM ruta WHERE Id_Ruta = :id AND Estado = 'activa'");
+                    $rutaValida->execute([':id' => $idRuta]);
+                    if ((int) $rutaValida->fetchColumn() === 0) {
+                        throw new InvalidArgumentException('Selecciona una ruta activa.');
+                    }
+                    $conflicto = $pdo->prepare(
+                        "SELECT COUNT(*) FROM asignacion_camion
+                         WHERE Id_Camion = :camion AND Fecha = :fecha AND Estado = 'asignada'
+                           AND Hora_Inicio < :fin AND Hora_Fin > :inicio"
+                    );
+                    $conflicto->execute([
+                        ':camion' => $idCamion,
+                        ':fecha' => $fecha,
+                        ':inicio' => $inicio,
+                        ':fin' => $fin
+                    ]);
+                    if ((int) $conflicto->fetchColumn() > 0) {
+                        throw new InvalidArgumentException('El camión ya tiene una asignación en ese horario.');
+                    }
+                    $insertar = $pdo->prepare(
+                        "INSERT INTO asignacion_camion (Id_Camion, Id_Ruta, Fecha, Hora_Inicio, Hora_Fin, Estado)
+                         VALUES (:camion, :ruta, :fecha, :inicio, :fin, 'asignada')"
+                    );
+                    $insertar->execute([
+                        ':camion' => $idCamion,
+                        ':ruta' => $idRuta,
+                        ':fecha' => $fecha,
+                        ':inicio' => $inicio,
+                        ':fin' => $fin
+                    ]);
+                    $pdo->commit();
+                    respond(['status' => 'success', 'message' => 'Camión asignado a la ruta correctamente.'], 201);
+                } catch (Throwable $error) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    if ($error instanceof InvalidArgumentException) {
+                        respond(['status' => 'error', 'message' => $error->getMessage()], 400);
+                    }
+                    throw $error;
+                }
+            }
+            respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
+
         case 'estadisticas':
             if ($method !== 'GET') {
                 respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
@@ -586,7 +1001,7 @@ try {
             ];
 
             $incidencias = $pdo->query(
-                'SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Numero_Contenedor, c.Ubicacion
+                'SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Zona, i.Numero_Contenedor, c.Ubicacion
                  FROM incidencia i LEFT JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
                  ORDER BY i.Fecha DESC, i.Id_Incidencia DESC'
             )->fetchAll(PDO::FETCH_ASSOC);
@@ -658,10 +1073,12 @@ try {
                     'estado' => trim((string) ($data['estado'] ?? '')),
                     'id_municipio' => (int) ($data['id_municipio'] ?? 0),
                     'id_incidencia' => isset($data['id_incidencia']) ? (int) $data['id_incidencia'] : null,
+                    ...coordenadasContenedor($data),
                     'numero_contenedor' => numeroContenedor($pdo, $data, $containerId)
                 ];
 
-                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0) {
+                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
+                    || !in_array(strtolower($updateData['estado']), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
                     respond(['status' => 'error', 'message' => 'Datos de contenedor inválidos.'], 400);
                 }
 
@@ -675,8 +1092,15 @@ try {
                     respond(['status' => 'error', 'message' => 'ID de contenedor obligatorio.'], 400);
                 }
 
-                $controller->darBaja($pdo, $containerId);
-                respond(['status' => 'success', 'message' => 'Contenedor eliminado correctamente.']);
+                $motivo = trim((string) ($data['motivo'] ?? ''));
+                if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
+                    respond(['status' => 'error', 'message' => 'Indicá un motivo de baja de hasta 500 caracteres.'], 400);
+                }
+                $updated = $controller->darBaja($pdo, $containerId, $motivo);
+                respond([
+                    'status' => $updated ? 'success' : 'error',
+                    'message' => $updated ? 'Contenedor dado de baja; su historial se conservó.' : 'No se encontró un contenedor activo con ese ID.'
+                ], $updated ? 200 : 404);
             }
 
             if ($method === 'POST') {
@@ -689,9 +1113,17 @@ try {
                     trim((string) ($data['estado'] ?? '')),
                     (bool) ($data['en_reserva'] ?? false)
                 );
+                $coordenadas = coordenadasContenedor($data);
 
                 validateContainer($container, $municipioId);
-                $created = $controller->registrar($pdo, $container, $municipioId, numeroContenedor($pdo, $data, 0));
+                $created = $controller->registrar(
+                    $pdo,
+                    $container,
+                    $municipioId,
+                    numeroContenedor($pdo, $data, 0),
+                    $coordenadas['latitud'],
+                    $coordenadas['longitud']
+                );
                 respond(['status' => $created ? 'success' : 'error', 'message' => $created ? 'Contenedor creado correctamente.' : 'No se pudo crear el contenedor.'], $created ? 201 : 400);
             }
 
@@ -708,10 +1140,12 @@ try {
                     'estado' => trim((string) ($data['estado'] ?? '')),
                     'id_municipio' => (int) ($data['id_municipio'] ?? 0),
                     'id_incidencia' => isset($data['id_incidencia']) ? (int) $data['id_incidencia'] : null,
+                    ...coordenadasContenedor($data),
                     'numero_contenedor' => numeroContenedor($pdo, $data, $containerId)
                 ];
 
-                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0) {
+                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
+                    || !in_array(strtolower($updateData['estado']), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
                     respond(['status' => 'error', 'message' => 'Datos de contenedor inválidos.'], 400);
                 }
 
@@ -725,8 +1159,15 @@ try {
                     respond(['status' => 'error', 'message' => 'ID de contenedor obligatorio.'], 400);
                 }
 
-                $controller->darBaja($pdo, $containerId);
-                respond(['status' => 'success', 'message' => 'Contenedor eliminado correctamente.']);
+                $motivo = trim((string) ($data['motivo'] ?? ''));
+                if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
+                    respond(['status' => 'error', 'message' => 'Indicá un motivo de baja de hasta 500 caracteres.'], 400);
+                }
+                $updated = $controller->darBaja($pdo, $containerId, $motivo);
+                respond([
+                    'status' => $updated ? 'success' : 'error',
+                    'message' => $updated ? 'Contenedor dado de baja; su historial se conservó.' : 'No se encontró un contenedor activo con ese ID.'
+                ], $updated ? 200 : 404);
             }
 
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
@@ -785,8 +1226,8 @@ try {
             }
 
             if ($method === 'DELETE') {
-                $deleted = $controller->eliminar($pdo, (int) ($data['id'] ?? $resourceId ?? 0));
-                respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Maquinaria eliminada correctamente.' : 'No se encontró la maquinaria.'], $deleted ? 200 : 404);
+                $deleted = $controller->eliminar($pdo, (int) ($data['id'] ?? $resourceId ?? 0), (string) ($data['motivo'] ?? ''));
+                respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Maquinaria dada de baja; su historial se conservó.' : 'No se encontró maquinaria activa con ese ID.'], $deleted ? 200 : 404);
             }
 
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
@@ -802,7 +1243,7 @@ try {
                     }
 
                     $consulta = $pdo->prepare(
-                        "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Numero_Contenedor, i.Id_Cuadrilla
+                        "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Zona, i.Numero_Contenedor, i.Id_Cuadrilla
                          FROM incidencia i
                          WHERE (
                                (i.Id_Cuadrilla IS NULL AND i.Estado = 'abierta')
@@ -955,7 +1396,14 @@ try {
     respond(['status' => 'error', 'message' => 'Error interno del servidor.'], 500);
 }
 
-function registrarResultadoRecorrido(PDO $pdo, array $cuadrilla, string $descripcion, ?array $incidenciaAdicional = null): string
+function registrarResultadoRecorrido(
+    PDO $pdo,
+    array $cuadrilla,
+    string $descripcion,
+    ?array $incidenciaAdicional = null,
+    ?float $volumen = null,
+    ?string $tipoResiduo = null
+): string
 {
     $idRuta = (int) $cuadrilla['Id_Ruta'];
     $idCuadrilla = (int) $cuadrilla['Id_Cuadrilla'];
@@ -986,11 +1434,23 @@ function registrarResultadoRecorrido(PDO $pdo, array $cuadrilla, string $descrip
         $pdo->prepare('INSERT INTO informe (Descripcion, Id_Ruta, Id_Cuadrilla) VALUES (:descripcion, :ruta, :cuadrilla)')
             ->execute([':descripcion' => $descripcion, ':ruta' => $idRuta, ':cuadrilla' => $idCuadrilla]);
 
+        if ($volumen !== null) {
+            $pdo->prepare(
+                "INSERT INTO recoleccion (Fecha, Estado_Recoleccion, Volumen, Tipo_Residuo, Id_Ruta, Id_Cuadrilla)
+                 VALUES (NOW(), 'completada', :volumen, :tipo, :ruta, :cuadrilla)"
+            )->execute([
+                ':volumen' => $volumen,
+                ':tipo' => $tipoResiduo !== '' ? $tipoResiduo : null,
+                ':ruta' => $idRuta,
+                ':cuadrilla' => $idCuadrilla
+            ]);
+        }
+
         $pdo->prepare(
             "UPDATE incidencia i
              JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
              JOIN existe x ON x.Id_Contenedor = c.Id_Contenedor
-             SET i.Estado = 'resuelta'
+             SET i.Estado = 'resuelta', i.Fecha_Resolucion = COALESCE(i.Fecha_Resolucion, NOW())
              WHERE x.Id_Ruta = :ruta AND i.Estado IN ('abierta', 'en curso')"
         )->execute([':ruta' => $idRuta]);
 
@@ -1045,9 +1505,34 @@ function numeroContenedor(PDO $pdo, array $data, int $idActual): int
 
 function validateContainer(Contenedores $container, int $municipioId): void
 {
-    if ($municipioId <= 0 || $container->getTipoResiduo() === '' || $container->getUbicacion() === '' || $container->getCapacidad() <= 0 || $container->getEstado() === '') {
+    if ($municipioId <= 0 || $container->getTipoResiduo() === '' || $container->getUbicacion() === '' || $container->getCapacidad() <= 0
+        || !in_array(strtolower($container->getEstado()), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
         throw new InvalidArgumentException('Datos de contenedor inválidos.');
     }
+}
+
+function coordenadasContenedor(array $data): array
+{
+    $latitud = $data['latitud'] ?? null;
+    $longitud = $data['longitud'] ?? null;
+
+    if ($latitud === null && $longitud === null) {
+        return ['latitud' => null, 'longitud' => null];
+    }
+
+    if (!is_numeric($latitud) || !is_numeric($longitud)) {
+        throw new InvalidArgumentException('Las coordenadas del contenedor deben incluir latitud y longitud válidas.');
+    }
+
+    $latitud = (float) $latitud;
+    $longitud = (float) $longitud;
+    if (!is_finite($latitud) || !is_finite($longitud)
+        || $latitud < -90 || $latitud > 90
+        || $longitud < -180 || $longitud > 180) {
+        throw new InvalidArgumentException('Las coordenadas del contenedor están fuera de rango.');
+    }
+
+    return ['latitud' => $latitud, 'longitud' => $longitud];
 }
 
 function respond(array $payload, int $statusCode = 200): void
@@ -1093,5 +1578,6 @@ function esCuadrilla(): bool
 
 function esEmpleado(): bool
 {
-    return !empty($_SESSION['empleado_id']);
+    global $sesionUsuarioActiva;
+    return $sesionUsuarioActiva && !empty($_SESSION['empleado_id']);
 }
