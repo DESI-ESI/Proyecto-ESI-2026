@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 15-10-2026 a las 16:43:48
+-- Tiempo de generación: 03-11-2026 a las 21:50:55
 -- Versión del servidor: 12.2.2-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -54,6 +54,22 @@ CREATE TABLE `asigna` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `asignacion_camion`
+--
+
+CREATE TABLE `asignacion_camion` (
+  `Id_Asignacion` int(11) NOT NULL,
+  `Id_Camion` int(11) NOT NULL,
+  `Id_Ruta` int(11) NOT NULL,
+  `Fecha` date NOT NULL,
+  `Hora_Inicio` time NOT NULL,
+  `Hora_Fin` time NOT NULL,
+  `Estado` varchar(20) NOT NULL DEFAULT 'asignada'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `camion`
 --
 
@@ -63,17 +79,21 @@ CREATE TABLE `camion` (
   `Capacidad` decimal(10,2) DEFAULT NULL,
   `Estado` varchar(50) NOT NULL DEFAULT 'disponible',
   `Id_Municipio` int(11) NOT NULL,
-  `Id_Ruta` int(11) DEFAULT NULL
+  `Id_Ruta` int(11) DEFAULT NULL,
+  `Fecha_Baja` datetime DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `camion`
 --
 
-INSERT INTO `camion` (`Id_Camion`, `Matricula`, `Capacidad`, `Estado`, `Id_Municipio`, `Id_Ruta`) VALUES
-(25, 'STU-1053', 1.00, 'Disponible', 1, NULL),
-(26, 'STU-1057', 100.00, 'Mantenimiento', 4, NULL),
-(28, 'STU-1062', 100.00, 'En Ruta', 7, NULL);
+INSERT INTO `camion` (`Id_Camion`, `Matricula`, `Capacidad`, `Estado`, `Id_Municipio`, `Id_Ruta`, `Fecha_Baja`, `Motivo_Baja`, `Latitud`, `Longitud`) VALUES
+(25, 'STU-1053', 1.00, 'Disponible', 1, NULL, NULL, NULL, NULL, NULL),
+(26, 'STU-1057', 100.00, 'Mantenimiento', 4, NULL, NULL, NULL, NULL, NULL),
+(28, 'STU-1062', 100.00, 'En Ruta', 7, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -86,7 +106,11 @@ CREATE TABLE `centro_acopio` (
   `Nombre` varchar(30) NOT NULL,
   `Ubicacion` varchar(255) DEFAULT NULL,
   `Capacidad` decimal(10,2) NOT NULL CHECK (`Capacidad` > 0),
-  `Cantidad_Almacenada` decimal(10,2) DEFAULT 0.00
+  `Cantidad_Almacenada` decimal(10,2) DEFAULT 0.00,
+  `Tipo` varchar(30) NOT NULL DEFAULT 'centro_acopio',
+  `Estado` varchar(30) NOT NULL DEFAULT 'activo',
+  `Tipos_Residuo` varchar(255) DEFAULT NULL,
+  `Id_Municipio` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -123,7 +147,9 @@ CREATE TABLE `contenedor` (
   `Estado` varchar(50) DEFAULT NULL,
   `Motivo_Baja` varchar(500) DEFAULT NULL,
   `Id_Municipio` int(11) NOT NULL,
-  `Id_Incidencia` int(11) DEFAULT NULL
+  `Id_Incidencia` int(11) DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -163,17 +189,17 @@ CREATE TABLE `empleado` (
   `cedula` varchar(20) NOT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
-) ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 --
 -- Volcado de datos para la tabla `empleado`
 --
 
-INSERT INTO `empleado` (`Id`, `Nombre`, `Apellido`, `Email`, `password`, `Area`, `rol`, `turno`, `cedula`) VALUES
-(56, 'miguel', 'radi', 'miguelradi2008@gmail.com', '$2y$10$nl/0WG2iaOkHQifQksUkuexmTUDB2Bp3OeABk3IGt.CA1k1dXAa.m', '2', 'admi_municipal', 'mañana', '57301063'),
-(58, 'jorge', 'alvarez', 'jaab@gmail.com', '$2y$10$X661.kdRyUqHYTZbbYpg.eKrnjZnrp2ba5HXVKiQJDzz/g9da3BLK', 'afuera', 'chofer', 'Manana', '18589830'),
-(60, 'pepato', 'potra', 'yuyuhu@gmil.com', '$2y$10$qhpS0gPSQt/cmyf8G6R4nupt/gYxt2i/e4cYTFP4uIIqJWlfOg5Nu', NULL, 'admi_municipal', 'mañana', '64052146'),
-(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$shLRnHs4cs92DwFR2ZPqmuyCUUhuK1PGUaFsSqbzfHGajto7NTraa', NULL, 'chofer', 'Manana', '57003225');
+INSERT INTO `empleado` (`Id`, `Nombre`, `Apellido`, `Email`, `password`, `Area`, `rol`, `turno`, `cedula`, `Estado_Cuenta`, `Debe_Cambiar_Contrasena`) VALUES
+(56, 'miguel', 'radi', 'miguelradi2008@gmail.com', '$2y$10$nl/0WG2iaOkHQifQksUkuexmTUDB2Bp3OeABk3IGt.CA1k1dXAa.m', '2', 'admi_municipal', 'mañana', '57301063', 'activa', 0),
+(58, 'jorge', 'alvarez', 'jaab@gmail.com', '$2y$10$X661.kdRyUqHYTZbbYpg.eKrnjZnrp2ba5HXVKiQJDzz/g9da3BLK', 'afuera', 'chofer', 'Manana', '18589830', 'activa', 0),
+(60, 'pepato', 'potra', 'yuyuhu@gmil.com', '$2y$10$qhpS0gPSQt/cmyf8G6R4nupt/gYxt2i/e4cYTFP4uIIqJWlfOg5Nu', NULL, 'admi_municipal', 'mañana', '64052146', 'activa', 0),
+(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$shLRnHs4cs92DwFR2ZPqmuyCUUhuK1PGUaFsSqbzfHGajto7NTraa', NULL, 'chofer', 'Manana', '57003225', 'activa', 0);
 
 -- --------------------------------------------------------
 
@@ -209,15 +235,20 @@ CREATE TABLE `incidencia` (
   `Descripcion` text DEFAULT NULL,
   `Fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `Estado` varchar(20) NOT NULL DEFAULT 'abierta',
-  `Numero_Contenedor` int(11) DEFAULT NULL
+  `Numero_Contenedor` int(11) DEFAULT NULL,
+  `Id_Cuadrilla` int(11) DEFAULT NULL,
+  `Zona` varchar(120) DEFAULT NULL,
+  `Fecha_Resolucion` datetime DEFAULT NULL,
+  `Latitud` decimal(10,7) DEFAULT NULL,
+  `Longitud` decimal(10,7) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `incidencia`
 --
 
-INSERT INTO `incidencia` (`Id_Incidencia`, `Tipo`, `Descripcion`, `Fecha`, `Estado`, `Numero_Contenedor`) VALUES
-(3, 'desborde', 'k', '2026-10-08 12:26:00', 'en curso', NULL);
+INSERT INTO `incidencia` (`Id_Incidencia`, `Tipo`, `Descripcion`, `Fecha`, `Estado`, `Numero_Contenedor`, `Id_Cuadrilla`, `Zona`, `Fecha_Resolucion`, `Latitud`, `Longitud`) VALUES
+(3, 'desborde', 'k', '2026-10-08 12:26:00', 'en curso', NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -239,6 +270,21 @@ CREATE TABLE `informe` (
 
 INSERT INTO `informe` (`Id_Informe`, `Fecha`, `Descripcion`, `Id_Ruta`, `Id_Cuadrilla`) VALUES
 (1, '2026-10-14 12:10:48', 'Recorrido completado: ruta #4 (La Paloma), turno mañana, 0 contenedores, horario 11:11 a 14:22.', 4, 13);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ingreso_acopio`
+--
+
+CREATE TABLE `ingreso_acopio` (
+  `Id_Ingreso` int(11) NOT NULL,
+  `Id_Centro` int(11) NOT NULL,
+  `Id_Empleado` int(11) DEFAULT NULL,
+  `Cantidad` decimal(10,2) NOT NULL,
+  `Tipo_Residuo` varchar(50) DEFAULT NULL,
+  `Fecha` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -275,7 +321,13 @@ CREATE TABLE `mantenimiento` (
 
 CREATE TABLE `maquinaria` (
   `Id_Maquinaria` int(11) NOT NULL,
-  `Id_Centro` int(11) NOT NULL
+  `Id_Centro` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL DEFAULT 'Maquinaria',
+  `Tipo` varchar(50) DEFAULT NULL,
+  `Estado` varchar(30) NOT NULL DEFAULT 'operativa',
+  `Descripcion` text DEFAULT NULL,
+  `Fecha_Baja` datetime DEFAULT NULL,
+  `Motivo_Baja` varchar(500) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -370,7 +422,7 @@ INSERT INTO `notificacion_lectura` (`Id_Empleado`, `Panel`, `Ultimo_Id`) VALUES
 
 CREATE TABLE `operario` (
   `Id` int(11) NOT NULL,
-  `Id_Centro` int(11) NOT NULL
+  `Id_Centro` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -404,7 +456,8 @@ CREATE TABLE `recoleccion` (
   `Estado_Recoleccion` varchar(30) NOT NULL DEFAULT 'pendiente',
   `Volumen` decimal(10,2) DEFAULT NULL,
   `Id_Ruta` int(11) NOT NULL,
-  `Id_Cuadrilla` int(11) NOT NULL
+  `Id_Cuadrilla` int(11) NOT NULL,
+  `Tipo_Residuo` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -473,6 +526,14 @@ ALTER TABLE `asigna`
   ADD KEY `Id` (`Id`);
 
 --
+-- Indices de la tabla `asignacion_camion`
+--
+ALTER TABLE `asignacion_camion`
+  ADD PRIMARY KEY (`Id_Asignacion`),
+  ADD KEY `idx_asignacion_camion_horario` (`Id_Camion`,`Fecha`,`Hora_Inicio`,`Hora_Fin`),
+  ADD KEY `idx_asignacion_ruta_fecha` (`Id_Ruta`,`Fecha`);
+
+--
 -- Indices de la tabla `camion`
 --
 ALTER TABLE `camion`
@@ -485,7 +546,8 @@ ALTER TABLE `camion`
 -- Indices de la tabla `centro_acopio`
 --
 ALTER TABLE `centro_acopio`
-  ADD PRIMARY KEY (`Id_Centro`);
+  ADD PRIMARY KEY (`Id_Centro`),
+  ADD KEY `idx_centro_acopio_municipio` (`Id_Municipio`);
 
 --
 -- Indices de la tabla `chofer`
@@ -534,7 +596,8 @@ ALTER TABLE `forma`
 --
 ALTER TABLE `incidencia`
   ADD PRIMARY KEY (`Id_Incidencia`),
-  ADD KEY `idx_incidencia_numero_contenedor` (`Numero_Contenedor`);
+  ADD KEY `idx_incidencia_numero_contenedor` (`Numero_Contenedor`),
+  ADD KEY `idx_incidencia_cuadrilla` (`Id_Cuadrilla`);
 
 --
 -- Indices de la tabla `informe`
@@ -543,6 +606,14 @@ ALTER TABLE `informe`
   ADD PRIMARY KEY (`Id_Informe`),
   ADD KEY `Id_Ruta` (`Id_Ruta`),
   ADD KEY `Id_Cuadrilla` (`Id_Cuadrilla`);
+
+--
+-- Indices de la tabla `ingreso_acopio`
+--
+ALTER TABLE `ingreso_acopio`
+  ADD PRIMARY KEY (`Id_Ingreso`),
+  ADD KEY `idx_ingreso_acopio_centro` (`Id_Centro`),
+  ADD KEY `idx_ingreso_acopio_empleado` (`Id_Empleado`);
 
 --
 -- Indices de la tabla `limpiador`
@@ -631,6 +702,12 @@ ALTER TABLE `utiliza`
 --
 
 --
+-- AUTO_INCREMENT de la tabla `asignacion_camion`
+--
+ALTER TABLE `asignacion_camion`
+  MODIFY `Id_Asignacion` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `camion`
 --
 ALTER TABLE `camion`
@@ -658,7 +735,7 @@ ALTER TABLE `cuadrilla`
 -- AUTO_INCREMENT de la tabla `empleado`
 --
 ALTER TABLE `empleado`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
 
 --
 -- AUTO_INCREMENT de la tabla `incidencia`
@@ -671,6 +748,12 @@ ALTER TABLE `incidencia`
 --
 ALTER TABLE `informe`
   MODIFY `Id_Informe` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `ingreso_acopio`
+--
+ALTER TABLE `ingreso_acopio`
+  MODIFY `Id_Ingreso` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `mantenimiento`
@@ -727,10 +810,23 @@ ALTER TABLE `asigna`
   ADD CONSTRAINT `fk_asigna_ruta` FOREIGN KEY (`Id_Ruta`) REFERENCES `ruta` (`Id_Ruta`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
+-- Filtros para la tabla `asignacion_camion`
+--
+ALTER TABLE `asignacion_camion`
+  ADD CONSTRAINT `fk_asignacion_camion_camion` FOREIGN KEY (`Id_Camion`) REFERENCES `camion` (`Id_Camion`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_asignacion_camion_ruta` FOREIGN KEY (`Id_Ruta`) REFERENCES `ruta` (`Id_Ruta`) ON UPDATE CASCADE;
+
+--
 -- Filtros para la tabla `camion`
 --
 ALTER TABLE `camion`
   ADD CONSTRAINT `fk_camion_ruta` FOREIGN KEY (`Id_Ruta`) REFERENCES `ruta` (`Id_Ruta`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `centro_acopio`
+--
+ALTER TABLE `centro_acopio`
+  ADD CONSTRAINT `fk_centro_acopio_municipio` FOREIGN KEY (`Id_Municipio`) REFERENCES `municipio` (`Id_Municipio`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `chofer`
@@ -742,13 +838,27 @@ ALTER TABLE `chofer`
 -- Filtros para la tabla `incidencia`
 --
 ALTER TABLE `incidencia`
+  ADD CONSTRAINT `fk_incidencia_cuadrilla` FOREIGN KEY (`Id_Cuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_incidencia_numero_contenedor` FOREIGN KEY (`Numero_Contenedor`) REFERENCES `contenedor` (`Numero_Contenedor`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `ingreso_acopio`
+--
+ALTER TABLE `ingreso_acopio`
+  ADD CONSTRAINT `fk_ingreso_acopio_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_ingreso_acopio_empleado` FOREIGN KEY (`Id_Empleado`) REFERENCES `empleado` (`Id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `limpiador`
 --
 ALTER TABLE `limpiador`
   ADD CONSTRAINT `fk_limpiador_empleado` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `maquinaria`
+--
+ALTER TABLE `maquinaria`
+  ADD CONSTRAINT `fk_maquinaria_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `notificacion`
