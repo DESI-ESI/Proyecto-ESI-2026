@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 03-11-2026 a las 21:50:55
+-- Tiempo de generación: 04-11-2026 a las 17:52:32
 -- Versión del servidor: 12.2.2-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -129,7 +129,7 @@ CREATE TABLE `chofer` (
 --
 
 INSERT INTO `chofer` (`Id`, `idCuadrilla`) VALUES
-(58, NULL),
+(58, 13),
 (62, 13);
 
 -- --------------------------------------------------------
@@ -189,7 +189,7 @@ CREATE TABLE `empleado` (
   `cedula` varchar(20) NOT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 --
 -- Volcado de datos para la tabla `empleado`
@@ -237,6 +237,7 @@ CREATE TABLE `incidencia` (
   `Estado` varchar(20) NOT NULL DEFAULT 'abierta',
   `Numero_Contenedor` int(11) DEFAULT NULL,
   `Id_Cuadrilla` int(11) DEFAULT NULL,
+  `Id_Creador` int(11) DEFAULT NULL,
   `Zona` varchar(120) DEFAULT NULL,
   `Fecha_Resolucion` datetime DEFAULT NULL,
   `Latitud` decimal(10,7) DEFAULT NULL,
@@ -247,8 +248,9 @@ CREATE TABLE `incidencia` (
 -- Volcado de datos para la tabla `incidencia`
 --
 
-INSERT INTO `incidencia` (`Id_Incidencia`, `Tipo`, `Descripcion`, `Fecha`, `Estado`, `Numero_Contenedor`, `Id_Cuadrilla`, `Zona`, `Fecha_Resolucion`, `Latitud`, `Longitud`) VALUES
-(3, 'desborde', 'k', '2026-10-08 12:26:00', 'en curso', NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO `incidencia` (`Id_Incidencia`, `Tipo`, `Descripcion`, `Fecha`, `Estado`, `Numero_Contenedor`, `Id_Cuadrilla`, `Id_Creador`, `Zona`, `Fecha_Resolucion`, `Latitud`, `Longitud`) VALUES
+(3, 'desborde', 'k', '2026-10-08 12:26:00', 'en curso', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(5, 'rotura', 'lol', '2026-11-04 10:59:00', 'en curso', NULL, 13, NULL, 'rural', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -263,13 +265,6 @@ CREATE TABLE `informe` (
   `Id_Ruta` int(11) NOT NULL,
   `Id_Cuadrilla` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Volcado de datos para la tabla `informe`
---
-
-INSERT INTO `informe` (`Id_Informe`, `Fecha`, `Descripcion`, `Id_Ruta`, `Id_Cuadrilla`) VALUES
-(1, '2026-10-14 12:10:48', 'Recorrido completado: ruta #4 (La Paloma), turno mañana, 0 contenedores, horario 11:11 a 14:22.', 4, 13);
 
 -- --------------------------------------------------------
 
@@ -392,7 +387,12 @@ INSERT INTO `notificacion` (`Id_Notificacion`, `Panel_Origen`, `Recurso`, `Accio
 (11, 'admin', 'cuadrillas', 'registró', 'miguel registró una cuadrilla', 56, 'miguel', '2026-10-14 15:09:52'),
 (12, 'admin', 'rutas', 'registró', 'miguel registró una ruta (La Paloma)', 56, 'miguel', '2026-10-14 15:10:22'),
 (13, 'empleado', 'miruta', 'completó', 'Timoteo completó el recorrido de su ruta', 62, 'Timoteo', '2026-10-14 15:10:48'),
-(14, 'admin', 'rutas', 'registró', 'miguel registró una ruta (Felipe Cardoso)', 56, 'miguel', '2026-10-15 14:35:32');
+(14, 'admin', 'rutas', 'registró', 'miguel registró una ruta (Felipe Cardoso)', 56, 'miguel', '2026-10-15 14:35:32'),
+(15, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-04 13:58:57'),
+(16, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-04 13:59:04'),
+(17, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-04 13:59:32'),
+(18, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-04 14:02:10'),
+(19, 'admin', 'informes', 'eliminó', 'miguel eliminó un informe', 56, 'miguel', '2026-11-04 14:23:50');
 
 -- --------------------------------------------------------
 
@@ -411,7 +411,7 @@ CREATE TABLE `notificacion_lectura` (
 --
 
 INSERT INTO `notificacion_lectura` (`Id_Empleado`, `Panel`, `Ultimo_Id`) VALUES
-(56, 'admin', 14),
+(56, 'admin', 18),
 (62, 'empleado', 13);
 
 -- --------------------------------------------------------
@@ -442,7 +442,7 @@ CREATE TABLE `realiza` (
 
 INSERT INTO `realiza` (`Id_Ruta`, `Id_Cuadrilla`) VALUES
 (3, 12),
-(4, 13);
+(5, 13);
 
 -- --------------------------------------------------------
 
@@ -597,7 +597,8 @@ ALTER TABLE `forma`
 ALTER TABLE `incidencia`
   ADD PRIMARY KEY (`Id_Incidencia`),
   ADD KEY `idx_incidencia_numero_contenedor` (`Numero_Contenedor`),
-  ADD KEY `idx_incidencia_cuadrilla` (`Id_Cuadrilla`);
+  ADD KEY `idx_incidencia_cuadrilla` (`Id_Cuadrilla`),
+  ADD KEY `idx_incidencia_creador` (`Id_Creador`);
 
 --
 -- Indices de la tabla `informe`
@@ -741,7 +742,7 @@ ALTER TABLE `empleado`
 -- AUTO_INCREMENT de la tabla `incidencia`
 --
 ALTER TABLE `incidencia`
-  MODIFY `Id_Incidencia` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `Id_Incidencia` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `informe`
@@ -777,7 +778,7 @@ ALTER TABLE `municipio`
 -- AUTO_INCREMENT de la tabla `notificacion`
 --
 ALTER TABLE `notificacion`
-  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT de la tabla `recoleccion`
@@ -838,6 +839,7 @@ ALTER TABLE `chofer`
 -- Filtros para la tabla `incidencia`
 --
 ALTER TABLE `incidencia`
+  ADD CONSTRAINT `fk_incidencia_creador` FOREIGN KEY (`Id_Creador`) REFERENCES `empleado` (`Id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_incidencia_cuadrilla` FOREIGN KEY (`Id_Cuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_incidencia_numero_contenedor` FOREIGN KEY (`Numero_Contenedor`) REFERENCES `contenedor` (`Numero_Contenedor`) ON DELETE SET NULL ON UPDATE CASCADE;
 
