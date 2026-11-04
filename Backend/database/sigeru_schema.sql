@@ -157,10 +157,13 @@ CREATE TABLE `incidencia` (
   `Longitud` decimal(10,7) DEFAULT NULL,
   `Numero_Contenedor` int(11) DEFAULT NULL,
   `Id_Cuadrilla` int(11) DEFAULT NULL,
+  `Id_Creador` int(11) DEFAULT NULL,
   PRIMARY KEY (`Id_Incidencia`),
   KEY `idx_incidencia_numero_contenedor` (`Numero_Contenedor`),
   KEY `idx_incidencia_cuadrilla` (`Id_Cuadrilla`),
+  KEY `idx_incidencia_creador` (`Id_Creador`),
   CONSTRAINT `fk_incidencia_cuadrilla` FOREIGN KEY (`Id_Cuadrilla`) REFERENCES `cuadrilla` (`Id_Cuadrilla`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_incidencia_creador` FOREIGN KEY (`Id_Creador`) REFERENCES `empleado` (`Id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_incidencia_numero_contenedor` FOREIGN KEY (`Numero_Contenedor`) REFERENCES `contenedor` (`Numero_Contenedor`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

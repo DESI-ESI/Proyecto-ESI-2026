@@ -9,9 +9,9 @@ class IncidenciaController
         return incidencia::listar($pdo);
     }
 
-    public function crear(PDO $pdo, array $datos): bool
+    public function crear(PDO $pdo, array $datos, ?int $idCreador = null): bool
     {
-        return $this->crearDesdeDatos($pdo, $datos)->guardar($pdo);
+        return $this->crearDesdeDatos($pdo, $datos, $idCreador)->guardar($pdo);
     }
 
     public function actualizar(PDO $pdo, int $id, array $datos): bool
@@ -32,6 +32,15 @@ class IncidenciaController
         return incidencia::aceptar($pdo, $id, $idCuadrilla, $idRuta);
     }
 
+    public function asignar(PDO $pdo, int $id, int $idCuadrilla): bool
+    {
+        if ($id <= 0 || $idCuadrilla <= 0) {
+            throw new InvalidArgumentException('ID de incidencia y cuadrilla obligatorios.');
+        }
+
+        return incidencia::asignar($pdo, $id, $idCuadrilla);
+    }
+
     public function eliminar(PDO $pdo, int $id): bool
     {
         if ($id <= 0) {
@@ -41,7 +50,7 @@ class IncidenciaController
         return incidencia::eliminar($pdo, $id);
     }
 
-    private function crearDesdeDatos(PDO $pdo, array $datos): incidencia
+    private function crearDesdeDatos(PDO $pdo, array $datos, ?int $idCreador = null): incidencia
     {
         $tipo = trim((string) ($datos['Tipo'] ?? $datos['tipo'] ?? ''));
         $descripcion = trim((string) ($datos['Descripcion'] ?? $datos['descripcion'] ?? ''));
@@ -109,7 +118,8 @@ class IncidenciaController
             $idCuadrilla > 0 ? $idCuadrilla : null,
             $zona !== '' ? $zona : null,
             $latitud,
-            $longitud
+            $longitud,
+            $idCreador
         );
     }
 }

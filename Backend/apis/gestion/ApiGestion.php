@@ -1060,6 +1060,10 @@ try {
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
 
         case 'contenedores':
+            if (esCuadrilla() && $method !== 'GET') {
+                respond(['status' => 'error', 'message' => 'Las cuadrillas solo pueden consultar los contenedores.'], 403);
+            }
+
             $controller = new ContenedoresController();
 
             if ($method === 'GET') {
@@ -1244,29 +1248,32 @@ try {
             if ($method === 'GET') {
                 if (esCuadrilla()) {
                     $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
-                    if (!$cuadrillaActual || $cuadrillaActual['Id_Ruta'] === null) {
-                        respond(['status' => 'success', 'data' => []]);
-                    }
-
                     $consulta = $pdo->prepare(
-                        "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Zona, i.Numero_Contenedor, i.Id_Cuadrilla
+                        "SELECT i.Id_Incidencia, i.Tipo, i.Descripcion, i.Fecha, i.Estado, i.Zona, i.Numero_Contenedor, i.Id_Cuadrilla,
+                                CASE WHEN i.Id_Creador = :creador_edicion THEN 1 ELSE 0 END AS Puede_Editar
                          FROM incidencia i
                          WHERE (
-                               (i.Id_Cuadrilla IS NULL AND i.Estado = 'abierta')
-                               OR i.Id_Cuadrilla = :cuadrilla
-                           )
-                           AND EXISTS (
-                               SELECT 1
-                               FROM existe x
-                               JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
-                               WHERE x.Id_Ruta = :ruta
-                                 AND c.Numero_Contenedor = i.Numero_Contenedor
+                               (
+                                   ((i.Id_Cuadrilla IS NULL AND i.Estado = 'abierta') OR i.Id_Cuadrilla = :cuadrilla)
+                                   AND EXISTS (
+                                       SELECT 1
+                                       FROM existe x
+                                       JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
+                                       WHERE x.Id_Ruta = :ruta
+                                         AND c.Numero_Contenedor = i.Numero_Contenedor
+                                   )
+                               )
+                               OR i.Id_Creador = :creador_listado
                            )
                          ORDER BY i.Fecha DESC, i.Id_Incidencia DESC"
                     );
                     $consulta->execute([
-                        ':cuadrilla' => (int) $cuadrillaActual['Id_Cuadrilla'],
-                        ':ruta' => (int) $cuadrillaActual['Id_Ruta']
+                        ':cuadrilla' => $cuadrillaActual ? (int) $cuadrillaActual['Id_Cuadrilla'] : 0,
+                        ':ruta' => $cuadrillaActual && $cuadrillaActual['Id_Ruta'] !== null
+                            ? (int) $cuadrillaActual['Id_Ruta']
+                            : 0,
+                        ':creador_edicion' => (int) $_SESSION['empleado_id'],
+                        ':creador_listado' => (int) $_SESSION['empleado_id']
                     ]);
                     $incidencias = $consulta->fetchAll(PDO::FETCH_ASSOC);
                 } else {
@@ -1301,6 +1308,26 @@ try {
                 ], $accepted ? 200 : 409);
             }
 
+            if ($method === 'POST' && $action === 'asignar') {
+                if (!esAdministrador()) {
+                    respond(['status' => 'error', 'message' => 'Solo administración puede asignar incidencias.'], 403);
+                }
+
+                $idIncidencia = filter_var($data['id_incidencia'] ?? $data['id'] ?? null, FILTER_VALIDATE_INT);
+                $idCuadrilla = filter_var($data['id_cuadrilla'] ?? null, FILTER_VALIDATE_INT);
+                if (!$idIncidencia || !$idCuadrilla) {
+                    respond(['status' => 'error', 'message' => 'Selecciona una incidencia y una cuadrilla válidas.'], 400);
+                }
+
+                $asignada = $controller->asignar($pdo, $idIncidencia, $idCuadrilla);
+                respond([
+                    'status' => $asignada ? 'success' : 'error',
+                    'message' => $asignada
+                        ? 'Incidencia asignada a la cuadrilla y marcada en curso.'
+                        : 'La incidencia debe estar abierta y sin asignar.'
+                ], $asignada ? 200 : 409);
+            }
+
             if ($method === 'POST') {
                 if (esCuadrilla()) {
                     $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
@@ -1310,11 +1337,21 @@ try {
                     $data['Id_Cuadrilla'] = (int) $cuadrillaActual['Id_Cuadrilla'];
                 }
 
-                $created = $controller->crear($pdo, $data);
+                $created = $controller->crear($pdo, $data, (int) $_SESSION['empleado_id']);
                 respond(['status' => $created ? 'success' : 'error', 'message' => $created ? 'Incidencia creada correctamente.' : 'No se pudo crear la incidencia.'], $created ? 201 : 400);
             }
 
             if ($method === 'PUT') {
+                $id = (int) ($data['id'] ?? $resourceId ?? 0);
+                if (esCuadrilla()) {
+                    $creador = $pdo->prepare('SELECT Id_Creador FROM incidencia WHERE Id_Incidencia = :id');
+                    $creador->execute([':id' => $id]);
+                    $idCreador = $creador->fetchColumn();
+                    if ($idCreador === false || (int) $idCreador !== (int) $_SESSION['empleado_id']) {
+                        respond(['status' => 'error', 'message' => 'Solo puedes modificar las incidencias que registraste.'], 403);
+                    }
+                }
+
                 if (esCuadrilla() && strtolower(trim((string) ($data['Estado'] ?? $data['estado'] ?? ''))) === 'abierta') {
                     respond(['status' => 'error', 'message' => 'Una cuadrilla no puede volver a marcar como abierta una incidencia.'], 403);
                 }
@@ -1326,13 +1363,21 @@ try {
                     $data['Id_Cuadrilla'] = (int) $cuadrillaActual['Id_Cuadrilla'];
                 }
 
-                $id = (int) ($data['id'] ?? $resourceId ?? 0);
                 $updated = $controller->actualizar($pdo, $id, $data);
                 respond(['status' => $updated ? 'success' : 'error', 'message' => $updated ? 'Incidencia actualizada correctamente.' : 'No se encontró la incidencia o no hubo cambios.'], $updated ? 200 : 404);
             }
 
             if ($method === 'DELETE') {
                 $id = (int) ($data['id'] ?? $resourceId ?? 0);
+                if (esCuadrilla()) {
+                    $creador = $pdo->prepare('SELECT Id_Creador FROM incidencia WHERE Id_Incidencia = :id');
+                    $creador->execute([':id' => $id]);
+                    $idCreador = $creador->fetchColumn();
+                    if ($idCreador === false || (int) $idCreador !== (int) $_SESSION['empleado_id']) {
+                        respond(['status' => 'error', 'message' => 'Solo puedes eliminar las incidencias que registraste.'], 403);
+                    }
+                }
+
                 $deleted = $controller->eliminar($pdo, $id);
                 respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Incidencia eliminada correctamente.' : 'No se encontró la incidencia.'], $deleted ? 200 : 404);
             }

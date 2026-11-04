@@ -189,7 +189,7 @@ CREATE TABLE `empleado` (
   `cedula` varchar(20) NOT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `empleado`

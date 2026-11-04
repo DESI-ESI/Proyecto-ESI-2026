@@ -9,6 +9,7 @@ class incidencia
     private ?string $zona;
     private ?int $numeroContenedor;
     private ?int $idCuadrilla;
+    private ?int $idCreador;
     private ?float $latitud;
     private ?float $longitud;
 
@@ -21,7 +22,8 @@ class incidencia
         ?int $idCuadrilla = null,
         ?string $zona = null,
         ?float $latitud = null,
-        ?float $longitud = null
+        ?float $longitud = null,
+        ?int $idCreador = null
     )
     {
         $this->descripcion = $descripcion;
@@ -31,6 +33,7 @@ class incidencia
         $this->zona = $zona;
         $this->numeroContenedor = $numeroContenedor;
         $this->idCuadrilla = $idCuadrilla;
+        $this->idCreador = $idCreador;
         $this->latitud = $latitud;
         $this->longitud = $longitud;
     }
@@ -38,7 +41,7 @@ class incidencia
     public static function listar(PDO $pdo): array
     {
         $stmt = $pdo->query(
-            'SELECT Id_Incidencia, Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla
+            'SELECT Id_Incidencia, Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla, Id_Creador
              FROM incidencia
              ORDER BY Fecha DESC, Id_Incidencia DESC'
         );
@@ -49,8 +52,8 @@ class incidencia
     public function guardar(PDO $pdo): bool
     {
         $stmt = $pdo->prepare(
-            'INSERT INTO incidencia (Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla)
-             VALUES (:tipo, :descripcion, :fecha, :estado, :zona, :fecha_resolucion, :latitud, :longitud, :numero, :cuadrilla)'
+            'INSERT INTO incidencia (Tipo, Descripcion, Fecha, Estado, Zona, Fecha_Resolucion, Latitud, Longitud, Numero_Contenedor, Id_Cuadrilla, Id_Creador)
+             VALUES (:tipo, :descripcion, :fecha, :estado, :zona, :fecha_resolucion, :latitud, :longitud, :numero, :cuadrilla, :creador)'
         );
 
         return $stmt->execute([
@@ -63,7 +66,8 @@ class incidencia
             ':latitud' => $this->latitud,
             ':longitud' => $this->longitud,
             ':numero' => $this->numeroContenedor,
-            ':cuadrilla' => $this->idCuadrilla
+            ':cuadrilla' => $this->idCuadrilla,
+            ':creador' => $this->idCreador
         ]);
     }
 
@@ -129,6 +133,23 @@ class incidencia
             ':id' => $id,
             ':cuadrilla_actual' => $idCuadrilla,
             ':ruta' => $idRuta
+        ]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public static function asignar(PDO $pdo, int $id, int $idCuadrilla): bool
+    {
+        $stmt = $pdo->prepare(
+            "UPDATE incidencia
+             SET Estado = 'en curso', Id_Cuadrilla = :cuadrilla
+             WHERE Id_Incidencia = :id
+               AND Estado = 'abierta'
+               AND Id_Cuadrilla IS NULL"
+        );
+        $stmt->execute([
+            ':cuadrilla' => $idCuadrilla,
+            ':id' => $id
         ]);
 
         return $stmt->rowCount() > 0;

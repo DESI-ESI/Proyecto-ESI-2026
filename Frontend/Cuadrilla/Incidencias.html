@@ -70,7 +70,7 @@
 		<div class="page-header">
 			<div>
 				<h1>Incidencias</h1>
-				<p>Incidencias de los contenedores de la ruta asignada a tu cuadrilla.</p>
+				<p>Incidencias de la ruta asignada a tu cuadrilla y las que registraste.</p>
 			</div>
 			<button type="submit" form="incident-form" class="add-button" id="save-incident-btn">+ Nueva incidencia</button>
 		</div>
@@ -130,7 +130,7 @@
 		</div>
 
 		<section class="data-table">
-			<table data-bulk-delete="incidencias">
+			<table>
 				<thead><tr><th>ID</th><th>Contenedor</th><th>Tipo</th><th>Descripción</th><th>Fecha</th><th>Estado</th><th>Cuadrilla responsable</th><th>Acciones</th></tr></thead>
 				<tbody id="incidents-container"></tbody>
 			</table>
@@ -241,10 +241,24 @@
 			`).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron incidencias</td></tr>';
 
 			tbody.querySelectorAll('.edit').forEach((boton, indice) => {
-				boton.addEventListener('click', () => editarIncidencia(filtradas[indice]));
+				boton.addEventListener('click', () => {
+					const incidencia = filtradas[indice];
+					if (Number(incidencia.Puede_Editar) !== 1) {
+						alert('No podés modificar esta incidencia porque no la creaste vos.');
+						return;
+					}
+					editarIncidencia(incidencia);
+				});
 			});
 			tbody.querySelectorAll('.delete').forEach((boton, indice) => {
-				boton.addEventListener('click', () => eliminarIncidencia(filtradas[indice].Id_Incidencia));
+				boton.addEventListener('click', () => {
+					const incidencia = filtradas[indice];
+					if (Number(incidencia.Puede_Editar) !== 1) {
+						alert('No podés eliminar esta incidencia porque no la creaste vos.');
+						return;
+					}
+					eliminarIncidencia(incidencia.Id_Incidencia);
+				});
 			});
 		}
 

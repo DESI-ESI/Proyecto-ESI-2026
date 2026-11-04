@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asignaciones - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <style>
+        .assignment-panel { max-width: 1050px; }
+        .assignment-intro { margin: -12px 0 22px; color: #78837e; font-size: 14px; }
+        .assignment-form { align-items: flex-end; }
+        .assignment-form label { display: flex; flex: 1 1 190px; flex-direction: column; gap: 7px; color: #59645f; font-size: 13px; }
+        .assignment-form input,
+        .assignment-form select { width: 100%; height: 42px; border: 1px solid #dce3df; border-radius: 8px; padding: 0 13px; background: #fff; color: #36443e; font: inherit; }
+        .assignment-form button { min-height: 42px; }
+        .assignment-form[hidden] { display: none; }
+        .assignment-message { min-height: 22px; margin: 0 0 18px; font-size: 14px; }
+        .assignment-message[data-kind="error"] { color: #b42318; }
+        .assignment-message[data-kind="success"] { color: #238b57; }
+        .assignment-section-title { margin: 30px 0 14px; font-size: 19px; color: #26332f; }
+        @media (max-width: 700px) {
+            .assignment-form { align-items: stretch; }
+            .assignment-form button { width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel admin</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="panel.html"><span>▣</span>Panel principal</a>
+                <a href="Empleados.html"><span>♙</span>Empleados</a>
+                <a href="rutas.html"><span>♧</span>Rutas</a>
+                <a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+                <a href="Asignaciones.html" class="active"><span>⇄</span>Asignaciones</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+                <a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="Informes.html"><span>▤</span>Estadísticas</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+
+        <main class="main-content assignment-panel">
+            <div class="page-header">
+                <div>
+                    <h1>Asignaciones</h1>
+                    <p>Elegí qué recurso querés asignar y completá los datos.</p>
+                </div>
+            </div>
+
+            <p class="assignment-intro">Desde acá podés organizar empleados, cuadrillas y camiones.</p>
+
+            <form class="filters assignment-form" id="assignment-selector">
+                <label for="assignment-type">¿Qué querés asignar?</label>
+                <select id="assignment-type">
+                    <option value="employee-crew">Empleado a una cuadrilla</option>
+                    <option value="crew-route">Cuadrilla a una ruta</option>
+                    <option value="truck-route">Camión a una ruta</option>
+                    <option value="incident-crew">Incidencia a una cuadrilla</option>
+                </select>
+            </form>
+
+            <p class="assignment-message" id="assignment-message" aria-live="polite"></p>
+
+            <form class="filters assignment-form" id="employee-crew-form">
+                <label for="assignment-employee">Empleado sin cuadrilla</label>
+                <select id="assignment-employee" required>
+                    <option value="">Cargando empleados...</option>
+                </select>
+                <label for="assignment-employee-crew">Cuadrilla con lugar disponible</label>
+                <select id="assignment-employee-crew" required>
+                    <option value="">Cargando cuadrillas...</option>
+                </select>
+                <button class="add-button" type="submit">Asignar empleado</button>
+            </form>
+
+            <form class="filters assignment-form" id="crew-route-form" hidden>
+                <label for="assignment-crew">Cuadrilla</label>
+                <select id="assignment-crew" required>
+                    <option value="">Cargando cuadrillas...</option>
+                </select>
+                <label for="assignment-crew-route">Ruta activa</label>
+                <select id="assignment-crew-route" required>
+                    <option value="">Cargando rutas...</option>
+                </select>
+                <button class="add-button" type="submit">Asignar cuadrilla</button>
+            </form>
+
+            <form class="filters assignment-form" id="truck-route-form" hidden>
+                <label for="assignment-truck">Camión disponible</label>
+                <select id="assignment-truck" required>
+                    <option value="">Cargando camiones...</option>
+                </select>
+                <label for="assignment-truck-route">Ruta activa</label>
+                <select id="assignment-truck-route" required>
+                    <option value="">Cargando rutas...</option>
+                </select>
+                <label for="assignment-date">Fecha</label>
+                <input type="date" id="assignment-date" required>
+                <label for="assignment-start">Hora de inicio</label>
+                <input type="time" id="assignment-start" required>
+                <label for="assignment-end">Hora de fin</label>
+                <input type="time" id="assignment-end" required>
+                <button class="add-button" type="submit">Asignar camión</button>
+            </form>
+
+            <form class="filters assignment-form" id="incident-crew-form" hidden>
+                <label for="assignment-incident">Incidencia abierta sin asignar</label>
+                <select id="assignment-incident" required>
+                    <option value="">Cargando incidencias...</option>
+                </select>
+                <label for="assignment-incident-crew">Cuadrilla</label>
+                <select id="assignment-incident-crew" required>
+                    <option value="">Cargando cuadrillas...</option>
+                </select>
+                <button class="add-button" type="submit">Asignar incidencia</button>
+                <small>La incidencia puede asignarse a cualquier cuadrilla, aunque no tenga la ruta asociada.</small>
+            </form>
+
+            <h2 class="assignment-section-title">Incidencias asignadas</h2>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Contenedor</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Cuadrilla</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incident-assignments-body">
+                        <tr><td colspan="5">Cargando incidencias...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <h2 class="assignment-section-title">Asignaciones de camiones</h2>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Horario</th>
+                            <th>Camión</th>
+                            <th>Ruta</th>
+                            <th>Municipio</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="truck-assignments-body">
+                        <tr><td colspan="7">Cargando asignaciones...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php';
+        const empleadosApi = '../../Backend/apis/empleado/ApiEmpleado.php?accion=listar&rol=todos';
+        let cuadrillas = [];
+        let empleados = [];
+        let rutas = [];
+        let camiones = [];
+        let incidencias = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const fecha = new Date();
+            fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+            document.getElementById('assignment-date').value = fecha.toISOString().slice(0, 10);
+            document.getElementById('assignment-type').addEventListener('change', cambiarTipoAsignacion);
+            document.getElementById('employee-crew-form').addEventListener('submit', asignarEmpleado);
+            document.getElementById('crew-route-form').addEventListener('submit', asignarCuadrilla);
+            document.getElementById('truck-route-form').addEventListener('submit', asignarCamion);
+            document.getElementById('incident-crew-form').addEventListener('submit', asignarIncidencia);
+            await cargarDatos();
+        });
+
+        async function leerRespuesta(response) {
+            const resultado = await response.json();
+            if (!response.ok || resultado.status !== 'success') {
+                throw new Error(resultado.message || `Error HTTP ${response.status}`);
+            }
+            return resultado;
+        }
+
+        async function solicitar(url, options) {
+            return leerRespuesta(await fetch(url, options));
+        }
+
+        function escapar(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[caracter]));
+        }
+
+        function mostrarMensaje(texto, tipo = '') {
+            const mensaje = document.getElementById('assignment-message');
+            mensaje.textContent = texto;
+            mensaje.dataset.kind = tipo;
+        }
+
+        function cambiarTipoAsignacion() {
+            const tipo = document.getElementById('assignment-type').value;
+            document.getElementById('employee-crew-form').hidden = tipo !== 'employee-crew';
+            document.getElementById('crew-route-form').hidden = tipo !== 'crew-route';
+            document.getElementById('truck-route-form').hidden = tipo !== 'truck-route';
+            document.getElementById('incident-crew-form').hidden = tipo !== 'incident-crew';
+            mostrarMensaje('');
+        }
+
+        async function cargarDatos() {
+            try {
+                const [resCuadrillas, resEmpleados, resRutas, resCamiones, resIncidencias] = await Promise.all([
+                    solicitar(`${api}?recurso=cuadrillas`),
+                    solicitar(empleadosApi),
+                    solicitar(`${api}?recurso=rutas`),
+                    solicitar(`${api}?recurso=camiones&accion=listar`),
+                    solicitar(`${api}?recurso=incidencias`)
+                ]);
+                cuadrillas = Array.isArray(resCuadrillas.data) ? resCuadrillas.data : [];
+                empleados = Array.isArray(resEmpleados.data) ? resEmpleados.data : [];
+                rutas = Array.isArray(resRutas.data) ? resRutas.data : [];
+                camiones = Array.isArray(resCamiones.data) ? resCamiones.data : [];
+                incidencias = Array.isArray(resIncidencias.data) ? resIncidencias.data : [];
+                actualizarSelectores();
+                renderizarAsignacionesIncidencia();
+                await cargarAsignacionesCamion();
+            } catch (error) {
+                mostrarMensaje(`No se pudieron cargar los datos: ${error.message}`, 'error');
+            }
+        }
+
+        function listaCedulas(cuadrilla) {
+            return String(cuadrilla.Cedulas || '').split(/[\s,;]+/).filter(Boolean);
+        }
+
+        function nombreEmpleado(empleado) {
+            return `${empleado.Nombre || ''} ${empleado.Apellido || ''}`.trim() || empleado.cedula;
+        }
+
+        function actualizarSelectores() {
+            const asignados = new Set(cuadrillas.flatMap(listaCedulas).map(String));
+            const disponibles = empleados.filter(empleado =>
+                ['chofer', 'limpiador'].includes(String(empleado.Rol || empleado.rol || '').toLowerCase())
+                && empleado.cedula && !asignados.has(String(empleado.cedula))
+            );
+            document.getElementById('assignment-employee').innerHTML =
+                '<option value="">Elegí un empleado...</option>' + disponibles.map(empleado =>
+                    `<option value="${escapar(empleado.cedula)}">${escapar(nombreEmpleado(empleado))} · ${escapar(empleado.Rol || empleado.rol)}</option>`
+                ).join('');
+
+            const conLugar = cuadrillas.filter(cuadrilla => listaCedulas(cuadrilla).length < Number(cuadrilla.Num_integrantes));
+            const opcionesCuadrilla = '<option value="">Elegí una cuadrilla...</option>' + conLugar.map(cuadrilla =>
+                `<option value="${escapar(cuadrilla.Id_Cuadrilla)}">#${escapar(cuadrilla.Id_Cuadrilla)} · ${escapar(cuadrilla.Turno)} (${listaCedulas(cuadrilla).length}/${escapar(cuadrilla.Num_integrantes)})</option>`
+            ).join('');
+            document.getElementById('assignment-employee-crew').innerHTML = opcionesCuadrilla;
+            document.getElementById('assignment-crew').innerHTML =
+                '<option value="">Elegí una cuadrilla...</option>' + cuadrillas.map(cuadrilla =>
+                    `<option value="${escapar(cuadrilla.Id_Cuadrilla)}">#${escapar(cuadrilla.Id_Cuadrilla)} · ${escapar(cuadrilla.Turno)}</option>`
+                ).join('');
+
+            const rutasActivas = rutas.filter(ruta => String(ruta.Estado || ruta.estado || 'activa').toLowerCase() === 'activa');
+            const opcionesRuta = '<option value="">Elegí una ruta activa...</option>' + rutasActivas.map(ruta =>
+                `<option value="${escapar(ruta.Id_Ruta ?? ruta.id_ruta)}">#${escapar(ruta.Id_Ruta ?? ruta.id_ruta)} · ${escapar(ruta.Recorrido ?? ruta.recorrido)}</option>`
+            ).join('');
+            document.getElementById('assignment-crew-route').innerHTML = opcionesRuta;
+            document.getElementById('assignment-truck-route').innerHTML = opcionesRuta;
+
+            const disponiblesCamion = camiones.filter(camion =>
+                !camion.Fecha_Baja && String(camion.Estado ?? camion.estado).toLowerCase() === 'disponible'
+            );
+            document.getElementById('assignment-truck').innerHTML =
+                '<option value="">Elegí un camión disponible...</option>' + disponiblesCamion.map(camion =>
+                    `<option value="${escapar(camion.Id_Camion)}">${escapar(camion.Matricula ?? camion.matricula)}</option>`
+                ).join('');
+
+            const incidenciasPendientes = incidencias.filter(incidencia =>
+                String(incidencia.Estado).toLowerCase() === 'abierta' && !incidencia.Id_Cuadrilla
+            );
+            document.getElementById('assignment-incident').innerHTML =
+                '<option value="">Elegí una incidencia...</option>' + incidenciasPendientes.map(incidencia =>
+                    `<option value="${escapar(incidencia.Id_Incidencia)}">#${escapar(incidencia.Id_Incidencia)} · ${escapar(incidencia.Tipo)} · Contenedor ${escapar(incidencia.Numero_Contenedor || 'sin especificar')}</option>`
+                ).join('');
+            const cuadrillasConRuta = cuadrillas.filter(cuadrilla => cuadrilla.Id_Ruta);
+            document.getElementById('assignment-incident-crew').innerHTML =
+                '<option value="">Elegí una cuadrilla con ruta...</option>' + cuadrillasConRuta.map(cuadrilla =>
+                    `<option value="${escapar(cuadrilla.Id_Cuadrilla)}">#${escapar(cuadrilla.Id_Cuadrilla)} · ${escapar(cuadrilla.Turno)} · Ruta #${escapar(cuadrilla.Id_Ruta)}</option>`
+                ).join('');
+        }
+
+        function renderizarAsignacionesIncidencia() {
+            const asignadas = incidencias.filter(incidencia => incidencia.Id_Cuadrilla);
+            document.getElementById('incident-assignments-body').innerHTML = asignadas.length
+                ? asignadas.map(incidencia => `
+                    <tr>
+                        <td>${escapar(incidencia.Id_Incidencia)}</td>
+                        <td>${incidencia.Numero_Contenedor ? `N° ${escapar(incidencia.Numero_Contenedor)}` : '-'}</td>
+                        <td>${escapar(incidencia.Tipo)}</td>
+                        <td>${escapar(incidencia.Estado)}</td>
+                        <td>#${escapar(incidencia.Id_Cuadrilla)}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="5">No hay incidencias asignadas.</td></tr>';
+        }
+
+        async function guardarCuadrilla(cuadrilla, cedulas, idRuta) {
+            return solicitar(`${api}?recurso=cuadrillas&id=${encodeURIComponent(cuadrilla.Id_Cuadrilla)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    Turno: cuadrilla.Turno,
+                    Num_integrantes: Number(cuadrilla.Num_integrantes),
+                    Cedulas: cedulas,
+                    Id_Ruta: idRuta || ''
+                })
+            });
+        }
+
+        async function asignarEmpleado(event) {
+            event.preventDefault();
+            const cedula = document.getElementById('assignment-employee').value;
+            const idCuadrilla = document.getElementById('assignment-employee-crew').value;
+            const empleado = empleados.find(item => String(item.cedula) === cedula);
+            const cuadrilla = cuadrillas.find(item => String(item.Id_Cuadrilla) === idCuadrilla);
+            if (!empleado || !cuadrilla) return mostrarMensaje('Elegí un empleado y una cuadrilla válidos.', 'error');
+            if (cuadrillas.some(item => listaCedulas(item).includes(cedula))) {
+                return mostrarMensaje('Ese empleado ya pertenece a una cuadrilla. Actualizá la página e intentá nuevamente.', 'error');
+            }
+            const miembros = listaCedulas(cuadrilla);
+            if (miembros.length >= Number(cuadrilla.Num_integrantes)) {
+                return mostrarMensaje('La cuadrilla ya alcanzó su máximo de integrantes.', 'error');
+            }
+            try {
+                const respuesta = await guardarCuadrilla(cuadrilla, [...miembros, cedula], cuadrilla.Id_Ruta);
+                mostrarMensaje(respuesta.message, 'success');
+                await cargarDatos();
+            } catch (error) {
+                mostrarMensaje(error.message, 'error');
+            }
+        }
+
+        async function asignarCuadrilla(event) {
+            event.preventDefault();
+            const cuadrilla = cuadrillas.find(item =>
+                String(item.Id_Cuadrilla) === document.getElementById('assignment-crew').value
+            );
+            const idRuta = document.getElementById('assignment-crew-route').value;
+            if (!cuadrilla || !idRuta) return mostrarMensaje('Elegí una cuadrilla y una ruta activa.', 'error');
+            try {
+                const respuesta = await guardarCuadrilla(cuadrilla, listaCedulas(cuadrilla), idRuta);
+                mostrarMensaje(respuesta.message, 'success');
+                await cargarDatos();
+            } catch (error) {
+                mostrarMensaje(error.message, 'error');
+            }
+        }
+
+        async function asignarCamion(event) {
+            event.preventDefault();
+            const datos = {
+                id_camion: document.getElementById('assignment-truck').value,
+                id_ruta: document.getElementById('assignment-truck-route').value,
+                fecha: document.getElementById('assignment-date').value,
+                hora_inicio: document.getElementById('assignment-start').value,
+                hora_fin: document.getElementById('assignment-end').value
+            };
+            try {
+                const respuesta = await solicitar(`${api}?recurso=asignaciones_camion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                mostrarMensaje(respuesta.message, 'success');
+                event.target.reset();
+                const fecha = new Date();
+                fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                document.getElementById('assignment-date').value = fecha.toISOString().slice(0, 10);
+                await cargarAsignacionesCamion();
+            } catch (error) {
+                mostrarMensaje(error.message, 'error');
+            }
+        }
+
+        async function asignarIncidencia(event) {
+            event.preventDefault();
+            const datos = {
+                id_incidencia: document.getElementById('assignment-incident').value,
+                id_cuadrilla: document.getElementById('assignment-incident-crew').value
+            };
+            try {
+                const respuesta = await solicitar(`${api}?recurso=incidencias&accion=asignar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                mostrarMensaje(respuesta.message, 'success');
+                await cargarDatos();
+            } catch (error) {
+                mostrarMensaje(error.message, 'error');
+            }
+        }
+
+        async function cargarAsignacionesCamion() {
+            const cuerpo = document.getElementById('truck-assignments-body');
+            try {
+                const respuesta = await solicitar(`${api}?recurso=asignaciones_camion`);
+                const asignaciones = Array.isArray(respuesta.data) ? respuesta.data : [];
+                cuerpo.innerHTML = asignaciones.length ? asignaciones.map(asignacion => `
+                    <tr>
+                        <td>${escapar(asignacion.Fecha)}</td>
+                        <td>${escapar(asignacion.Hora_Inicio)} - ${escapar(asignacion.Hora_Fin)}</td>
+                        <td>${escapar(asignacion.Matricula)}</td>
+                        <td>#${escapar(asignacion.Id_Ruta)} · ${escapar(asignacion.Recorrido)}</td>
+                        <td>${escapar(asignacion.Municipio)}</td>
+                        <td>${escapar(asignacion.Estado)}</td>
+                        <td>${asignacion.Estado === 'asignada'
+                            ? `<button type="button" class="delete" data-assignment-id="${escapar(asignacion.Id_Asignacion)}">Cancelar</button>`
+                            : '-'}</td>
+                    </tr>`).join('') : '<tr><td colspan="7">No hay asignaciones registradas.</td></tr>';
+                cuerpo.querySelectorAll('[data-assignment-id]').forEach(button =>
+                    button.addEventListener('click', () => cancelarAsignacion(button.dataset.assignmentId))
+                );
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="7">${escapar(error.message)}</td></tr>`;
+            }
+        }
+
+        async function cancelarAsignacion(id) {
+            if (!confirm('¿Cancelar esta asignación?')) return;
+            try {
+                const respuesta = await solicitar(`${api}?recurso=asignaciones_camion&accion=cancelar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                mostrarMensaje(respuesta.message, 'success');
+                await cargarAsignacionesCamion();
+            } catch (error) {
+                mostrarMensaje(error.message, 'error');
+            }
+        }
+    </script>
+    <script src="../js/admin-auth.js?v=32" defer></script>
+</body>
+
+</html>
