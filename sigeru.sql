@@ -3,8 +3,8 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 04-11-2026 a las 17:52:32
--- Versión del servidor: 12.2.2-MariaDB
+-- Tiempo de generación: 05-11-2026 a las 18:08:47
+-- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
@@ -189,7 +189,7 @@ CREATE TABLE `empleado` (
   `cedula` varchar(20) NOT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `empleado`
@@ -411,7 +411,7 @@ CREATE TABLE `notificacion_lectura` (
 --
 
 INSERT INTO `notificacion_lectura` (`Id_Empleado`, `Panel`, `Ultimo_Id`) VALUES
-(56, 'admin', 18),
+(56, 'admin', 19),
 (62, 'empleado', 13);
 
 -- --------------------------------------------------------

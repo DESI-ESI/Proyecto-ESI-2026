@@ -52,6 +52,15 @@
                     <span>⚙</span>
                     Maquinaria
                 </a>
+                <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
+                <a href="Operario.html?tipo=vertedero" id="vertedero-link">
+                    <span>▤</span>
+                    Vertedero
+                </a>
+                <a href="MapaInteractivo.html">
+                    <span>♧</span>
+                    Mapa interactivo
+                </a>
 
             </nav>
 
@@ -99,6 +108,14 @@
         const tiposBase = ['Orgánico', 'Reciclable', 'Plástico', 'Vidrio', 'Papel y cartón', 'Metal', 'Peligroso', 'Voluminoso', 'Escombros'];
         const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
         const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const tipoVista = new URLSearchParams(window.location.search).get('tipo') === 'vertedero' ? 'vertedero' : 'centro_acopio';
+
+        if (tipoVista === 'vertedero') {
+            document.querySelector('.page-header h1').textContent = 'Vertedero';
+            document.querySelector('.page-header p').textContent = 'Registrá ingresos y consultá la capacidad disponible en los vertederos.';
+            document.getElementById('operario-link').classList.remove('active');
+            document.getElementById('vertedero-link').classList.add('active');
+        }
 
         let centros = [];
         let ingresos = [];
@@ -131,6 +148,8 @@
 
         function dibujar(data) {
             centros = data.centros;
+            centros = centros.filter(centro => tipoVista === 'centro_acopio' ? centro.Tipo !== 'vertedero' : centro.Tipo === 'vertedero');
+            const idsCentros = new Set(centros.map(centro => String(centro.Id_Centro)));
 
             document.getElementById('centers-body').innerHTML = centros.length ? centros.map(c => `
                 <tr><td><strong>${escapar(c.Nombre)}</strong><br><small>${escapar(c.Ubicacion || '')}</small></td>
@@ -149,7 +168,7 @@
             if (!select.value) select.selectedIndex = 0;
             actualizarTiposFormulario();
 
-            ingresos = data.ingresos;
+            ingresos = data.ingresos.filter(ingreso => idsCentros.has(String(ingreso.Id_Centro)));
             document.getElementById('entries-body').innerHTML = ingresos.length ? ingresos.map(i => `
                 <tr><td>${escapar(i.Id_Ingreso)}</td><td>${escapar(i.Fecha)}</td><td>${escapar(i.Centro)}</td>
                 <td>${escapar(i.Cantidad)}</td><td>${escapar(i.Operario)}</td><td>${escapar(i.Tipo_Residuo || 'Sin clasificar')}</td>
@@ -240,6 +259,6 @@
         cargar();
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
-    <script src="../js/admin-auth.js?v=32" defer></script>
+    <script src="../js/admin-auth.js?v=33" defer></script>
 </body>
 </html>

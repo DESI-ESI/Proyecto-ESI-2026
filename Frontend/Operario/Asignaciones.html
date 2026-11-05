@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asignaciones - Panel operario - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=10">
+    <style>
+        .assignment-form { align-items: flex-end; width: 100%; padding: 14px 18px; gap: 12px; margin-bottom: 14px; }
+        .assignment-form label { display: flex; flex: 1 1 260px; flex-direction: column; gap: 6px; color: #59645f; font-size: 13px; }
+        .assignment-form select {
+            flex: 0 0 42px !important;
+            width: 100%;
+            height: 42px;
+            min-height: 42px;
+            max-height: 42px;
+            font-size: 14px;
+            line-height: 42px;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .assignment-message { min-height: 20px; margin: 0 0 12px; color: #238b57; }
+        .assignment-message.error { color: #b42318; }
+        @media (max-width: 700px) { .assignment-form { align-items: stretch; } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel operario</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="Panel.html"><span>▣</span>Panel principal</a>
+                <a href="Operario.html"><span>▦</span>Centro de acopio</a>
+                <a href="Contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Asignaciones.html" class="active"><span>⇄</span>Asignaciones</a>
+                <a href="Operario.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Asignaciones de maquinaria</h1>
+                    <p>Asigná o cambiá la instalación donde se encuentra cada equipo.</p>
+                </div>
+            </div>
+            <form id="assignment-form" class="filters assignment-form">
+                <label for="machine-select">Maquinaria
+                    <select id="machine-select" required>
+                        <option value="">Cargando maquinaria...</option>
+                    </select>
+                </label>
+                <label for="site-select">Centro de acopio o vertedero
+                    <select id="site-select" required>
+                        <option value="">Cargando instalaciones...</option>
+                    </select>
+                </label>
+                <button class="add-button" type="submit">Asignar maquinaria</button>
+            </form>
+            <p id="assignment-message" class="assignment-message" aria-live="polite"></p>
+            <section class="users-table">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Maquinaria</th><th>Tipo</th><th>Estado</th><th>Instalación actual</th></tr>
+                    </thead>
+                    <tbody id="assignment-body"><tr><td colspan="5">Cargando asignaciones...</td></tr></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=';
+        const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const nombresEstado = { operativa: 'Operativa', mantenimiento: 'En mantenimiento', fuera_de_servicio: 'Fuera de servicio' };
+        const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+
+        async function solicitar(recurso, opciones = {}) {
+            const respuesta = await fetch(api + recurso, { credentials: 'same-origin', ...opciones });
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status !== 'success') throw new Error(datos.message || 'No se pudo completar la solicitud.');
+            return datos.data || [];
+        }
+
+        function mensaje(texto, error = false) {
+            const elemento = document.getElementById('assignment-message');
+            elemento.textContent = texto;
+            elemento.classList.toggle('error', error);
+        }
+
+        async function cargarInstalaciones() {
+            const datos = await solicitar('centros');
+            const activos = datos.filter(item => String(item.Tipo).trim() && ['centro_acopio', 'vertedero'].includes(item.Tipo));
+            document.getElementById('site-select').innerHTML =
+                '<option value="" disabled selected>Seleccioná una instalación...</option>' +
+                activos.map(item => `<option value="${Number(item.Id_Centro)}">${escapar(item.Nombre)} (${escapar(nombresTipo[item.Tipo] || item.Tipo)})</option>`).join('');
+        }
+
+        async function cargarAsignaciones() {
+            const datos = await solicitar('asignaciones_maquinaria');
+            document.getElementById('machine-select').innerHTML =
+                '<option value="" disabled selected>Seleccioná maquinaria...</option>' +
+                datos.map(item => `<option value="${Number(item.Id_Maquinaria)}">${escapar(item.Nombre)} (${escapar(item.Tipo || 'Sin tipo')})</option>`).join('');
+            document.getElementById('assignment-body').innerHTML = datos.length ? datos.map(item => `
+                <tr>
+                    <td>${Number(item.Id_Maquinaria)}</td>
+                    <td><strong>${escapar(item.Nombre)}</strong></td>
+                    <td>${escapar(item.Tipo || '-')}</td>
+                    <td>${escapar(nombresEstado[item.Estado] || item.Estado)}</td>
+                    <td>${escapar(item.Instalacion)} (${escapar(nombresTipo[item.Tipo_Instalacion] || item.Tipo_Instalacion)})</td>
+                </tr>`).join('') : '<tr><td colspan="5">No hay maquinaria activa.</td></tr>';
+        }
+
+        document.getElementById('assignment-form').addEventListener('submit', async evento => {
+            evento.preventDefault();
+            mensaje('Asignando maquinaria...');
+            try {
+                const datos = await solicitar('asignaciones_maquinaria', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_maquinaria: Number(document.getElementById('machine-select').value),
+                        id_centro: Number(document.getElementById('site-select').value)
+                    })
+                });
+                mensaje(datos.message || 'Maquinaria asignada correctamente.');
+                await cargarAsignaciones();
+            } catch (error) {
+                mensaje(error.message, true);
+            }
+        });
+
+        Promise.all([cargarInstalaciones(), cargarAsignaciones()])
+            .catch(error => mensaje(error.message, true));
+    </script>
+    <script src="../js/admin-auth.js?v=34" defer></script>
+</body>
+</html>

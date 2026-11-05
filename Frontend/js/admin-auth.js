@@ -661,7 +661,7 @@ function aplicarSesion(session) {
             const topbarTitle = document.querySelector('.topbar-title');
 
             if (enAreaOperario) {
-                document.querySelectorAll('a[href="MapaInteractivo.html"], a[href="MiCuadrilla.html"], a[href="MiRuta.html"]').forEach(e => e.remove());
+                document.querySelectorAll('a[href="MiCuadrilla.html"], a[href="MiRuta.html"]').forEach(e => e.remove());
             }
 
             if (!esAdmin && esOperario) {

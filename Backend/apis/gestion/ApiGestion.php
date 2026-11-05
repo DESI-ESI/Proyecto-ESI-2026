@@ -845,7 +845,7 @@ if (in_array($resource, ['reporte_incidencias', 'zonas_criticas', 'tiempos_resol
 }
 
 $recursosEmpleado = ['incidencias', 'contenedores', 'municipios', 'centros', 'centros_acopio'];
-$recursosLecturaOperario = ['camiones', 'maquinaria'];
+$recursosLecturaOperario = ['camiones', 'maquinaria', 'asignaciones_maquinaria'];
 $accesoLecturaOperario = esOperario()
     && $method === 'GET'
     && in_array($resource, $recursosLecturaOperario, true);
@@ -1215,10 +1215,67 @@ try {
 
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
 
-        case 'maquinaria':
-            if (esOperario() && $method !== 'GET') {
-                respond(['status' => 'error', 'message' => 'Los operarios solo pueden consultar la maquinaria.'], 403);
+        case 'asignaciones_maquinaria':
+            if (!esAdministrador() && !esOperario()) {
+                respond(['status' => 'error', 'message' => 'Solo administración y operarios pueden gestionar asignaciones de maquinaria.'], 403);
             }
+
+            if ($method === 'GET') {
+                $consulta = $pdo->query(
+                    'SELECT m.Id_Maquinaria, m.Nombre, m.Tipo, m.Estado,
+                            m.Id_Centro, c.Nombre AS Instalacion, c.Tipo AS Tipo_Instalacion
+                     FROM maquinaria m
+                     JOIN centro_acopio c ON c.Id_Centro = m.Id_Centro
+                     WHERE m.Fecha_Baja IS NULL
+                     ORDER BY m.Nombre, m.Id_Maquinaria'
+                );
+                respond(['status' => 'success', 'data' => $consulta->fetchAll(PDO::FETCH_ASSOC)]);
+            }
+
+            if ($method === 'POST') {
+                $idMaquinaria = filter_var($data['id_maquinaria'] ?? null, FILTER_VALIDATE_INT);
+                $idCentro = filter_var($data['id_centro'] ?? null, FILTER_VALIDATE_INT);
+                if (!$idMaquinaria || !$idCentro) {
+                    respond(['status' => 'error', 'message' => 'Seleccioná la maquinaria y la instalación.'], 400);
+                }
+
+                try {
+                    $pdo->beginTransaction();
+                    $maquinaria = $pdo->prepare(
+                        'SELECT Id_Maquinaria FROM maquinaria WHERE Id_Maquinaria = :id AND Fecha_Baja IS NULL FOR UPDATE'
+                    );
+                    $maquinaria->execute([':id' => $idMaquinaria]);
+                    if (!$maquinaria->fetchColumn()) {
+                        throw new InvalidArgumentException('La maquinaria seleccionada no existe o fue dada de baja.');
+                    }
+
+                    $instalacion = $pdo->prepare(
+                        "SELECT Id_Centro FROM centro_acopio WHERE Id_Centro = :id AND Tipo IN ('centro_acopio', 'vertedero') AND Estado = 'activo' FOR UPDATE"
+                    );
+                    $instalacion->execute([':id' => $idCentro]);
+                    if (!$instalacion->fetchColumn()) {
+                        throw new InvalidArgumentException('Seleccioná un centro de acopio o vertedero activo.');
+                    }
+
+                    $actualizar = $pdo->prepare('UPDATE maquinaria SET Id_Centro = :centro WHERE Id_Maquinaria = :maquinaria AND Fecha_Baja IS NULL');
+                    $actualizar->execute([':centro' => $idCentro, ':maquinaria' => $idMaquinaria]);
+                    $pdo->commit();
+                    respond(['status' => 'success', 'message' => 'Maquinaria asignada correctamente.'], 200);
+                } catch (Throwable $error) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    if ($error instanceof InvalidArgumentException) {
+                        respond(['status' => 'error', 'message' => $error->getMessage()], 400);
+                    }
+                    error_log('Error al asignar maquinaria: ' . $error->getMessage());
+                    respond(['status' => 'error', 'message' => 'No se pudo asignar la maquinaria.'], 500);
+                }
+            }
+
+            respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
+
+        case 'maquinaria':
             $controller = new MaquinariaController();
 
             if ($method === 'GET') {
@@ -1226,16 +1283,25 @@ try {
             }
 
             if ($method === 'POST') {
+                if (!esAdministrador() && !esOperario()) {
+                    respond(['status' => 'error', 'message' => 'No tenés permisos para registrar maquinaria.'], 403);
+                }
                 $created = $controller->crear($pdo, $data);
                 respond(['status' => $created ? 'success' : 'error', 'message' => $created ? 'Maquinaria creada correctamente.' : 'No se pudo crear la maquinaria.'], $created ? 201 : 400);
             }
 
             if ($method === 'PUT') {
+                if (!esAdministrador()) {
+                    respond(['status' => 'error', 'message' => 'Solo administración puede editar maquinaria.'], 403);
+                }
                 $updated = $controller->actualizar($pdo, (int) ($data['id'] ?? $resourceId ?? 0), $data);
                 respond(['status' => $updated ? 'success' : 'error', 'message' => $updated ? 'Maquinaria actualizada correctamente.' : 'No se encontró la maquinaria.'], $updated ? 200 : 404);
             }
 
             if ($method === 'DELETE') {
+                if (!esAdministrador()) {
+                    respond(['status' => 'error', 'message' => 'Solo administración puede dar de baja maquinaria.'], 403);
+                }
                 $deleted = $controller->eliminar($pdo, (int) ($data['id'] ?? $resourceId ?? 0), (string) ($data['motivo'] ?? ''));
                 respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Maquinaria dada de baja; su historial se conservó.' : 'No se encontró maquinaria activa con ese ID.'], $deleted ? 200 : 404);
             }

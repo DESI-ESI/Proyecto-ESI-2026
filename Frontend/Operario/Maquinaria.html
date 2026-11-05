@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maquinaria - Panel operario - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <style>
+        .maquinaria-filtros {
+            margin-top: 18px;
+        }
+
+        .maquinaria-filtros .search input {
+            width: 100%;
+        }
+
+        .maquinaria-form select {
+            flex: 1 1 220px;
+        }
+
+        .maquinaria-mensaje {
+            min-height: 20px;
+            margin: 0 0 12px;
+            font-size: 14px;
+            color: #238b57;
+        }
+
+        .maquinaria-mensaje.error {
+            color: #b42318;
+        }
+    </style>
 </head>
 <body>
     <header class="topbar">
@@ -25,6 +49,9 @@
                 <a href="Incidencias.html"><span>!</span>Incidencias</a>
                 <a href="Camiones.html"><span>▱</span>Camiones</a>
                 <a href="Maquinaria.html" class="active"><span>⚙</span>Maquinaria</a>
+                <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
+                <a href="Operario.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
             </nav>
         </aside>
         <main class="main-content">
@@ -33,7 +60,37 @@
                     <h1>Maquinaria</h1>
                     <p>Consulta la maquinaria y su estado en cada instalación.</p>
                 </div>
+                <button type="submit" form="form-maquinaria" class="add-button">+ Nueva maquinaria</button>
             </div>
+
+            <form id="form-maquinaria" class="filters maquinaria-form">
+                <div class="search">
+                    <input type="text" id="maquina-nombre" placeholder="Nombre (Ej: Retroexcavadora)" maxlength="60" required>
+                </div>
+                <div class="search">
+                    <input type="text" id="maquina-tipo" placeholder="Tipo (Ej: Compactadora)" maxlength="50" required>
+                </div>
+                <div class="search">
+                    <input type="text" id="maquina-descripcion" placeholder="Descripción" maxlength="2000" required>
+                </div>
+                <select id="maquina-centro" required>
+                    <option value="" disabled selected>Instalación...</option>
+                </select>
+                <select id="maquina-estado" required>
+                    <option value="operativa">Operativa</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="fuera_de_servicio">Fuera de servicio</option>
+                </select>
+            </form>
+
+            <p id="maquinaria-mensaje" class="maquinaria-mensaje" aria-live="polite"></p>
+
+            <div class="filters maquinaria-filtros">
+                <div class="search">
+                    <input type="text" id="search-maquina" placeholder="Buscar maquinaria...">
+                </div>
+            </div>
+
             <section class="users-table">
                 <table>
                     <thead>
@@ -45,20 +102,58 @@
         </main>
     </div>
     <script>
+        const apiBase = '../../Backend/apis/gestion/ApiGestion.php?recurso=';
         const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const estados = { operativa: 'Operativa', mantenimiento: 'En mantenimiento', fuera_de_servicio: 'Fuera de servicio' };
         const instalaciones = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
+        let maquinas = [];
+
+        function mostrarMensaje(texto, error = false) {
+            const mensaje = document.getElementById('maquinaria-mensaje');
+            mensaje.textContent = texto;
+            mensaje.classList.toggle('error', error);
+        }
+
+        async function cargarCentros() {
+            const select = document.getElementById('maquina-centro');
+            try {
+                const respuesta = await fetch(apiBase + 'centros', { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudieron cargar las instalaciones.');
+                }
+                select.innerHTML = '<option value="" disabled selected>Instalación...</option>' +
+                    resultado.data.map(centro =>
+                        `<option value="${Number(centro.Id_Centro)}">${escapar(centro.Nombre)} (${escapar(instalaciones[centro.Tipo] || centro.Tipo)})</option>`
+                    ).join('');
+            } catch (error) {
+                select.innerHTML = '<option value="" disabled selected>No se pudieron cargar las instalaciones</option>';
+                mostrarMensaje(error.message, true);
+            }
+        }
 
         async function cargarMaquinaria() {
             const cuerpo = document.getElementById('maquinaria-body');
             try {
-                const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=maquinaria', { credentials: 'same-origin' });
+                const respuesta = await fetch(apiBase + 'maquinaria', { credentials: 'same-origin', cache: 'no-store' });
                 const resultado = await respuesta.json();
                 if (!respuesta.ok || resultado.status !== 'success') {
                     throw new Error(resultado.message || 'No se pudo cargar la maquinaria.');
                 }
-                const maquinas = Array.isArray(resultado.data) ? resultado.data : [];
-                cuerpo.innerHTML = maquinas.length ? maquinas.map(maquina => `
+                maquinas = Array.isArray(resultado.data) ? resultado.data : [];
+                renderMaquinaria();
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="5">${escapar(error.message || 'No se pudo cargar la maquinaria.')}</td></tr>`;
+            }
+        }
+
+        function renderMaquinaria() {
+            const cuerpo = document.getElementById('maquinaria-body');
+            const termino = document.getElementById('search-maquina').value.trim().toLowerCase();
+            const listado = maquinas.filter(maquina =>
+                `${maquina.Nombre} ${maquina.Tipo || ''} ${maquina.Descripcion || ''} ${maquina.Centro}`.toLowerCase().includes(termino)
+            );
+            cuerpo.innerHTML = listado.length ? listado.map(maquina => `
                     <tr>
                         <td>${Number(maquina.Id_Maquinaria)}</td>
                         <td><strong>${escapar(maquina.Nombre)}</strong></td>
@@ -66,13 +161,44 @@
                         <td>${escapar(maquina.Centro)} (${escapar(instalaciones[maquina.Tipo_Instalacion] || maquina.Tipo_Instalacion || '-')})</td>
                         <td>${escapar(estados[maquina.Estado] || maquina.Estado)}</td>
                     </tr>`).join('') : '<tr><td colspan="5">No hay maquinaria registrada.</td></tr>';
+        }
+
+        async function crearMaquinaria(evento) {
+            evento.preventDefault();
+            const datos = {
+                nombre: document.getElementById('maquina-nombre').value.trim(),
+                tipo: document.getElementById('maquina-tipo').value.trim(),
+                descripcion: document.getElementById('maquina-descripcion').value.trim(),
+                id_centro: Number(document.getElementById('maquina-centro').value),
+                estado: document.getElementById('maquina-estado').value
+            };
+
+            try {
+                const respuesta = await fetch(apiBase + 'maquinaria', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudo crear la maquinaria.');
+                }
+                document.getElementById('form-maquinaria').reset();
+                mostrarMensaje('Maquinaria creada correctamente.');
+                await cargarMaquinaria();
             } catch (error) {
-                cuerpo.innerHTML = `<tr><td colspan="5">${escapar(error.message || 'No se pudo cargar la maquinaria.')}</td></tr>`;
+                mostrarMensaje(error.message || 'Error de conexión con el servidor.', true);
             }
         }
 
-        cargarMaquinaria();
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('form-maquinaria').addEventListener('submit', crearMaquinaria);
+            document.getElementById('search-maquina').addEventListener('input', renderMaquinaria);
+            cargarCentros();
+            cargarMaquinaria();
+        });
     </script>
-    <script src="../js/admin-auth.js?v=32" defer></script>
+    <script src="../js/admin-auth.js?v=33" defer></script>
 </body>
 </html>

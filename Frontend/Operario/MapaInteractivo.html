@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa interactivo - Panel operario - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        #mapa-operario { height: 620px; border-radius: 12px; }
+        #estado-mapa { min-height: 20px; margin: 0 0 12px; color: #7a8580; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel operario</div>
+        <div class="admin-info">
+            <span id="admin-name"></span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="Panel.html"><span>▣</span>Panel principal</a>
+                <a href="Operario.html"><span>▦</span>Centro de acopio</a>
+                <a href="Contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Operario.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="MapaInteractivo.html" class="active"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Mapa interactivo</h1>
+                    <p>Ubicación de centros de acopio, vertederos, contenedores e incidencias.</p>
+                </div>
+            </div>
+            <div class="filters" style="margin-bottom: 14px;">
+                <select id="filtro-tipo">
+                    <option value="todos">Todos los elementos</option>
+                    <option value="centros">Solo instalaciones</option>
+                    <option value="contenedores">Solo contenedores e incidencias</option>
+                </select>
+            </div>
+            <p id="estado-mapa">Cargando ubicaciones...</p>
+            <section class="data-table" style="padding: 0; overflow: hidden;">
+                <div id="mapa-operario"></div>
+            </section>
+        </main>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="../js/municipios-montevideo.js"></script>
+    <script src="../js/geo-montevideo.js"></script>
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=';
+        const mapa = L.map('mapa-operario').setView([-34.88, -56.17], 12);
+        const capa = L.layerGroup().addTo(mapa);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(mapa);
+
+        async function obtener(recurso) {
+            const respuesta = await fetch(api + recurso, { credentials: 'same-origin', cache: 'no-store' });
+            const datos = await respuesta.json();
+            if (!respuesta.ok || datos.status !== 'success') throw new Error(datos.message || 'No se pudieron cargar los datos.');
+            return Array.isArray(datos.data) ? datos.data : [];
+        }
+
+        async function cargarMapa() {
+            const estado = document.getElementById('estado-mapa');
+            try {
+                const resultados = await Promise.allSettled([
+                    obtener('centros'),
+                    obtener('contenedores'),
+                    obtener('incidencias')
+                ]);
+                const centros = resultados[0].status === 'fulfilled' ? resultados[0].value : [];
+                const contenedores = resultados[1].status === 'fulfilled' ? resultados[1].value : [];
+                const incidencias = resultados[2].status === 'fulfilled' ? resultados[2].value : [];
+                const filtro = document.getElementById('filtro-tipo').value;
+                capa.clearLayers();
+
+                if (filtro !== 'contenedores') {
+                    for (const centro of centros) {
+                        const punto = await GeoMontevideo.ubicarCalles(centro.Ubicacion, centro.Ubicacion2);
+                        if (punto) {
+                            L.circleMarker(punto, {
+                                radius: 7,
+                                color: '#238b57',
+                                fillColor: centro.Tipo === 'vertedero' ? '#52616b' : '#238b57',
+                                fillOpacity: 0.85
+                            }).addTo(capa).bindPopup(`<strong>${centro.Nombre}</strong><br>${centro.Tipo === 'vertedero' ? 'Vertedero' : 'Centro de acopio'}`);
+                        }
+                    }
+                }
+
+                if (filtro !== 'centros') {
+                    contenedores.forEach(contenedor => {
+                        if (contenedor.Latitud && contenedor.Longitud) {
+                            L.circleMarker([Number(contenedor.Latitud), Number(contenedor.Longitud)], {
+                                radius: 5,
+                                color: '#1d64a6',
+                                fillColor: '#1d64a6',
+                                fillOpacity: 0.8
+                            }).addTo(capa).bindPopup(`Contenedor #${contenedor.Numero_Contenedor || contenedor.Id_Contenedor}`);
+                        }
+                    });
+                    incidencias.forEach(incidencia => {
+                        if (incidencia.Latitud && incidencia.Longitud) {
+                            L.circleMarker([Number(incidencia.Latitud), Number(incidencia.Longitud)], {
+                                radius: 6,
+                                color: '#b42318',
+                                fillColor: '#d64545',
+                                fillOpacity: 0.8
+                            }).addTo(capa).bindPopup(`Incidencia #${incidencia.Id_Incidencia}: ${incidencia.Tipo || ''}`);
+                        }
+                    });
+                }
+                estado.textContent = 'Mapa actualizado.';
+            } catch (error) {
+                estado.textContent = error.message || 'No se pudo cargar el mapa.';
+            }
+        }
+
+        document.getElementById('filtro-tipo').addEventListener('change', cargarMapa);
+        cargarMapa();
+    </script>
+    <script src="../js/admin-auth.js?v=33" defer></script>
+</body>
+</html>
