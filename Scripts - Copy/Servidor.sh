@@ -1,48 +1,105 @@
-#!/bin/bash 
 
-ROL=$1
+#!/bin/bash
 
-if [ -z "$ROL" ]; then
-    echo "Uso: $0 {app|db|respaldos}"
-    exit 1
-fi
+SERVIDOR=$(hostname)
 
-case "$ROL" in
+case "$SERVIDOR" in
 
     app)
-        echo "Configurando servidor de aplicaciones"
-        ./usuarios.sh
-        ./grupos.sh
-        ./red.sh
-        ./firewall.sh
-        ./logs.sh
-        ./respaldos.sh
+        echo "MENU SERVIDOR DE APLICACION"
+        OPCION=0
+
+        while [ "$OPCION" -ne 9 ]; do
+            echo ""
+            echo "1. Gestionar usuarios"
+            echo "2. Gestionar llaves SSH"
+            echo "3. Gestionar grupos y permisos"
+            echo "4. Configurar red"
+            echo "5. Configurar firewall"
+            echo "6. Consultar logs"
+            echo "7. Gestionar respaldos"
+            echo "9. Salir"
+            read -p "Seleccione una opcion: " OPCION
+
+            case "$OPCION" in
+                1) ./usuarios.sh ;;
+                2) ./llaves_ssh.sh ;;
+                3) ./grupos.sh ;;
+                4) ./red.sh ;;
+                5) ./firewall.sh ;;
+                6) ./logs.sh ;;
+                7) ./respaldos.sh ;;
+                9) echo "Saliendo..." ;;
+                *) echo "Opcion no valida" ;;
+            esac
+        done
         ;;
 
     db)
-        echo "Configurando servidor de base de datos"
-        ./usuarios.sh
-        ./grupos.sh
-        ./red.sh
-        ./firewall.sh
-        ./logs.sh
-        ./base_datos.sh
-        ./respaldos.sh
+        echo "MENU SERVIDOR DE BASE DE DATOS"
+        OPCION=0
+
+        while [ "$OPCION" -ne 9 ]; do
+            echo ""
+            echo "1. Gestionar usuarios"
+            echo "2. Gestionar llaves SSH"
+            echo "3. Gestionar grupos y permisos"
+            echo "4. Configurar red"
+            echo "5. Configurar firewall"
+            echo "6. Consultar logs"
+            echo "7. Configurar base de datos"
+            echo "8. Gestionar respaldos"
+            echo "9. Salir"
+            read -p "Seleccione una opcion: " OPCION
+
+            case "$OPCION" in
+                1) ./usuarios.sh ;;
+                2) ./llaves_ssh.sh ;;
+                3) ./grupos.sh ;;
+                4) ./red.sh ;;
+                5) ./firewall.sh ;;
+                6) ./logs.sh ;;
+                7) ./base_datos.sh ;;
+                8) ./respaldos.sh ;;
+                9) echo "Saliendo..." ;;
+                *) echo "Opcion no valida" ;;
+            esac
+        done
         ;;
 
     respaldos)
-        echo "Configurando servidor de Respaldos"
-        ./usuarios.sh
-        ./grupos.sh
-        ./red.sh
-        ./firewall.sh
-        ./logs.sh
-        ./respaldos.sh
+        echo "MENU SERVIDOR DE RESPALDOS"
+        OPCION=0
+
+        while [ "$OPCION" -ne 9 ]; do
+            echo ""
+            echo "1. Gestionar usuarios"
+            echo "2. Gestionar llaves SSH"
+            echo "3. Gestionar grupos y permisos"
+            echo "4. Configurar red"
+            echo "5. Configurar firewall"
+            echo "6. Consultar logs"
+            echo "7. Gestionar respaldos"
+            echo "9. Salir"
+            read -p "Seleccione una opcion: " OPCION
+
+            case "$OPCION" in
+                1) ./usuarios.sh ;;
+                2) ./llaves_ssh.sh ;;
+                3) ./grupos.sh ;;
+                4) ./red.sh ;;
+                5) ./firewall.sh ;;
+                6) ./logs.sh ;;
+                7) ./respaldos.sh ;;
+                9) echo "Saliendo..." ;;
+                *) echo "Opcion no valida" ;;
+            esac
+        done
         ;;
 
     *)
-        echo "Rol no válido."
-        echo "Usar: app | db | respaldos"
+        echo "Error: servidor no reconocido."
         exit 1
         ;;
+
 esac
