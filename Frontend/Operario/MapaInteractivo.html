@@ -30,6 +30,7 @@
                 <a href="Incidencias.html"><span>!</span>Incidencias</a>
                 <a href="Camiones.html"><span>▱</span>Camiones</a>
                 <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
                 <a href="Operario.html?tipo=vertedero"><span>▤</span>Vertedero</a>
                 <a href="MapaInteractivo.html" class="active"><span>♧</span>Mapa interactivo</a>
             </nav>
@@ -59,7 +60,10 @@
     <script src="../js/geo-montevideo.js"></script>
     <script>
         const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=';
-        const mapa = L.map('mapa-operario').setView([-34.88, -56.17], 12);
+        const mapa = L.map('mapa-operario', {
+            minZoom: 11,
+            maxZoom: 18,
+        }).setView([-34.88, -56.17], 12);
         const capa = L.layerGroup().addTo(mapa);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'

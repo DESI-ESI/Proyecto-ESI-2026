@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Operario - SIGERU</title>
-    <link rel="stylesheet" href="../Css/admin-panel.css?v=6">
+    <link rel="stylesheet" href="../css/admin-panel.css?v=7">
 </head>
 
 <body>
@@ -271,7 +271,6 @@
 
                 if (esVertedero) {
                     enlaceVertedero.style.display = '';
-                    enlaceVertedero.classList.add('active');
                     enlaceCentro.style.display = 'none';
                     enlaceVertedero.innerHTML = '<span>▤</span> Vertedero';
                     tarjetaInstalacion.style.display = 'none';
@@ -281,7 +280,6 @@
                     accionInstalacionNombre.textContent = 'Registrar ingreso en el vertedero';
                 } else {
                     enlaceCentro.style.display = '';
-                    enlaceCentro.classList.add('active');
                     enlaceCentro.innerHTML = '<span>▦</span> Centro de acopio';
                     enlaceVertedero.style.display = 'none';
                     tarjetaInstalacion.style.display = '';
