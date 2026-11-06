@@ -112,31 +112,6 @@ class incidencia
         return $stmt->rowCount() > 0;
     }
 
-    public static function aceptar(PDO $pdo, int $id, int $idCuadrilla, int $idRuta): bool
-    {
-        $stmt = $pdo->prepare(
-            "UPDATE incidencia AS i
-             SET Estado = 'en curso', Id_Cuadrilla = :cuadrilla
-             WHERE i.Id_Incidencia = :id
-               AND i.Estado = 'abierta'
-               AND (i.Id_Cuadrilla IS NULL OR i.Id_Cuadrilla = :cuadrilla_actual)
-               AND EXISTS (
-                   SELECT 1
-                   FROM existe x
-                   JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor
-                   WHERE x.Id_Ruta = :ruta
-                     AND c.Numero_Contenedor = i.Numero_Contenedor
-               )"
-        );
-        $stmt->execute([
-            ':cuadrilla' => $idCuadrilla,
-            ':id' => $id,
-            ':cuadrilla_actual' => $idCuadrilla,
-            ':ruta' => $idRuta
-        ]);
-
-        return $stmt->rowCount() > 0;
-    }
 
     public static function asignar(PDO $pdo, int $id, int $idCuadrilla): bool
     {

@@ -120,14 +120,38 @@ class Contenedores
 
     public static function darBajaContenedor(PDO $pdo, int $idContenedor, string $motivo): bool
     {
-        $stmt = $pdo->prepare(
-            "UPDATE contenedor
-             SET Estado = 'inactivo', Motivo_Baja = :motivo
-             WHERE Id_Contenedor = :id AND (Estado IS NULL OR Estado <> 'inactivo')"
-        );
+        try {
+            $pdo->beginTransaction();
 
-        $stmt->execute([':motivo' => $motivo, ':id' => $idContenedor]);
-        return $stmt->rowCount() > 0;
+            $contenedor = $pdo->prepare(
+                'SELECT Id_Contenedor FROM contenedor WHERE Id_Contenedor = :id LIMIT 1 FOR UPDATE'
+            );
+            $contenedor->execute([':id' => $idContenedor]);
+            if (!$contenedor->fetchColumn()) {
+                $pdo->rollBack();
+                return false;
+            }
+
+            $existe = $pdo->prepare('DELETE FROM existe WHERE Id_Contenedor = :id');
+            $existe->execute([':id' => $idContenedor]);
+
+            $eliminar = $pdo->prepare('DELETE FROM contenedor WHERE Id_Contenedor = :id');
+            $eliminar->execute([':id' => $idContenedor]);
+            $eliminado = $eliminar->rowCount() > 0;
+
+            if (!$eliminado) {
+                $pdo->rollBack();
+                return false;
+            }
+
+            $pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
 
@@ -290,7 +314,8 @@ class Contenedores
                     Id_Incidencia,
                     Latitud,
                     Longitud
-             FROM contenedor"
+             FROM contenedor
+             WHERE Estado IS NULL OR LOWER(TRIM(Estado)) <> 'inactivo'"
         );
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -6,6 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instalaciones - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=10">
+    <style>
+        .multi-residuos { position: relative; flex: 1 1 240px; min-width: 260px; max-width: 100%; }
+        .multi-residuos summary { min-height: 42px; border: 1px solid #dce3df; border-radius: 8px; padding: 0 13px; background: #fff; color: #59645f; cursor: pointer; display: flex; align-items: center; font-size: 13px; list-style: none; box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .multi-residuos summary::-webkit-details-marker { display: none; }
+        .multi-residuos[open] summary { border-color: #238b57; }
+        #centro-tipos-lista { position: absolute; top: 46px; left: 0; width: max(100%, 280px); max-width: min(420px, calc(100vw - 40px)); max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #e1e7e4; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 50; padding: 6px 0; }
+        #centro-tipos-lista label { display: flex; align-items: center; gap: 9px; padding: 9px 14px; color: #36443e; font-size: 13px; cursor: pointer; }
+        #centro-tipos-lista label:hover { background: #f1f4f2; }
+        html[data-sigeru-theme="dark"] .multi-residuos summary {
+            background: #121a16 !important;
+            color: #e5ece8 !important;
+            border-color: #46544c !important;
+        }
+        html[data-sigeru-theme="dark"] .multi-residuos[open] summary {
+            border-color: #238b57 !important;
+        }
+        html[data-sigeru-theme="dark"] #centro-tipos-lista {
+            background: #1b2520 !important;
+            border-color: #34423a !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,.45) !important;
+        }
+        html[data-sigeru-theme="dark"] #centro-tipos-lista label {
+            color: #e5ece8 !important;
+        }
+        html[data-sigeru-theme="dark"] #centro-tipos-lista label:hover {
+            background: #26372e !important;
+        }
+        html[data-sigeru-theme="dark"] #centro-tipos-lista input[type="checkbox"] {
+            accent-color: #238b57;
+            color-scheme: dark;
+        }
+    </style>
 </head>
 
 <body>
@@ -37,6 +69,7 @@
                 <a href="Centros.html?tipo=vertedero" id="vertedero-link"><span>▤</span>Vertedero</a>
                 <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
                 <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
                 <a href="Informes.html"><span>▤</span>Estadísticas</a>
                 <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
             </nav>
@@ -94,9 +127,17 @@
                     <option value="mantenimiento">En mantenimiento</option>
                 </select>
 
-                <div class="search">
-                    <input type="text" id="centro-tipos-residuo" placeholder="Tipos de residuo (separados por coma)" maxlength="255">
-                </div>
+                <details class="multi-residuos" id="centro-tipos-residuo">
+                    <summary id="centro-tipos-resumen">Tipos de residuo...</summary>
+                    <div id="centro-tipos-lista">
+                        <label><input type="checkbox" value="orgánico"> <span>Orgánicos</span></label>
+                        <label><input type="checkbox" value="biodegradable"> <span>Biodegradables</span></label>
+                        <label><input type="checkbox" value="doméstico"> <span>Domésticos</span></label>
+                        <label><input type="checkbox" value="peligroso"> <span>Peligrosos</span></label>
+                        <label><input type="checkbox" value="industrial"> <span>Industriales</span></label>
+                        <label><input type="checkbox" value="reciclables secos"> <span>Reciclables secos</span></label>
+                    </div>
+                </details>
             </form>
 
             <div class="filters" style="margin-top: 18px;">
@@ -207,7 +248,9 @@
                 capacidad: document.getElementById('centro-capacidad').value,
                 cantidad_almacenada: document.getElementById('centro-almacenado').value || '0',
                 estado: document.getElementById('centro-estado').value,
-                tipos_residuo: document.getElementById('centro-tipos-residuo').value.trim()
+                tipos_residuo: Array.from(document.querySelectorAll('#centro-tipos-residuo input[type="checkbox"]:checked'))
+                    .map(checkbox => checkbox.value.trim())
+                    .join(', ')
             };
         }
 
@@ -216,6 +259,20 @@
             ultimaDeteccion = '';
             document.getElementById('municipio-hint').textContent = '';
             document.getElementById('add-centro-btn').textContent = '+ Nueva instalación';
+            document.getElementById('form-centro').reset();
+            document.querySelectorAll('#centro-tipos-residuo input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            actualizarResumenTipos();
+            document.getElementById('centro-tipos-residuo').open = false;
+        }
+
+        function actualizarResumenTipos() {
+            const seleccionados = Array.from(document.querySelectorAll('#centro-tipos-residuo input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.nextElementSibling.textContent);
+            document.getElementById('centro-tipos-resumen').textContent = seleccionados.length
+                ? `Residuos: ${seleccionados.join(', ')}`
+                : 'Tipos de residuo...';
         }
 
         function renderCentros() {
@@ -294,7 +351,14 @@
             document.getElementById('centro-capacidad').value = centroEditando.capacidad;
             document.getElementById('centro-almacenado').value = centroEditando.cantidad_almacenada;
             document.getElementById('centro-estado').value = centroEditando.estado;
-            document.getElementById('centro-tipos-residuo').value = centroEditando.tipos_residuo;
+            const tiposResiduo = String(centroEditando.tipos_residuo || '')
+                .split(',')
+                .map(tipo => tipo.trim().toLowerCase())
+                .filter(Boolean);
+            document.querySelectorAll('#centro-tipos-residuo input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = tiposResiduo.includes(checkbox.value.toLowerCase());
+            });
+            actualizarResumenTipos();
             document.getElementById('add-centro-btn').textContent = 'Guardar cambios';
         }
 
@@ -302,6 +366,10 @@
             evento.preventDefault();
             await deteccionMunicipio;
             await detectarMunicipio();
+            if (!document.querySelector('#centro-tipos-residuo input[type="checkbox"]:checked')) {
+                alert('Seleccioná al menos un tipo de residuo.');
+                return;
+            }
             if (!document.getElementById('centro-municipio').value) {
                 alert('No se pudo determinar el municipio. Revisá que las calles estén bien escritas.');
                 return;
@@ -372,6 +440,13 @@
             }
             document.getElementById('form-centro').addEventListener('submit', procesarFormulario);
             ['centro-ubicacion', 'centro-ubicacion2'].forEach(id => document.getElementById(id).addEventListener('change', () => { deteccionMunicipio = detectarMunicipio(); }));
+            document.querySelectorAll('#centro-tipos-residuo input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', actualizarResumenTipos);
+            });
+            document.addEventListener('click', evento => {
+                const desplegable = document.getElementById('centro-tipos-residuo');
+                if (!desplegable.contains(evento.target)) desplegable.open = false;
+            });
             cargarMunicipios();
             document.getElementById('search-centro').addEventListener('input', renderCentros);
             document.getElementById('filter-tipo').addEventListener('change', renderCentros);

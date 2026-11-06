@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camiones - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
+    <style>
+        #tabla-camiones-body + .assignment-row,
+        .section-title + .filters {
+            margin-top: 14px;
+        }
+    </style>
 </head>
 
 <body>
@@ -41,6 +47,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -78,16 +85,13 @@
                     <option value="Fuera de servicio">Fuera de servicio</option>
                 </select>
 
-                <select id="id_municipio" required>
-                     <option value="" disabled selected>Municipio...</option>
+                <select id="id_centro" required>
+                     <option value="" disabled selected>Centro de acopio o vertedero...</option>
                 </select>
 
                 <select id="id_ruta">
                      <option value="">Sin ruta asignada</option>
                 </select>
-                <input type="number" id="latitud" min="-90" max="90" step="0.0000001" placeholder="Latitud GPS (opcional)">
-                <input type="number" id="longitud" min="-180" max="180" step="0.0000001" placeholder="Longitud GPS (opcional)">
-                <small>Si no hay GPS, el mapa mostrará una ubicación simulada según la ruta.</small>
             </form>
 
             <div class="filters" style="margin-top: 18px;">
@@ -102,7 +106,6 @@
                     <option value="Mantenimiento">En mantenimiento</option>
                     <option value="Roto">Roto</option>
                     <option value="Fuera de servicio">Fuera de servicio</option>
-                    <option value="baja">Dado de baja</option>
                 </select>
 
                 <select id="filter-municipio">
@@ -121,36 +124,12 @@
                             <th>Estado</th>
                             <th>Municipio</th>
                             <th>Ruta</th>
-                            <th>Fecha de baja</th>
-                            <th>Motivo de baja</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-camiones-body">
 
                     </tbody>
-                </table>
-            </section>
-
-            <h2 class="section-title">Asignar camión a una ruta</h2>
-            <form id="form-asignacion-camion" class="filters">
-                <select id="asignacion-camion" required>
-                    <option value="">Camión disponible...</option>
-                </select>
-                <select id="asignacion-ruta" required>
-                    <option value="">Ruta activa...</option>
-                </select>
-                <label>Fecha <input type="date" id="asignacion-fecha" required></label>
-                <label>Hora de inicio <input type="time" id="asignacion-inicio" required></label>
-                <label>Hora de fin <input type="time" id="asignacion-fin" required></label>
-                <button type="submit" class="add-button">Asignar</button>
-            </form>
-            <section class="users-table">
-                <table>
-                    <thead>
-                        <tr><th>Fecha</th><th>Horario</th><th>Camión</th><th>Ruta</th><th>Municipio</th><th>Estado</th><th>Acciones</th></tr>
-                    </thead>
-                    <tbody id="tabla-asignaciones-body"><tr><td colspan="7">Cargando asignaciones...</td></tr></tbody>
                 </table>
             </section>
 
@@ -168,10 +147,9 @@
         const API = '../../Backend/apis/gestion/ApiGestion.php';
 
         document.addEventListener('DOMContentLoaded', () => {
-            Promise.all([cargarMunicipios(), cargarRutas()])
+            Promise.all([cargarMunicipios(), cargarCentros(), cargarRutas()])
                 .then(async () => {
                     await cargarCamiones();
-                    await cargarAsignaciones();
                 })
                 .catch(error => mostrarErrorTabla(error.message));
 
@@ -187,10 +165,6 @@
 
             document.getElementById('filter-municipio')?.addEventListener('change', filtrarCamiones);
             document.getElementById('filter-estado')?.addEventListener('change', filtrarCamiones);
-            document.getElementById('form-asignacion-camion').addEventListener('submit', guardarAsignacion);
-            const fecha = new Date();
-            fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
-            document.getElementById('asignacion-fecha').value = fecha.toISOString().slice(0, 10);
         });
 
         function filtrarCamiones() {
@@ -199,6 +173,10 @@
             const estadoSeleccionado = document.getElementById('filter-estado').value;
 
             const listado = camionesOriginales.filter(camion => {
+                const eliminado = Boolean(camion.Fecha_Baja)
+                    || String(camion.estado ?? camion.Estado ?? '').toLowerCase().trim() === 'fuera de servicio';
+                if (eliminado) return false;
+
                 const matricula = camion.matricula ?? camion.Matricula ?? '';
                 const estado = camion.estado ?? camion.Estado ?? '';
                 const capacidad = camion.capacidad ?? camion.Capacidad ?? '';
@@ -206,9 +184,8 @@
                 const nombreMunicipio = municipiosPorId[String(idMunicipio)] || '';
                 const texto = `${matricula} ${estado} ${capacidad} ${idMunicipio} ${nombreMunicipio}`.toLowerCase();
                 const coincideMunicipio = municipioSeleccionado === 'todos' || String(idMunicipio) === municipioSeleccionado;
-                const dadoDeBaja = Boolean(camion.Fecha_Baja);
                 const coincideEstado = estadoSeleccionado === 'todos'
-                    || (estadoSeleccionado === 'baja' ? dadoDeBaja : !dadoDeBaja && String(estado).toLowerCase() === estadoSeleccionado.toLowerCase());
+                    || String(estado).toLowerCase() === estadoSeleccionado.toLowerCase();
 
                 return texto.includes(termino) && coincideMunicipio && coincideEstado;
             });
@@ -219,17 +196,25 @@
         function renderCamiones(camiones) {
             const tbody = document.getElementById('tabla-camiones-body');
             tbody.innerHTML = '';
+            camiones = camiones.filter(camion =>
+                !Boolean(camion.Fecha_Baja)
+                && String(camion.estado ?? camion.Estado ?? '').toLowerCase().trim() !== 'fuera de servicio'
+            );
+            const totalActivos = camionesOriginales.filter(camion =>
+                !Boolean(camion.Fecha_Baja)
+                && String(camion.estado ?? camion.Estado ?? '').toLowerCase().trim() !== 'fuera de servicio'
+            ).length;
             document.getElementById('truck-count').textContent =
-                `${camiones.length} camiones encontrados con los filtros actuales (${camionesOriginales.length} en total)`;
+                `${camiones.length} camiones encontrados con los filtros actuales (${totalActivos} en total)`;
 
             if (camiones.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #666; padding: 20px;">No se encontraron camiones</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666; padding: 20px;">No se encontraron camiones</td></tr>`;
                 return;
             }
 
             camiones.forEach(camion => {
                 let estadoClase = 'status';
-                if (!camion.Fecha_Baja && camion.estado === 'Disponible') estadoClase += ' active-status';
+                if (camion.estado === 'Disponible') estadoClase += ' active-status';
 
                 let idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
                 let nombreMunicipio = municipiosPorId[String(idMunicipio)] || idMunicipio || '-';
@@ -238,11 +223,9 @@
                 const valores = [
                     camion.matricula,
                     `${camion.capacidad} kg`,
-                    camion.Fecha_Baja ? 'Dado de baja' : camion.estado,
+                    camion.estado,
                     nombreMunicipio,
-                    camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-',
-                    camion.Fecha_Baja || '-',
-                    camion.Motivo_Baja || '-'
+                    camion.Id_Ruta ? `#${camion.Id_Ruta} - ${camion.ruta_recorrido || ''}` : '-'
                 ];
                 valores.forEach((valor, indice) => {
                     const celda = document.createElement('td');
@@ -265,15 +248,13 @@
                 const editar = document.createElement('button');
                 editar.type = 'button';
                 editar.className = 'edit';
-                editar.textContent = camion.Fecha_Baja ? 'Retirado' : 'Editar';
-                editar.disabled = Boolean(camion.Fecha_Baja);
-                if (!camion.Fecha_Baja) editar.addEventListener('click', () => prepararEdicion(camion));
+                editar.textContent = 'Editar';
+                editar.addEventListener('click', () => prepararEdicion(camion));
                 const eliminar = document.createElement('button');
                 eliminar.type = 'button';
                 eliminar.className = 'delete';
-                eliminar.textContent = camion.Fecha_Baja ? 'Baja registrada' : 'Dar de baja';
-                eliminar.disabled = Boolean(camion.Fecha_Baja);
-                if (!camion.Fecha_Baja) eliminar.addEventListener('click', () => eliminarCamion(camion.matricula));
+                eliminar.textContent = 'Eliminar';
+                eliminar.addEventListener('click', () => eliminarCamion(camion.matricula));
                 acciones.append(editar, eliminar);
                 fila.appendChild(acciones);
                 tbody.appendChild(fila);
@@ -291,9 +272,7 @@
         async function cargarMunicipios() {
             try {
                 const res = await leerRespuesta(await fetch('../../Backend/get_municipios.php'));
-                const selectMunicipio = document.getElementById('id_municipio');
                 const filtroMunicipio = document.getElementById('filter-municipio');
-                selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
                 municipiosPorId = {};
                 if (filtroMunicipio) {
                     filtroMunicipio.innerHTML = '<option value="todos">Todos los municipios</option>';
@@ -304,7 +283,6 @@
                     const option = document.createElement('option');
                     option.value = muni.id_municipio;
                     option.textContent = muni.nombre;
-                    selectMunicipio.appendChild(option);
                     if (filtroMunicipio) {
                         filtroMunicipio.appendChild(option.cloneNode(true));
                     }
@@ -318,23 +296,31 @@
             }
         }
 
+        async function cargarCentros() {
+            try {
+                const res = await leerRespuesta(await fetch(`${API}?recurso=centros`));
+                const select = document.getElementById('id_centro');
+                const centros = Array.isArray(res.data) ? res.data : [];
+                select.innerHTML = '<option value="" disabled selected>Centro de acopio o vertedero...</option>' +
+                    centros.filter(centro =>
+                        String(centro.Estado || '').toLowerCase() !== 'inactivo'
+                    ).map(centro => {
+                        const tipo = String(centro.Tipo || '').toLowerCase() === 'vertedero'
+                            ? 'Vertedero'
+                            : 'Centro de acopio';
+                        return `<option value="${escapar(centro.Id_Centro)}">${escapar(centro.Nombre)} - ${tipo}</option>`;
+                    }).join('');
+            } catch (error) {
+                console.error('Error al cargar instalaciones:', error);
+                throw new Error(`No se pudieron cargar los centros de acopio o vertederos: ${error.message}`);
+            }
+        }
+
         async function cargarRutas() {
             try {
                 const res = await leerRespuesta(await fetch(`${API}?recurso=rutas`));
                 rutasDisponibles = Array.isArray(res.data) ? res.data : [];
                 actualizarRutasCamion();
-                const asignacionSelect = document.getElementById('asignacion-ruta');
-                asignacionSelect.innerHTML = '<option value="">Ruta activa...</option>';
-                rutasDisponibles.forEach(ruta => {
-                    const id = ruta.Id_Ruta ?? ruta.id_ruta;
-                    const recorrido = ruta.Recorrido ?? ruta.recorrido ?? '';
-                    if (String(ruta.Estado ?? ruta.estado ?? 'activa').toLowerCase() === 'activa') {
-                        const option = document.createElement('option');
-                        option.value = id;
-                        option.textContent = `#${id} - ${recorrido}`;
-                        asignacionSelect.appendChild(option.cloneNode(true));
-                    }
-                });
             } catch (error) {
                 console.error('Error al cargar rutas:', error);
                 throw new Error(`No se pudieron cargar las rutas: ${error.message}`);
@@ -347,10 +333,6 @@
                 camionesOriginales = Array.isArray(res.data) ? res.data : [];
                 renderCamiones(camionesOriginales);
                 actualizarRutasCamion();
-                const selector = document.getElementById('asignacion-camion');
-                selector.innerHTML = '<option value="">Camión disponible...</option>' +
-                    camionesOriginales.filter(c => !c.Fecha_Baja && String(c.Estado ?? c.estado).toLowerCase() === 'disponible')
-                        .map(c => `<option value="${escapar(c.Id_Camion)}">${escapar(c.Matricula ?? c.matricula)}</option>`).join('');
             } catch (error) {
                 console.error('Error al cargar la tabla:', error);
                 mostrarErrorTabla(`No se pudieron cargar los camiones: ${error.message}`);
@@ -379,75 +361,21 @@
             select.value = idRutaActual;
         }
 
-        async function cargarAsignaciones() {
-                const cuerpo = document.getElementById('tabla-asignaciones-body');
-                try {
-                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion`));
-                    const asignaciones = respuesta.data || [];
-                    cuerpo.innerHTML = asignaciones.length ? asignaciones.map(a => `
-                        <tr><td>${escapar(a.Fecha)}</td><td>${escapar(a.Hora_Inicio)} - ${escapar(a.Hora_Fin)}</td>
-                        <td>${escapar(a.Matricula)}</td><td>#${escapar(a.Id_Ruta)} - ${escapar(a.Recorrido)}</td>
-                        <td>${escapar(a.Municipio)}</td><td>${escapar(a.Estado)}</td>
-                        <td>${a.Estado === 'asignada' ? `<button type="button" class="delete" data-asignacion="${escapar(a.Id_Asignacion)}">Cancelar</button>` : '-'}</td></tr>
-                    `).join('') : '<tr><td colspan="7">No hay asignaciones registradas.</td></tr>';
-                    cuerpo.querySelectorAll('[data-asignacion]').forEach(boton => boton.addEventListener('click', () => cancelarAsignacion(boton.dataset.asignacion)));
-                } catch (error) {
-                    cuerpo.innerHTML = `<tr><td colspan="7">${escapar(error.message)}</td></tr>`;
-                }
-        }
-
-        async function guardarAsignacion(event) {
-                event.preventDefault();
-                const datos = {
-                    id_camion: document.getElementById('asignacion-camion').value,
-                    id_ruta: document.getElementById('asignacion-ruta').value,
-                    fecha: document.getElementById('asignacion-fecha').value,
-                    hora_inicio: document.getElementById('asignacion-inicio').value,
-                    hora_fin: document.getElementById('asignacion-fin').value
-                };
-                try {
-                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos)
-                    }));
-                    alert(respuesta.message);
-                    event.target.reset();
-                    const fecha = new Date();
-                    fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
-                    document.getElementById('asignacion-fecha').value = fecha.toISOString().slice(0, 10);
-                    await cargarAsignaciones();
-                } catch (error) {
-                    alert(error.message);
-                }
-        }
-
-        async function cancelarAsignacion(id) {
-                if (!confirm('¿Cancelar esta asignación?')) return;
-                try {
-                    const respuesta = await leerRespuesta(await fetch(`${API}?recurso=asignaciones_camion&accion=cancelar`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
-                    }));
-                    alert(respuesta.message);
-                    await cargarAsignaciones();
-                } catch (error) {
-                    alert(error.message);
-            }
-        }
-
         function prepararEdicion(camion) {
             const matricula = camion.matricula ?? camion.Matricula ?? '';
             const capacidad = camion.capacidad ?? camion.Capacidad ?? '';
             const estado = camion.estado ?? camion.Estado ?? '';
             const idMunicipio = camion.Id_Municipio ?? camion.id_municipio ?? '';
             const idRuta = camion.Id_Ruta ?? camion.id_ruta ?? '';
+            const idCentro = camion.Id_Centro ?? camion.id_centro ?? '';
             camionEditando = {
                 Id_Camion: camion.Id_Camion ?? camion.id_camion ?? '',
                 matricula,
                 capacidad,
                 estado,
                 id_municipio: idMunicipio || '',
-                id_ruta: idRuta || '',
-                latitud: camion.Latitud ?? '',
-                longitud: camion.Longitud ?? ''
+                id_centro: idCentro || '',
+                id_ruta: idRuta || ''
             };
             modoEdicion = true;
             actualizarRutasCamion();
@@ -457,9 +385,7 @@
             document.getElementById('matricula').readOnly = true;
             document.getElementById('capacidad').value = capacidad;
             document.getElementById('estado').value = estado;
-            document.getElementById('id_municipio').value = idMunicipio;
-            document.getElementById('latitud').value = camionEditando.latitud;
-            document.getElementById('longitud').value = camionEditando.longitud;
+            document.getElementById('id_centro').value = idCentro;
             
             const btn = document.getElementById('add-camion-btn');
             if(btn) btn.textContent = 'Guardar cambios';
@@ -485,10 +411,8 @@
                 matricula: document.getElementById('matricula').value,
                 capacidad: document.getElementById('capacidad').value,
                 estado: document.getElementById('estado').value,
-                id_municipio: document.getElementById('id_municipio').value,
-                id_ruta: document.getElementById('id_ruta').value,
-                latitud: document.getElementById('latitud').value,
-                longitud: document.getElementById('longitud').value
+                id_centro: document.getElementById('id_centro').value,
+                id_ruta: document.getElementById('id_ruta').value
             };
 
             if (modoEdicion && camionEditando) {
@@ -496,10 +420,8 @@
                     String(camionEditando.matricula || '') === String(datos.matricula || '') &&
                     String(camionEditando.capacidad || '') === String(datos.capacidad || '') &&
                     String(camionEditando.estado || '') === String(datos.estado || '') &&
-                    String(camionEditando.id_municipio || '') === String(datos.id_municipio || '') &&
-                    String(camionEditando.id_ruta || '') === String(datos.id_ruta || '') &&
-                    String(camionEditando.latitud || '') === String(datos.latitud || '') &&
-                    String(camionEditando.longitud || '') === String(datos.longitud || '');
+                    String(camionEditando.id_centro || '') === String(datos.id_centro || '') &&
+                    String(camionEditando.id_ruta || '') === String(datos.id_ruta || '');
 
                 if (sinCambios) {
                     alert('No se realizaron cambios(Se canceló la edición).');
@@ -527,24 +449,23 @@
         }
 
         function eliminarCamion(matricula) {
-            if (!confirm(`¿Dar de baja el camión ${matricula}? El registro y su historial se conservarán.`)) return;
-            const motivo = window.prompt('Indicá el motivo de la baja (máximo 500 caracteres):');
-            if (!motivo || !motivo.trim() || motivo.trim().length > 500) {
-                alert('La baja requiere un motivo de hasta 500 caracteres.');
-                return;
-            }
+            if (!confirm(`¿Eliminar el camión ${matricula}?`)) return;
 
             const url = `${API}?recurso=camiones&accion=eliminar`;
 
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ matricula, motivo: motivo.trim() })
+                body: JSON.stringify({ matricula, motivo: '' })
             })
             .then(leerRespuesta)
             .then(res => {
                 alert(res.message || 'Camión eliminado.');
-                cargarCamiones();
+                camionesOriginales = camionesOriginales.filter(camion =>
+                    String(camion.matricula ?? camion.Matricula ?? '') !== String(matricula)
+                );
+                filtrarCamiones();
+                cargarRutas();
             })
             .catch(err => alert('No se pudo eliminar el camión: ' + err.message));
         }

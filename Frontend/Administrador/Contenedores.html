@@ -48,6 +48,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -111,13 +112,11 @@
                     <option value="doméstico">Domésticos</option>
                     <option value="peligroso">Peligrosos</option>
                     <option value="industrial">Industriales</option>
+                    <option value="reciclables secos">Reciclables secos</option>
                 </select>
 
                 <select id="container-status" required>
                     <option value="" disabled selected>Estado...</option>
-                    <option value="funcional">Funcional</option>
-                    <option value="roto">Roto</option>
-                    <option value="desbordado">Desbordado</option>
                     <option value="activo">Activo</option>
                     <option value="inactivo">Inactivo</option>
                     <option value="reserva">Reserva</option>
@@ -148,6 +147,7 @@
                     <option value="doméstico">Domésticos</option>
                     <option value="peligroso">Peligrosos</option>
                     <option value="industrial">Industriales</option>
+                    <option value="reciclables secos">Reciclables secos</option>
                 </select>
 
                 <select id="container-status-filter">
@@ -158,15 +158,6 @@
 
                     <option value="activo">
                         Activo
-                    </option>
-                    <option value="funcional">
-                        Funcional
-                    </option>
-                    <option value="roto">
-                        Roto
-                    </option>
-                    <option value="desbordado">
-                        Desbordado
                     </option>
 
                     <option value="inactivo">
@@ -197,7 +188,6 @@
                             <th>Tipo</th>
                             <th>Capacidad</th>
                             <th>Estado</th>
-                            <th>Motivo de baja</th>
                             <th>Municipio</th>
                             <th>Acciones</th>
                         </tr>
@@ -289,13 +279,12 @@
                         <td>${escapeHtml(contenedor.Tipo_Residuo || '')}</td>
                         <td>${escapeHtml(contenedor.Capacidad ?? '')}</td>
                         <td>${escapeHtml(contenedor.Estado || '')}</td>
-                        <td>${escapeHtml(contenedor.Motivo_Baja || '-')}</td>
                         <td>${escapeHtml(municipiosPorId[String(contenedor.Id_Municipio)] || contenedor.Id_Municipio || '')}</td>
                         <td>
                             <button class="edit">Editar</button>
-                            <button class="delete">Dar de baja</button>
+                            <button class="delete">Eliminar</button>
                         </td>
-                    </tr>                    `).join('') : '<tr><td colspan="9" class="empty-table-message">No se encontraron contenedores</td></tr>';
+                    </tr>                    `).join('') : '<tr><td colspan="8" class="empty-table-message">No se encontraron contenedores</td></tr>';
 
                 tbody.querySelectorAll('.edit').forEach((button, index) => {
                     button.addEventListener('click', () => editarContenedor(datos[index]));
@@ -442,17 +431,12 @@
         }
 
         async function eliminarContenedor(id) {
-            const motivo = prompt('Indicá el motivo de la baja del contenedor (máximo 500 caracteres):');
-            if (motivo === null) return;
-            if (!motivo.trim() || motivo.trim().length > 500) {
-                alert('El motivo es obligatorio y no puede superar los 500 caracteres.');
-                return;
-            }
+            if (!confirm('¿Eliminar este contenedor permanentemente?')) return;
             try {
                 const respuesta = await solicitarJson(`${contenedoresApi}&id=${id}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: motivo.trim() })
+                    body: JSON.stringify({ motivo: '' })
                 });
                 alert(respuesta.message);
                 cargarContenedores();

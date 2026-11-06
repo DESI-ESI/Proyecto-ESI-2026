@@ -15,19 +15,19 @@ class CamionesController
         $matricula = trim($datos['matricula'] ?? '');
         $capacidad = floatval($datos['capacidad'] ?? 0);
         $estado = trim($datos['estado'] ?? '');
-        $idMunicipio = intval($datos['id_municipio'] ?? 0);
-        [$latitud, $longitud] = $this->validarCoordenadas($datos);
+        $idCentro = intval($datos['id_centro'] ?? 0);
 
-        if ($matricula === '' || $capacidad <= 0 || $idMunicipio <= 0) {
+        if ($matricula === '' || $capacidad <= 0 || $idCentro <= 0) {
             throw new InvalidArgumentException('Faltan datos obligatorios o son inválidos.');
         }
 
         $this->validarEstado($estado);
         $pdo->beginTransaction();
         try {
+            $idMunicipio = $this->validarCentro($pdo, $idCentro);
             $idRuta = $this->validarRuta($pdo, $datos['id_ruta'] ?? null, $estado);
             $camion = new Camiones($matricula, $capacidad, $estado);
-            $exito = $camion->crearCamion($pdo, $idMunicipio, $idRuta, $latitud, $longitud);
+            $exito = $camion->crearCamion($pdo, $idMunicipio, $idRuta, $idCentro);
             $pdo->commit();
             return $exito;
         } catch (Throwable $e) {
@@ -47,10 +47,15 @@ class CamionesController
 
         $estado = trim((string) ($datos['estado'] ?? ''));
         $this->validarEstado($estado);
-        [$datos['latitud'], $datos['longitud']] = $this->validarCoordenadas($datos);
 
         $pdo->beginTransaction();
         try {
+            $idCentro = intval($datos['id_centro'] ?? 0);
+            if ($idCentro <= 0) {
+                throw new InvalidArgumentException('Seleccioná un centro de acopio o vertedero válido.');
+            }
+            $datos['id_municipio'] = $this->validarCentro($pdo, $idCentro);
+            $datos['id_centro'] = $idCentro;
             $datos['id_ruta'] = $this->validarRuta($pdo, $datos['id_ruta'] ?? null, $estado, $matricula);
             $actualizado = Camiones::actualizar($pdo, $matricula, $datos);
             $pdo->commit();
@@ -71,11 +76,24 @@ class CamionesController
         }
 
         $motivo = trim((string) ($datos['motivo'] ?? ''));
-        if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
-            throw new InvalidArgumentException('Indicá un motivo de baja de hasta 500 caracteres.');
+        if (mb_strlen($motivo, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('El motivo de baja no puede superar los 500 caracteres.');
         }
 
         return Camiones::darBaja($pdo, $matricula, $motivo);
+    }
+
+    private function validarCentro(PDO $pdo, int $idCentro): int
+    {
+        $centro = $pdo->prepare(
+            'SELECT Id_Municipio FROM centro_acopio WHERE Id_Centro = :id AND Estado <> :estado'
+        );
+        $centro->execute([':id' => $idCentro, ':estado' => 'inactivo']);
+        $idMunicipio = $centro->fetchColumn();
+        if (!$idMunicipio) {
+            throw new InvalidArgumentException('Seleccioná un centro de acopio o vertedero activo válido.');
+        }
+        return (int) $idMunicipio;
     }
 
     private function validarRuta(PDO $pdo, $valor, string $estado, ?string $matricula = null): ?int
@@ -117,28 +135,5 @@ class CamionesController
         }
     }
 
-    private function validarCoordenadas(array $datos): array
-    {
-        $latitud = $datos['latitud'] ?? $datos['Latitud'] ?? null;
-        $longitud = $datos['longitud'] ?? $datos['Longitud'] ?? null;
-        if ($latitud === '' || $latitud === null) $latitud = null;
-        if ($longitud === '' || $longitud === null) $longitud = null;
-        if (($latitud === null) !== ($longitud === null)
-            || ($latitud !== null && (!is_numeric($latitud) || !is_numeric($longitud)))) {
-            throw new InvalidArgumentException('Ingresá ambas coordenadas del camión, o dejá ambas vacías.');
-        }
-        if ($latitud === null) {
-            return [null, null];
-        }
-
-        $latitud = (float) $latitud;
-        $longitud = (float) $longitud;
-        if (!is_finite($latitud) || !is_finite($longitud)
-            || $latitud < -90 || $latitud > 90 || $longitud < -180 || $longitud > 180) {
-            throw new InvalidArgumentException('Las coordenadas del camión están fuera de rango.');
-        }
-
-        return [$latitud, $longitud];
-    }
 }
 ?>

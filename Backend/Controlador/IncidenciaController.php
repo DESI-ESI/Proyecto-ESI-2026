@@ -11,6 +11,7 @@ class IncidenciaController
 
     public function crear(PDO $pdo, array $datos, ?int $idCreador = null): bool
     {
+        $datos['Estado'] = 'abierta';
         return $this->crearDesdeDatos($pdo, $datos, $idCreador)->guardar($pdo);
     }
 
@@ -21,15 +22,6 @@ class IncidenciaController
         }
 
         return $this->crearDesdeDatos($pdo, $datos)->actualizar($pdo, $id);
-    }
-
-    public function aceptar(PDO $pdo, int $id, int $idCuadrilla, int $idRuta): bool
-    {
-        if ($id <= 0 || $idCuadrilla <= 0 || $idRuta <= 0) {
-            throw new InvalidArgumentException('ID de incidencia, cuadrilla y ruta obligatorios.');
-        }
-
-        return incidencia::aceptar($pdo, $id, $idCuadrilla, $idRuta);
     }
 
     public function asignar(PDO $pdo, int $id, int $idCuadrilla): bool
@@ -58,13 +50,23 @@ class IncidenciaController
         $estado = trim((string) ($datos['Estado'] ?? $datos['estado'] ?? ''));
         $zona = trim((string) ($datos['Zona'] ?? $datos['zona'] ?? ''));
 
-        if (!in_array($tipo, ['rotura', 'desborde', 'falta de recolección'], true) || mb_strlen($tipo, 'UTF-8') > 500 || $descripcion === '') {
-            throw new InvalidArgumentException('Selecciona un tipo permitido e indica una descripción para la incidencia.');
+        if (!in_array($tipo, ['incompleto'], true) || mb_strlen($tipo, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('Selecciona un tipo permitido para la incidencia.');
+        }
+        if (mb_strlen($descripcion, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('La descripción no puede superar los 500 caracteres.');
         }
 
-        $fechaObjeto = DateTime::createFromFormat('Y-m-d\TH:i', $fecha);
-        $erroresFecha = DateTime::getLastErrors();
-        if (!$fechaObjeto || ($erroresFecha !== false && ($erroresFecha['warning_count'] > 0 || $erroresFecha['error_count'] > 0))) {
+        $fechaObjeto = null;
+        foreach (['Y-m-d\TH:i:s', 'Y-m-d\TH:i'] as $formatoFecha) {
+            $fechaObjeto = DateTime::createFromFormat($formatoFecha, $fecha);
+            $erroresFecha = DateTime::getLastErrors();
+            if ($fechaObjeto && ($erroresFecha === false || ($erroresFecha['warning_count'] === 0 && $erroresFecha['error_count'] === 0))) {
+                break;
+            }
+            $fechaObjeto = null;
+        }
+        if (!$fechaObjeto) {
             throw new InvalidArgumentException('La fecha de la incidencia no es válida.');
         }
 
@@ -74,29 +76,26 @@ class IncidenciaController
         if (mb_strlen($zona, 'UTF-8') > 120) {
             throw new InvalidArgumentException('La zona no puede superar los 120 caracteres.');
         }
-        $latitud = $datos['Latitud'] ?? $datos['latitud'] ?? null;
-        $longitud = $datos['Longitud'] ?? $datos['longitud'] ?? null;
-        if ($latitud === '' || $latitud === null) $latitud = null;
-        if ($longitud === '' || $longitud === null) $longitud = null;
-        if (($latitud === null) !== ($longitud === null)
-            || ($latitud !== null && (!is_numeric($latitud) || !is_numeric($longitud)))) {
-            throw new InvalidArgumentException('Ingresá una latitud y longitud válidas, o dejá ambas vacías.');
-        }
-        if ($latitud !== null) {
-            $latitud = (float) $latitud;
-            $longitud = (float) $longitud;
-            if (!is_finite($latitud) || !is_finite($longitud)
-                || $latitud < -90 || $latitud > 90 || $longitud < -180 || $longitud > 180) {
-                throw new InvalidArgumentException('Las coordenadas de la incidencia están fuera de rango.');
-            }
-        }
-
         $numero = (int) ($datos['numero_contenedor'] ?? $datos['Numero_Contenedor'] ?? 0);
+        if ($numero <= 0) {
+            throw new InvalidArgumentException('Seleccioná un contenedor para la incidencia.');
+        }
+        $latitud = null;
+        $longitud = null;
         if ($numero > 0) {
-            $existe = $pdo->prepare('SELECT COUNT(*) FROM contenedor WHERE Numero_Contenedor = :numero');
-            $existe->execute([':numero' => $numero]);
-            if ((int) $existe->fetchColumn() === 0) {
+            $contenedor = $pdo->prepare(
+                'SELECT Latitud, Longitud FROM contenedor WHERE Numero_Contenedor = :numero LIMIT 1'
+            );
+            $contenedor->execute([':numero' => $numero]);
+            $coordenadas = $contenedor->fetch(PDO::FETCH_ASSOC);
+            if (!$coordenadas) {
                 throw new InvalidArgumentException('El contenedor número ' . $numero . ' no existe.');
+            }
+            $latitud = is_numeric($coordenadas['Latitud']) ? (float) $coordenadas['Latitud'] : null;
+            $longitud = is_numeric($coordenadas['Longitud']) ? (float) $coordenadas['Longitud'] : null;
+            if ($latitud === null || $longitud === null) {
+                $latitud = null;
+                $longitud = null;
             }
         }
 

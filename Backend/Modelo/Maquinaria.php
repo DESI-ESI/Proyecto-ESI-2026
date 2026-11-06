@@ -26,7 +26,14 @@ class Maquinaria
 
     public static function listar(PDO $pdo): array
     {
-        return $pdo->query('SELECT m.Id_Maquinaria, m.Id_Centro, m.Nombre, m.Tipo, m.Descripcion, m.Estado, m.Fecha_Baja, m.Motivo_Baja, c.Nombre AS Centro, c.Tipo AS Tipo_Instalacion FROM maquinaria m JOIN centro_acopio c ON c.Id_Centro = m.Id_Centro ORDER BY m.Id_Maquinaria')->fetchAll(PDO::FETCH_ASSOC);
+        return $pdo->query(
+            "SELECT m.Id_Maquinaria, m.Id_Centro, m.Nombre, m.Tipo, m.Descripcion, m.Estado, m.Fecha_Baja, m.Motivo_Baja, c.Nombre AS Centro, c.Tipo AS Tipo_Instalacion
+             FROM maquinaria m
+             JOIN centro_acopio c ON c.Id_Centro = m.Id_Centro
+             WHERE (m.Fecha_Baja IS NULL OR m.Fecha_Baja = '')
+               AND LOWER(TRIM(m.Estado)) <> 'fuera_de_servicio'
+             ORDER BY m.Id_Maquinaria"
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public static function actualizar(PDO $pdo, int $id, array $datos): bool
@@ -45,12 +52,26 @@ class Maquinaria
 
     public static function eliminar(PDO $pdo, int $id, string $motivo): bool
     {
-        $stmt = $pdo->prepare(
-            "UPDATE maquinaria
-             SET Estado = 'fuera_de_servicio', Fecha_Baja = NOW(), Motivo_Baja = :motivo
-             WHERE Id_Maquinaria = :id AND Fecha_Baja IS NULL"
-        );
-        $stmt->execute([':motivo' => $motivo, ':id' => $id]);
-        return $stmt->rowCount() > 0;
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare(
+                'DELETE FROM maquinaria WHERE Id_Maquinaria = :id'
+            );
+            $stmt->execute([':id' => $id]);
+            $eliminada = $stmt->rowCount() > 0;
+
+            if (!$eliminada) {
+                $pdo->rollBack();
+                return false;
+            }
+
+            $pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 }

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 05-11-2026 a las 20:01:20
+-- Tiempo de generación: 06-11-2026 a las 02:40:37
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -79,6 +79,7 @@ CREATE TABLE `camion` (
   `Capacidad` decimal(10,2) DEFAULT NULL,
   `Estado` varchar(50) NOT NULL DEFAULT 'disponible',
   `Id_Municipio` int(11) NOT NULL,
+  `Id_Centro` int(11) DEFAULT NULL,
   `Id_Ruta` int(11) DEFAULT NULL,
   `Fecha_Baja` datetime DEFAULT NULL,
   `Motivo_Baja` varchar(500) DEFAULT NULL,
@@ -90,10 +91,8 @@ CREATE TABLE `camion` (
 -- Volcado de datos para la tabla `camion`
 --
 
-INSERT INTO `camion` (`Id_Camion`, `Matricula`, `Capacidad`, `Estado`, `Id_Municipio`, `Id_Ruta`, `Fecha_Baja`, `Motivo_Baja`, `Latitud`, `Longitud`) VALUES
-(25, 'STU-1053', 1.00, 'Disponible', 1, NULL, NULL, NULL, NULL, NULL),
-(26, 'STU-1057', 100.00, 'Mantenimiento', 4, NULL, NULL, NULL, NULL, NULL),
-(28, 'STU-1062', 100.00, 'En Ruta', 7, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO `camion` (`Id_Camion`, `Matricula`, `Capacidad`, `Estado`, `Id_Municipio`, `Id_Centro`, `Id_Ruta`, `Fecha_Baja`, `Motivo_Baja`, `Latitud`, `Longitud`) VALUES
+(45, 'STU-1062', 1000.00, 'Disponible', 5, 4, 6, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -112,6 +111,17 @@ CREATE TABLE `centro_acopio` (
   `Tipos_Residuo` varchar(255) DEFAULT NULL,
   `Id_Municipio` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `centro_acopio`
+--
+
+INSERT INTO `centro_acopio` (`Id_Centro`, `Nombre`, `Ubicacion`, `Capacidad`, `Cantidad_Almacenada`, `Tipo`, `Estado`, `Tipos_Residuo`, `Id_Municipio`) VALUES
+(1, 'Durán', 'Camino José Durán esq. Ajedrez', 20000.00, 0.00, 'centro_acopio', 'activo', 'reciclables secos', 9),
+(2, 'Felipe Cardoso', 'camino felipe cardoso esq. camino colastine', 77000.00, 0.00, 'vertedero', 'activo', 'doméstico, industrial', 7),
+(3, 'Geminis', 'Rosario esq. Cañada Chacarita', 10000.00, 0.00, 'centro_acopio', 'activo', 'reciclables secos', 7),
+(4, 'Burgues', 'casavalle esq. aparicio saravia', 10000.00, 200.00, 'centro_acopio', 'activo', 'reciclables secos', 5),
+(6, 'La Paloma', 'Camino tróccoli esq. Pasaje F', 20000.00, 0.00, 'centro_acopio', 'activo', 'reciclables secos', 1);
 
 -- --------------------------------------------------------
 
@@ -152,6 +162,14 @@ CREATE TABLE `contenedor` (
   `Longitud` decimal(10,7) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `contenedor`
+--
+
+INSERT INTO `contenedor` (`Id_Contenedor`, `Numero_Contenedor`, `Tipo_Residuo`, `Capacidad`, `Ubicacion`, `Estado`, `Motivo_Baja`, `Id_Municipio`, `Id_Incidencia`, `Latitud`, `Longitud`) VALUES
+(2, 1, 'doméstico', 200.00, 'pedro ricaldoni esq. larravide', 'inactivo', NULL, 6, NULL, -34.8813152, -56.1300933),
+(3, 2, 'doméstico', 200.00, 'pedro ricaldoni esq. larravide', 'activo', NULL, 6, NULL, -34.8813152, -56.1300933);
+
 -- --------------------------------------------------------
 
 --
@@ -169,7 +187,8 @@ CREATE TABLE `cuadrilla` (
 --
 
 INSERT INTO `cuadrilla` (`Id_Cuadrilla`, `Turno`, `Num_integrantes`) VALUES
-(13, 'mañana', 6);
+(13, 'mañana', 2),
+(14, 'mañana', 1);
 
 -- --------------------------------------------------------
 
@@ -199,7 +218,8 @@ INSERT INTO `empleado` (`Id`, `Nombre`, `Apellido`, `Email`, `password`, `Area`,
 (56, 'miguel', 'radi', 'miguelradi2008@gmail.com', '$2y$10$nl/0WG2iaOkHQifQksUkuexmTUDB2Bp3OeABk3IGt.CA1k1dXAa.m', '2', 'admi_municipal', 'mañana', '57301063', 'activa', 0),
 (58, 'jorge', 'alvarez', 'jaab@gmail.com', '$2y$10$X661.kdRyUqHYTZbbYpg.eKrnjZnrp2ba5HXVKiQJDzz/g9da3BLK', 'afuera', 'chofer', 'Manana', '18589830', 'activa', 0),
 (60, 'pepato', 'potra', 'yuyuhu@gmil.com', '$2y$10$qhpS0gPSQt/cmyf8G6R4nupt/gYxt2i/e4cYTFP4uIIqJWlfOg5Nu', NULL, 'admi_municipal', 'mañana', '64052146', 'activa', 0),
-(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$shLRnHs4cs92DwFR2ZPqmuyCUUhuK1PGUaFsSqbzfHGajto7NTraa', NULL, 'chofer', 'Manana', '57003225', 'activa', 0);
+(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$3LQ67vgOmH83lTO0v48BhOe0a6AfhVRfy0RM4P5Zdqd5JmtcM8h1W', NULL, 'chofer', 'Manana', '57003225', 'activa', 0),
+(63, 'Durán', 'a', 'duran@gmail.com', '$2y$10$olIvbxYe6W4vCGSDxTD7IO58BX3WkJN5rgCDaYtAYsHyKeKXxtw3m', NULL, 'limpiador', 'Manana', '12345678', 'activa', 0);
 
 -- --------------------------------------------------------
 
@@ -211,6 +231,13 @@ CREATE TABLE `existe` (
   `Id_Contenedor` int(11) NOT NULL,
   `Id_Ruta` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `existe`
+--
+
+INSERT INTO `existe` (`Id_Contenedor`, `Id_Ruta`) VALUES
+(3, 6);
 
 -- --------------------------------------------------------
 
@@ -249,8 +276,7 @@ CREATE TABLE `incidencia` (
 --
 
 INSERT INTO `incidencia` (`Id_Incidencia`, `Tipo`, `Descripcion`, `Fecha`, `Estado`, `Numero_Contenedor`, `Id_Cuadrilla`, `Id_Creador`, `Zona`, `Fecha_Resolucion`, `Latitud`, `Longitud`) VALUES
-(3, 'desborde', 'k', '2026-10-08 12:26:00', 'en curso', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(5, 'rotura', 'lol', '2026-11-04 10:59:00', 'en curso', NULL, 13, NULL, 'rural', NULL, NULL, NULL);
+(8, 'incompleto', '', '2026-11-05 22:25:00', 'resuelta', 2, 14, 56, NULL, '2026-11-05 22:31:20', -34.8813152, -56.1300933);
 
 -- --------------------------------------------------------
 
@@ -265,6 +291,13 @@ CREATE TABLE `informe` (
   `Id_Ruta` int(11) NOT NULL,
   `Id_Cuadrilla` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `informe`
+--
+
+INSERT INTO `informe` (`Id_Informe`, `Fecha`, `Descripcion`, `Id_Ruta`, `Id_Cuadrilla`) VALUES
+(3, '2026-11-05 22:37:44', 'Recorrido completado: ruta #6 (Burgues), turno mañana, 1 contenedores, horario 11:11 a 22:22. Volumen recolectado: 200.00 kg.', 6, 14);
 
 -- --------------------------------------------------------
 
@@ -291,6 +324,13 @@ CREATE TABLE `limpiador` (
   `Id` int(11) NOT NULL,
   `idCuadrilla` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `limpiador`
+--
+
+INSERT INTO `limpiador` (`Id`, `idCuadrilla`) VALUES
+(63, 14);
 
 -- --------------------------------------------------------
 
@@ -392,7 +432,76 @@ INSERT INTO `notificacion` (`Id_Notificacion`, `Panel_Origen`, `Recurso`, `Accio
 (16, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-04 13:59:04'),
 (17, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-04 13:59:32'),
 (18, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-04 14:02:10'),
-(19, 'admin', 'informes', 'eliminó', 'miguel eliminó un informe', 56, 'miguel', '2026-11-04 14:23:50');
+(19, 'admin', 'informes', 'eliminó', 'miguel eliminó un informe', 56, 'miguel', '2026-11-04 14:23:50'),
+(20, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-05 19:32:14'),
+(21, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-05 19:32:18'),
+(22, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-05 19:32:22'),
+(23, 'admin', 'centros', 'registró', 'miguel registró una instalación (Felipe cardoso)', 56, 'miguel', '2026-11-05 20:23:26'),
+(24, 'admin', 'centros', 'modificó', 'miguel modificó una instalación (Felipe Cardoso)', 56, 'miguel', '2026-11-05 20:28:15'),
+(25, 'admin', 'centros', 'registró', 'miguel registró una instalación (Geminis)', 56, 'miguel', '2026-11-05 20:30:39'),
+(26, 'admin', 'centros', 'registró', 'miguel registró una instalación (Burgues)', 56, 'miguel', '2026-11-05 20:32:06'),
+(27, 'admin', 'centros', 'registró', 'miguel registró una instalación (La Paloma)', 56, 'miguel', '2026-11-05 20:38:15'),
+(28, 'admin', 'centros', 'eliminó', 'miguel eliminó una instalación', 56, 'miguel', '2026-11-05 20:39:25'),
+(29, 'admin', 'centros', 'registró', 'miguel registró una instalación (La Paloma)', 56, 'miguel', '2026-11-05 20:42:02'),
+(30, 'admin', 'camiones', 'registró', 'miguel registró un camión (STU-3054)', 56, 'miguel', '2026-11-05 20:43:22'),
+(31, 'admin', 'camiones', 'modificó', 'miguel modificó un camión (STU-3054)', 56, 'miguel', '2026-11-05 20:46:26'),
+(32, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-3054)', 56, 'miguel', '2026-11-05 20:49:35'),
+(33, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1062)', 56, 'miguel', '2026-11-05 20:49:42'),
+(34, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1053)', 56, 'miguel', '2026-11-05 20:50:02'),
+(35, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1057)', 56, 'miguel', '2026-11-05 20:50:06'),
+(36, 'admin', 'contenedores', 'registró', 'miguel registró un contenedor', 56, 'miguel', '2026-11-05 21:12:25'),
+(37, 'admin', 'centros', 'modificó', 'miguel modificó una instalación (Durán)', 56, 'miguel', '2026-11-05 21:20:14'),
+(38, 'admin', 'centros', 'modificó', 'miguel modificó una instalación (Durán)', 56, 'miguel', '2026-11-05 21:22:07'),
+(39, 'admin', 'maquinaria', 'registró', 'miguel registró una maquinaria (letal)', 56, 'miguel', '2026-11-05 21:47:55'),
+(40, 'admin', 'camiones', 'registró', 'miguel registró un camión (STU-1062)', 56, 'miguel', '2026-11-05 21:51:53'),
+(41, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1062)', 56, 'miguel', '2026-11-05 21:51:57'),
+(42, 'admin', 'camiones', 'registró', 'miguel registró un camión (STU-1063)', 56, 'miguel', '2026-11-05 21:59:23'),
+(43, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1063)', 56, 'miguel', '2026-11-05 21:59:27'),
+(44, 'admin', 'camiones', 'registró', 'miguel registró un camión (STU-1062)', 56, 'miguel', '2026-11-05 21:59:45'),
+(45, 'admin', 'camiones', 'eliminó', 'miguel eliminó un camión (STU-1062)', 56, 'miguel', '2026-11-05 21:59:49'),
+(46, 'admin', 'contenedores', 'eliminó', 'miguel eliminó un contenedor', 56, 'miguel', '2026-11-05 22:00:07'),
+(47, 'admin', 'contenedores', 'modificó', 'miguel modificó un contenedor (1)', 56, 'miguel', '2026-11-05 22:00:30'),
+(48, 'admin', 'contenedores', 'eliminó', 'miguel eliminó un contenedor', 56, 'miguel', '2026-11-05 22:00:32'),
+(49, 'admin', 'maquinaria', 'eliminó', 'miguel eliminó una maquinaria', 56, 'miguel', '2026-11-05 22:13:21'),
+(50, 'admin', 'maquinaria', 'registró', 'miguel registró una maquinaria (letal)', 56, 'miguel', '2026-11-05 22:13:40'),
+(51, 'admin', 'maquinaria', 'eliminó', 'miguel eliminó una maquinaria', 56, 'miguel', '2026-11-05 22:17:18'),
+(52, 'admin', 'maquinaria', 'registró', 'miguel registró una maquinaria (letal)', 56, 'miguel', '2026-11-05 22:17:36'),
+(53, 'admin', 'maquinaria', 'eliminó', 'miguel eliminó una maquinaria', 56, 'miguel', '2026-11-05 22:17:41'),
+(54, 'admin', 'maquinaria', 'registró', 'miguel registró una maquinaria (letal)', 56, 'miguel', '2026-11-05 22:17:54'),
+(55, 'admin', 'maquinaria', 'registró', 'miguel registró una maquinaria (letal)', 56, 'miguel', '2026-11-05 22:18:00'),
+(56, 'admin', 'maquinaria', 'eliminó', 'miguel eliminó una maquinaria', 56, 'miguel', '2026-11-05 22:18:05'),
+(57, 'admin', 'maquinaria', 'eliminó', 'miguel eliminó una maquinaria', 56, 'miguel', '2026-11-05 22:18:08'),
+(58, 'admin', 'contenedores', 'registró', 'miguel registró un contenedor', 56, 'miguel', '2026-11-05 22:20:10'),
+(59, 'admin', 'contenedores', 'modificó', 'miguel modificó un contenedor (1)', 56, 'miguel', '2026-11-05 22:21:00'),
+(60, 'admin', 'incidencias', 'eliminó', 'miguel eliminó una incidencia', 56, 'miguel', '2026-11-05 22:24:25'),
+(61, 'admin', 'incidencias', 'eliminó', 'miguel eliminó una incidencia', 56, 'miguel', '2026-11-05 22:24:31'),
+(62, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-05 22:35:50'),
+(63, 'admin', 'incidencias', 'modificó', 'miguel modificó una incidencia', 56, 'miguel', '2026-11-05 22:35:56'),
+(64, 'admin', 'contenedores', 'modificó', 'miguel modificó un contenedor (2)', 56, 'miguel', '2026-11-05 22:48:36'),
+(65, 'admin', 'empleados', 'registró', 'miguel registró un empleado (Durán)', 56, 'miguel', '2026-11-06 00:31:38'),
+(66, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-06 00:31:52'),
+(67, 'admin', 'rutas', 'eliminó', 'miguel eliminó una ruta', 56, 'miguel', '2026-11-06 00:32:11'),
+(68, 'admin', 'rutas', 'eliminó', 'miguel eliminó una ruta', 56, 'miguel', '2026-11-06 00:32:14'),
+(69, 'admin', 'rutas', 'registró', 'miguel registró una ruta (Burgues)', 56, 'miguel', '2026-11-06 00:40:08'),
+(70, 'admin', 'cuadrillas', 'registró', 'miguel registró una cuadrilla', 56, 'miguel', '2026-11-06 00:40:21'),
+(71, 'admin', 'rutas', 'registró', 'miguel registró una ruta (Durán)', 56, 'miguel', '2026-11-06 00:40:41'),
+(72, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-06 00:40:48'),
+(73, 'admin', 'cuadrillas', 'modificó', 'miguel modificó una cuadrilla', 56, 'miguel', '2026-11-06 00:40:52'),
+(74, 'admin', 'empleados', 'modificó', 'miguel modificó un empleado (Timoteo)', 56, 'miguel', '2026-11-06 00:50:04'),
+(75, 'admin', 'incidencias', 'modificó', 'miguel modificó una incidencia', 56, 'miguel', '2026-11-06 00:56:45'),
+(76, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Durán)', 56, 'miguel', '2026-11-06 00:59:55'),
+(77, 'admin', 'camiones', 'registró', 'miguel registró un camión (STU-1062)', 56, 'miguel', '2026-11-06 01:01:49'),
+(78, 'admin', 'camiones', 'modificó', 'miguel modificó un camión (STU-1062)', 56, 'miguel', '2026-11-06 01:02:23'),
+(79, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Durán)', 56, 'miguel', '2026-11-06 01:02:42'),
+(80, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Durán)', 56, 'miguel', '2026-11-06 01:03:09'),
+(81, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Burgues)', 56, 'miguel', '2026-11-06 01:03:13'),
+(82, 'admin', 'incidencias', 'registró', 'miguel registró una incidencia', 56, 'miguel', '2026-11-06 01:26:08'),
+(83, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Burgues)', 56, 'miguel', '2026-11-06 01:26:40'),
+(84, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Durán)', 56, 'miguel', '2026-11-06 01:26:48'),
+(85, 'empleado', 'miruta', 'completó', 'Durán completó el recorrido de su ruta', 63, 'Durán', '2026-11-06 01:31:20'),
+(86, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Burgues)', 56, 'miguel', '2026-11-06 01:37:07'),
+(87, 'empleado', 'informes', 'eliminó', 'Durán eliminó un informe', 63, 'Durán', '2026-11-06 01:37:38'),
+(88, 'empleado', 'miruta', 'completó', 'Durán completó el recorrido de su ruta', 63, 'Durán', '2026-11-06 01:37:44');
 
 -- --------------------------------------------------------
 
@@ -411,8 +520,9 @@ CREATE TABLE `notificacion_lectura` (
 --
 
 INSERT INTO `notificacion_lectura` (`Id_Empleado`, `Panel`, `Ultimo_Id`) VALUES
-(56, 'admin', 19),
-(62, 'empleado', 13);
+(56, 'admin', 85),
+(62, 'empleado', 13),
+(63, 'empleado', 13);
 
 -- --------------------------------------------------------
 
@@ -442,7 +552,7 @@ CREATE TABLE `realiza` (
 
 INSERT INTO `realiza` (`Id_Ruta`, `Id_Cuadrilla`) VALUES
 (3, 12),
-(5, 13);
+(7, 13);
 
 -- --------------------------------------------------------
 
@@ -459,6 +569,14 @@ CREATE TABLE `recoleccion` (
   `Id_Cuadrilla` int(11) NOT NULL,
   `Tipo_Residuo` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `recoleccion`
+--
+
+INSERT INTO `recoleccion` (`Id_Recoleccion`, `Fecha`, `Estado_Recoleccion`, `Volumen`, `Id_Ruta`, `Id_Cuadrilla`, `Tipo_Residuo`) VALUES
+(1, '2026-11-05 22:31:20', 'completada', 200.00, 6, 14, 'doméstico'),
+(2, '2026-11-05 22:37:44', 'completada', 200.00, 6, 14, NULL);
 
 -- --------------------------------------------------------
 
@@ -482,8 +600,8 @@ CREATE TABLE `ruta` (
 --
 
 INSERT INTO `ruta` (`Id_Ruta`, `Recorrido`, `Horario_Inicio`, `Horario_Fin`, `Frecuencia`, `Distancia`, `Estado`, `Id_Municipio`) VALUES
-(4, 'La Paloma', '11:11:00', '14:22:00', '1 vez por semana', 500.00, 'activa', 1),
-(5, 'Felipe Cardoso', '11:11:00', '14:22:00', '1 vez por semana', 56.00, 'activa', 1);
+(6, 'Burgues', '11:11:00', '22:22:00', '1 vez por semana', 10000.00, 'activa', 5),
+(7, 'Durán', '11:11:00', '22:22:00', '2 veces por semana', 11000.00, 'activa', 9);
 
 -- --------------------------------------------------------
 
@@ -540,7 +658,8 @@ ALTER TABLE `camion`
   ADD PRIMARY KEY (`Id_Camion`),
   ADD UNIQUE KEY `Matricula` (`Matricula`),
   ADD KEY `Id_Municipio` (`Id_Municipio`),
-  ADD KEY `idx_camion_id_ruta` (`Id_Ruta`);
+  ADD KEY `idx_camion_id_ruta` (`Id_Ruta`),
+  ADD KEY `idx_camion_id_centro` (`Id_Centro`);
 
 --
 -- Indices de la tabla `centro_acopio`
@@ -712,43 +831,43 @@ ALTER TABLE `asignacion_camion`
 -- AUTO_INCREMENT de la tabla `camion`
 --
 ALTER TABLE `camion`
-  MODIFY `Id_Camion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `Id_Camion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT de la tabla `centro_acopio`
 --
 ALTER TABLE `centro_acopio`
-  MODIFY `Id_Centro` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id_Centro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `contenedor`
 --
 ALTER TABLE `contenedor`
-  MODIFY `Id_Contenedor` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `Id_Contenedor` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `cuadrilla`
 --
 ALTER TABLE `cuadrilla`
-  MODIFY `Id_Cuadrilla` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `Id_Cuadrilla` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de la tabla `empleado`
 --
 ALTER TABLE `empleado`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
 -- AUTO_INCREMENT de la tabla `incidencia`
 --
 ALTER TABLE `incidencia`
-  MODIFY `Id_Incidencia` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Id_Incidencia` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT de la tabla `informe`
 --
 ALTER TABLE `informe`
-  MODIFY `Id_Informe` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `Id_Informe` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `ingreso_acopio`
@@ -766,7 +885,7 @@ ALTER TABLE `mantenimiento`
 -- AUTO_INCREMENT de la tabla `maquinaria`
 --
 ALTER TABLE `maquinaria`
-  MODIFY `Id_Maquinaria` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id_Maquinaria` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `municipio`
@@ -778,19 +897,19 @@ ALTER TABLE `municipio`
 -- AUTO_INCREMENT de la tabla `notificacion`
 --
 ALTER TABLE `notificacion`
-  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=89;
 
 --
 -- AUTO_INCREMENT de la tabla `recoleccion`
 --
 ALTER TABLE `recoleccion`
-  MODIFY `Id_Recoleccion` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id_Recoleccion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `ruta`
 --
 ALTER TABLE `ruta`
-  MODIFY `Id_Ruta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Id_Ruta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Restricciones para tablas volcadas
@@ -821,6 +940,7 @@ ALTER TABLE `asignacion_camion`
 -- Filtros para la tabla `camion`
 --
 ALTER TABLE `camion`
+  ADD CONSTRAINT `fk_camion_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_camion_ruta` FOREIGN KEY (`Id_Ruta`) REFERENCES `ruta` (`Id_Ruta`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --

@@ -24,8 +24,8 @@ class ContenedoresController
     public function darBaja(PDO $pdo, int $idContenedor, string $motivo): bool
     {
         $motivo = trim($motivo);
-        if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
-            throw new InvalidArgumentException('Indicá un motivo de baja de hasta 500 caracteres.');
+        if (mb_strlen($motivo, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('El motivo de baja no puede superar los 500 caracteres.');
         }
 
         return Contenedores::darBajaContenedor($pdo, $idContenedor, $motivo);

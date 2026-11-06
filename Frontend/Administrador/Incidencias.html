@@ -33,6 +33,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -51,15 +52,13 @@
 			<input type="hidden" id="incident-id">
 			<select id="incident-type" required>
 				<option value="" disabled selected>Tipo de incidencia...</option>
-				<option value="rotura">Rotura</option>
-				<option value="desborde">Desborde</option>
-				<option value="falta de recolección">Falta de recolección</option>
+				<option value="incompleto">Incompleto</option>
 			</select>
-			<select id="incident-container">
-				<option value="">Contenedor (opcional)...</option>
+			<select id="incident-container" required>
+				<option value="">Seleccioná un contenedor...</option>
 			</select>
 			<div class="search">
-				<input type="text" id="incident-description" placeholder="Descripción" required>
+				<input type="text" id="incident-description" maxlength="500" placeholder="Descripción (opcional)">
 			</div>
 			<div class="search">
 				<input type="datetime-local" id="incident-date" required>
@@ -67,14 +66,7 @@
 			<div class="search">
 				<input type="text" id="incident-zone" maxlength="120" placeholder="Zona (opcional)">
 			</div>
-			<div class="search">
-				<input type="number" id="incident-latitude" min="-90" max="90" step="0.0000001" placeholder="Latitud (opcional)">
-			</div>
-			<div class="search">
-				<input type="number" id="incident-longitude" min="-180" max="180" step="0.0000001" placeholder="Longitud (opcional)">
-			</div>
-			<select id="incident-status" required>
-				<option value="" disabled selected>Estado de la incidencia...</option>
+			<select id="incident-status" required hidden>
 				<option value="abierta">Abierta</option>
 				<option value="en curso">En curso</option>
 				<option value="resuelta">Resuelta</option>
@@ -90,9 +82,7 @@
 			</div>
 			<select id="filter-tipo">
 				<option value="todos">Todos los tipos</option>
-				<option value="rotura">Rotura</option>
-				<option value="desborde">Desborde</option>
-				<option value="falta de recolección">Falta de recolección</option>
+				<option value="incompleto">Incompleto</option>
 			</select>
 			<select id="filter-estado">
 				<option value="todos">Todos los estados</option>
@@ -141,7 +131,7 @@
 			try {
 				const respuesta = await solicitarJson(contenedoresApi, { credentials: 'same-origin' });
 				const lista = (respuesta.data || []).sort((a, b) => a.Numero_Contenedor - b.Numero_Contenedor);
-				select.innerHTML = '<option value="">Contenedor (opcional)...</option>' +
+				select.innerHTML = '<option value="">Seleccioná un contenedor...</option>' +
 					lista.map(c => `<option value="${escaparHtml(c.Numero_Contenedor)}">N° ${escaparHtml(c.Numero_Contenedor)} - ${escaparHtml(c.Ubicacion)}</option>`).join('');
 			} catch (error) {
 				console.error(error);
@@ -253,8 +243,6 @@
 				Fecha: String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16),
 				Estado: incidencia.Estado || 'abierta',
 				Zona: incidencia.Zona || '',
-				Latitud: incidencia.Latitud ?? '',
-				Longitud: incidencia.Longitud ?? '',
 				Numero_Contenedor: incidencia.Numero_Contenedor ? String(incidencia.Numero_Contenedor) : '',
 				Id_Cuadrilla: incidencia.Id_Cuadrilla ? String(incidencia.Id_Cuadrilla) : ''
 			};
@@ -263,25 +251,35 @@
 			document.getElementById('incident-description').value = incidencia.Descripcion || '';
 			document.getElementById('incident-date').value = String(incidencia.Fecha || '').replace(' ', 'T').slice(0, 16);
 			document.getElementById('incident-status').value = incidencia.Estado || 'abierta';
+			document.getElementById('incident-status').hidden = false;
 			document.getElementById('incident-zone').value = incidencia.Zona || '';
-			document.getElementById('incident-latitude').value = incidencia.Latitud ?? '';
-			document.getElementById('incident-longitude').value = incidencia.Longitud ?? '';
 			document.getElementById('incident-container').value = incidencia.Numero_Contenedor || '';
 			document.getElementById('incident-crew').value = incidencia.Id_Cuadrilla || '';
+			document.getElementById('save-incident-btn').textContent = 'Guardar cambios';
 			document.getElementById('incident-type').focus();
 		}
 
 		async function guardarIncidencia(event) {
 			event.preventDefault();
 			const id = document.getElementById('incident-id').value;
+			if (!document.getElementById('incident-type').value) {
+				alert('Seleccioná el tipo de incidencia.');
+				return;
+			}
+			if (!document.getElementById('incident-container').value) {
+				alert('Seleccioná un contenedor.');
+				return;
+			}
+			if (!document.getElementById('incident-date').value) {
+				alert('Seleccioná la fecha de la incidencia.');
+				return;
+			}
 			const datos = {
 				Tipo: document.getElementById('incident-type').value.trim(),
 				Descripcion: document.getElementById('incident-description').value.trim(),
 				Fecha: document.getElementById('incident-date').value,
-				Estado: document.getElementById('incident-status').value,
+				Estado: id ? document.getElementById('incident-status').value : 'abierta',
 				Zona: document.getElementById('incident-zone').value.trim(),
-				Latitud: document.getElementById('incident-latitude').value,
-				Longitud: document.getElementById('incident-longitude').value,
 				Numero_Contenedor: document.getElementById('incident-container').value,
 				Id_Cuadrilla: document.getElementById('incident-crew').value
 			};
@@ -321,6 +319,9 @@
 			formularioIncidencia.reset();
 			incidenciaOriginal = null;
 			document.getElementById('incident-id').value = '';
+			document.getElementById('incident-status').value = 'abierta';
+			document.getElementById('incident-status').hidden = true;
+			document.getElementById('save-incident-btn').textContent = '+ Nueva incidencia';
 			establecerFechaActual();
 		}
 	</script>

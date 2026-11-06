@@ -30,8 +30,8 @@ class MaquinariaController
             throw new InvalidArgumentException('ID de maquinaria inválido.');
         }
         $motivo = trim($motivo);
-        if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
-            throw new InvalidArgumentException('Indicá un motivo de baja de hasta 500 caracteres.');
+        if (mb_strlen($motivo, 'UTF-8') > 500) {
+            throw new InvalidArgumentException('El motivo de baja no puede superar los 500 caracteres.');
         }
 
         return Maquinaria::eliminar($pdo, $id, $motivo);
@@ -45,7 +45,7 @@ class MaquinariaController
         $descripcion = trim((string) ($datos['descripcion'] ?? ''));
         $estado = strtolower(trim((string) ($datos['estado'] ?? 'operativa')));
 
-        if ($idCentro <= 0 || $nombre === '' || $tipo === '' || $descripcion === ''
+        if ($idCentro <= 0 || $nombre === '' || $tipo === ''
             || mb_strlen($nombre) > 60 || mb_strlen($tipo) > 50 || mb_strlen($descripcion) > 2000) {
             throw new InvalidArgumentException('Datos de maquinaria inválidos.');
         }

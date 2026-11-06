@@ -51,6 +51,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html" class="active"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -61,7 +62,7 @@
             <div class="page-header">
                 <div>
                     <h1>Mapa interactivo</h1>
-                    <p>Explora contenedores, incidencias, centros de acopio y camiones.</p>
+                    <p>Explora contenedores, incidencias, centros de acopio y vertederos.</p>
                 </div>
             </div>
 
@@ -70,7 +71,6 @@
                     <option value="todos" selected>Todos los elementos</option>
                     <option value="contenedores">Contenedores e incidencias</option>
                     <option value="centros">Centros de acopio y vertederos</option>
-                    <option value="camiones">Camiones</option>
                 </select>
                 <select id="filter-municipio"><option value="">Todos los municipios</option></select>
                 <input type="search" id="filter-zona" placeholder="Filtrar por zona o ubicación">
@@ -79,9 +79,7 @@
                     <select id="filter-estado-contenedor"><option value="">Todos los estados</option></select>
                     <select id="filter-tipo-incidencia">
                     <option value="">Todos los tipos de incidencia</option>
-                    <option value="rotura">Rotura</option>
-                    <option value="desborde">Desborde</option>
-                    <option value="falta de recolección">Falta de recolección</option>
+                    <option value="incompleto">Incompleto</option>
                     </select>
                     <select id="filter-estado-incidencia">
                     <option value="">Todos los estados de incidencia</option>
@@ -94,11 +92,6 @@
                     <input type="number" id="filter-capacidad-min" min="0" step="0.01" placeholder="Capacidad mínima (kg)">
                     <input type="number" id="filter-capacidad-max" min="0" step="0.01" placeholder="Capacidad máxima (kg)">
                     <select id="filter-estado-centro"><option value="">Todos los estados</option></select>
-                </div>
-                <div class="map-filter-group" data-for="camiones" hidden>
-                    <input type="search" id="filter-matricula" placeholder="Matrícula">
-                    <select id="filter-ruta-camion"><option value="">Todas las rutas</option></select>
-                    <select id="filter-estado-camion"><option value="">Todos los estados</option></select>
                 </div>
             </div>
             <p id="map-status" aria-live="polite">Cargando ubicaciones...</p>
@@ -142,11 +135,6 @@
                     <div><i class="estado-instalacion" style="background:#238b57"></i>Activo</div>
                     <div><i class="estado-instalacion" style="background:#e0a030"></i>En mantenimiento</div>
                     <div><i class="estado-instalacion" style="background:#6b7280"></i>Inactivo</div>
-                    <strong>Camiones</strong>
-                    <div><i style="background:#238b57"></i>Disponible</div>
-                    <div><i style="background:#1565c0"></i>En ruta</div>
-                    <div><i style="background:#e0a030"></i>Mantenimiento</div>
-                    <div><i style="background:#d64545"></i>Otros estados</div>
                     <strong>Contenedores</strong>
                     <div><i style="background:#238b57"></i>Activo</div>
                     <div><i style="background:#d64545"></i>Inactivo</div>
@@ -166,10 +154,8 @@
                     <div><i class="estado-instalacion" style="background:#6b7280"></i>Inactivo</div>`;
                 return;
             }
-            const configuracion = capaSeleccionada === 'camiones'
-                ? ['Estado del camión', [['Disponible', '#238b57'], ['En ruta', '#1565c0'], ['Mantenimiento', '#e0a030'], ['Otros estados', '#d64545']]]
-                : ['Estado del contenedor', Object.entries(colores).map(([estado, color]) =>
-                    [estado.charAt(0).toUpperCase() + estado.slice(1), color])];
+            const configuracion = ['Estado del contenedor', Object.entries(colores).map(([estado, color]) =>
+                [estado.charAt(0).toUpperCase() + estado.slice(1), color])];
             div.innerHTML = `<strong>${configuracion[0]}</strong>` + configuracion[1].map(([etiqueta, color]) =>
                 `<div><i style="background:${color}"></i>${etiqueta}</div>`).join('') +
                 (capaSeleccionada === 'contenedores'
@@ -207,18 +193,17 @@
         const filtrosMapa = [
             'filter-capa', 'filter-municipio', 'filter-zona', 'filter-tipo-contenedor',
             'filter-estado-contenedor', 'filter-tipo-incidencia', 'filter-estado-incidencia',
-            'filter-capacidad-min', 'filter-capacidad-max', 'filter-estado-centro',
-            'filter-matricula', 'filter-ruta-camion', 'filter-estado-camion'
+            'filter-capacidad-min', 'filter-capacidad-max', 'filter-estado-centro'
         ];
 
         async function cargarMapa() {
             const estado = document.getElementById('map-status');
             try {
-                const [contenedores, municipios, incidencias, centros, camiones, rutas, asignaciones] = await Promise.all([
+                const [contenedores, municipios, incidencias, centros] = await Promise.all([
                     obtenerJson('contenedores'), obtenerJson('municipios'), obtenerJson('incidencias'),
-                    obtenerJson('centros'), obtenerJson('camiones'), obtenerJson('rutas'), obtenerJson('asignaciones_camion')
+                    obtenerJson('centros')
                 ]);
-                datosMapa = { contenedores, municipios, incidencias, centros, camiones, rutas, asignaciones };
+                datosMapa = { contenedores, municipios, incidencias, centros };
                 const selectorMunicipio = document.getElementById('filter-municipio');
                 selectorMunicipio.innerHTML = '<option value="">Todos los municipios</option>' +
                     municipios.map(m => {
@@ -229,13 +214,8 @@
                 poblarFiltroMapa('filter-tipo-contenedor', contenedores.map(c => c.Tipo_Residuo), 'Todos los residuos');
                 poblarFiltroMapa('filter-estado-contenedor', contenedores.map(c => c.Estado), 'Todos los estados');
                 poblarFiltroMapa('filter-estado-centro', centros.map(c => c.Estado), 'Todos los estados');
-                poblarFiltroMapa('filter-estado-camion', camiones.map(c => c.estado), 'Todos los estados');
-                const filtroRuta = document.getElementById('filter-ruta-camion');
-                filtroRuta.innerHTML = '<option value="">Todas las rutas</option>' + rutas.map(r =>
-                    `<option value="${escapar(r.Id_Ruta)}">#${escapar(r.Id_Ruta)} - ${escapar(r.Recorrido)}</option>`
-                ).join('');
                 filtrosMapa.forEach(id => document.getElementById(id).addEventListener(
-                    ['filter-zona', 'filter-matricula', 'filter-capacidad-min', 'filter-capacidad-max'].includes(id) ? 'input' : 'change',
+                    ['filter-zona', 'filter-capacidad-min', 'filter-capacidad-max'].includes(id) ? 'input' : 'change',
                     renderMapa
                 ));
                 document.getElementById('filter-capa').addEventListener('change', actualizarFiltrosCapa);
@@ -269,10 +249,6 @@
             const zonaFiltro = document.getElementById('filter-zona').value.trim().toLocaleLowerCase();
             if (capaSeleccionada === 'centros') {
                 await renderCentros(estado, municipioFiltro, zonaFiltro);
-                return;
-            }
-            if (capaSeleccionada === 'camiones') {
-                await renderCamiones(estado, municipioFiltro, zonaFiltro);
                 return;
             }
             const tipoContenedor = document.getElementById('filter-tipo-contenedor').value.toLocaleLowerCase();
@@ -346,14 +322,13 @@
             }
             if (capaSeleccionada === 'todos') {
                 const instalaciones = await renderCentros(estado, municipioFiltro, zonaFiltro, true);
-                const camiones = await renderCamiones(estado, municipioFiltro, zonaFiltro, true);
                 const puntosTodos = capa.getLayers()
                     .map(elemento => elemento.getLatLng?.())
                     .filter(Boolean)
                     .map(punto => [punto.lat, punto.lng]);
                 if (puntosTodos.length) mapa.fitBounds(puntosTodos, { padding: [40, 40], maxZoom: 16 });
-                const errores = [instalaciones.error, camiones.error].filter(Boolean);
-                estado.textContent = `${visibles} contenedores, ${incidenciasVisibles} incidencias, ${instalaciones.visibles} instalaciones y ${camiones.visibles} camiones en el mapa` +
+                const errores = [instalaciones.error].filter(Boolean);
+                estado.textContent = `${visibles} contenedores, ${incidenciasVisibles} incidencias y ${instalaciones.visibles} instalaciones en el mapa` +
                     (instalaciones.aproximadas ? `; ${instalaciones.aproximadas} instalaciones con ubicación aproximada` : '') +
                     (errores.length ? `; ${errores.join('; ')}` : sinUbicar ? `; ${sinUbicar} contenedores sin ubicación encontrada.` : '.');
                 return;
@@ -518,82 +493,8 @@
             ];
         }
 
-        function puntoCamionSimulado(camion) {
-            const centro = puntoMunicipio(camion.Id_Municipio);
-            const semilla = Number(camion.Id_Camion) || 1;
-            const angulo = semilla * 2.399963;
-            const radio = 0.0002 + (semilla % 4) * 0.0001;
-            return [centro[0] + Math.cos(angulo) * radio, centro[1] + Math.sin(angulo) * radio];
-        }
-
-        function asignacionRutaActual(camion) {
-            const ahora = new Date();
-            const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
-            const hora = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:00`;
-            return datosMapa.asignaciones.find(asignacion =>
-                String(asignacion.Id_Camion) === String(camion.Id_Camion)
-                && asignacion.Estado === 'asignada'
-                && asignacion.Fecha === fecha
-                && asignacion.Hora_Inicio <= hora
-                && asignacion.Hora_Fin > hora
-            ) || null;
-        }
-
-        async function renderCamiones(estado, municipioFiltro, zonaFiltro, acumular = false) {
-            if (!acumular) capa.clearLayers();
-            const matriculaFiltro = document.getElementById('filter-matricula').value.trim().toLocaleLowerCase();
-            const rutaFiltro = document.getElementById('filter-ruta-camion').value;
-            const estadoFiltro = document.getElementById('filter-estado-camion').value.toLocaleLowerCase();
-            const camiones = datosMapa.camiones.filter(camion => {
-                const municipio = nombreMunicipio(camion.Id_Municipio);
-                const asignacion = asignacionRutaActual(camion);
-                const idRuta = asignacion?.Id_Ruta || camion.Id_Ruta;
-                const ruta = datosMapa.rutas.find(item => String(item.Id_Ruta) === String(idRuta));
-                return (!municipioFiltro || String(camion.Id_Municipio) === municipioFiltro)
-                    && (!zonaFiltro || municipio.toLocaleLowerCase().includes(zonaFiltro)
-                        || String(ruta?.Recorrido || '').toLocaleLowerCase().includes(zonaFiltro))
-                    && (!matriculaFiltro || String(camion.matricula || '').toLocaleLowerCase().includes(matriculaFiltro))
-                    && (!rutaFiltro || String(idRuta || '') === rutaFiltro)
-                    && (!estadoFiltro || String(camion.estado || '').toLocaleLowerCase() === estadoFiltro);
-            });
-            const puntos = [];
-            let simulados = 0;
-            for (const camion of camiones) {
-                const asignacion = asignacionRutaActual(camion);
-                const idRuta = asignacion?.Id_Ruta || camion.Id_Ruta;
-                const ruta = datosMapa.rutas.find(item => String(item.Id_Ruta) === String(idRuta));
-                const registrado = obtenerPuntoRegistrado(camion);
-                const puntosRuta = !registrado && ruta ? await obtenerPuntosRuta(ruta) : [];
-                const coordenadas = registrado || (puntosRuta.length
-                    ? posicionSimulada(camion, ruta, puntosRuta)
-                    : puntoCamionSimulado(camion));
-                if (!registrado) simulados++;
-                const fuente = registrado ? 'Ubicación GPS registrada'
-                    : puntosRuta.length ? 'Ubicación simulada sobre la ruta'
-                        : 'Ubicación aproximada simulada en el municipio';
-                const estadoCamion = String(camion.estado || '');
-                const color = estadoCamion.toLocaleLowerCase() === 'en ruta' ? '#1565c0'
-                    : estadoCamion.toLocaleLowerCase() === 'disponible' ? '#238b57'
-                        : estadoCamion.toLocaleLowerCase() === 'mantenimiento' ? '#e0a030' : '#d64545';
-                L.circleMarker(coordenadas, { radius: 10, color: '#fff', weight: 2, fillColor: color, fillOpacity: 0.95 })
-                    .bindPopup(`<strong>Camión ${escapar(camion.matricula)}</strong><br>
-                        Estado: ${escapar(estadoCamion)}<br>Capacidad: ${escapar(camion.capacidad)} kg<br>
-                        Municipio: ${escapar(nombreMunicipio(camion.Id_Municipio) || 'Sin municipio')}<br>
-                        Ruta: ${idRuta ? `#${escapar(idRuta)} - ${escapar(ruta?.Recorrido || '')}` : 'Sin ruta asignada'}<br>
-                        ${escapar(fuente)}`)
-                    .addTo(capa);
-                puntos.push(coordenadas);
-            }
-            if (puntos.length && !acumular) mapa.fitBounds(puntos, { padding: [40, 40], maxZoom: 16 });
-            if (!acumular) {
-                estado.textContent = `${puntos.length} camiones en el mapa` +
-                    (simulados ? `; ${simulados} con ubicación simulada.` : camiones.length ? '; todos tienen ubicación GPS registrada.' : '.');
-            }
-            return { visibles: puntos.length, simulados };
-        }
-
         setInterval(() => {
-            if (datosMapa && ['todos', 'camiones'].includes(document.getElementById('filter-capa').value)) renderMapa();
+            if (datosMapa && document.getElementById('filter-capa').value === 'todos') renderMapa();
         }, 60000);
 
         cargarMapa();

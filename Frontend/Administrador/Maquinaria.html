@@ -37,6 +37,7 @@
                 <a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
                 <a href="Maquinaria.html" class="active"><span>⚙</span>Maquinaria</a>
                 <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
                 <a href="Informes.html"><span>▤</span>Estadísticas</a>
                 <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
             </nav>
@@ -64,7 +65,7 @@
                     <input type="text" id="maquina-tipo" placeholder="Tipo (Ej: Compactadora, Cinta, Balanza)" maxlength="50" required>
                 </div>
                 <div class="search">
-                    <input type="text" id="maquina-descripcion" placeholder="Descripción" maxlength="2000" required>
+                    <input type="text" id="maquina-descripcion" placeholder="Descripción (opcional)" maxlength="2000">
                 </div>
 
                 <select id="maquina-centro" required>
@@ -75,7 +76,6 @@
                     <option value="" disabled selected>Estado...</option>
                     <option value="operativa">Operativa</option>
                     <option value="mantenimiento">En mantenimiento</option>
-                    <option value="fuera_de_servicio">Fuera de servicio</option>
                 </select>
             </form>
 
@@ -94,8 +94,6 @@
                     <option value="todos">Todos los estados</option>
                     <option value="operativa">Operativa</option>
                     <option value="mantenimiento">En mantenimiento</option>
-                    <option value="fuera_de_servicio">Fuera de servicio</option>
-                    <option value="baja">Dada de baja</option>
                 </select>
             </div>
 
@@ -109,8 +107,6 @@
                             <th>Descripción</th>
                             <th>Instalación</th>
                             <th>Estado</th>
-                            <th>Fecha de baja</th>
-                            <th>Motivo de baja</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -157,19 +153,19 @@
             const tbody = document.getElementById('tabla-maquinaria-body');
 
             const listado = maquinas.filter(m => {
-                const texto = `${m.Nombre} ${m.Tipo || ''} ${m.Descripcion || ''} ${m.Motivo_Baja || ''} ${m.Centro}`.toLowerCase();
+                const texto = `${m.Nombre} ${m.Tipo || ''} ${m.Descripcion || ''} ${m.Centro}`.toLowerCase();
                 return texto.includes(termino)
                     && (instalacion === 'todos' || m.Tipo_Instalacion === instalacion)
-                    && (estado === 'todos' || (estado === 'baja' ? Boolean(m.Fecha_Baja) : !m.Fecha_Baja && m.Estado === estado));
+                    && (estado === 'todos' || String(m.Estado || '').toLowerCase() === estado.toLowerCase());
             });
 
             if (listado.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666; padding: 20px;">No se encontró maquinaria</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666; padding: 20px;">No se encontró maquinaria</td></tr>';
                 return;
             }
 
             tbody.innerHTML = listado.map(m => {
-                const clase = !m.Fecha_Baja && m.Estado === 'operativa' ? 'status active-status' : 'status';
+                const clase = m.Estado === 'operativa' ? 'status active-status' : 'status';
                 return `
                     <tr>
                         <td>${Number(m.Id_Maquinaria)}</td>
@@ -177,12 +173,10 @@
                         <td>${esc(m.Tipo || '-')}</td>
                         <td>${esc(m.Descripcion || '-')}</td>
                         <td>${esc(m.Centro)} (${esc(nombresInstalacion[m.Tipo_Instalacion] || m.Tipo_Instalacion)})</td>
-                        <td><span class="${clase}">${m.Fecha_Baja ? 'Dada de baja' : esc(nombresEstado[m.Estado] || m.Estado)}</span></td>
-                        <td>${esc(m.Fecha_Baja || '-')}</td>
-                        <td>${esc(m.Motivo_Baja || '-')}</td>
+                        <td><span class="${clase}">${esc(nombresEstado[m.Estado] || m.Estado)}</span></td>
                         <td>
-                            ${m.Fecha_Baja ? '<button class="edit" disabled>Retirada</button>' : `<button class="edit" onclick="prepararEdicion(${Number(m.Id_Maquinaria)})">Editar</button>
-                            <button class="delete" onclick="eliminarMaquina(${Number(m.Id_Maquinaria)})">Dar de baja</button>`}
+                            <button class="edit" onclick="prepararEdicion(${Number(m.Id_Maquinaria)})">Editar</button>
+                            <button class="delete" onclick="eliminarMaquina(${Number(m.Id_Maquinaria)})">Eliminar</button>
                         </td>
                     </tr>`;
             }).join('');
@@ -267,19 +261,14 @@
         }
 
         async function eliminarMaquina(id) {
-            if (!confirm('¿Dar de baja esta maquinaria? Su registro e historial se conservarán.')) return;
-            const motivo = window.prompt('Indicá el motivo de la baja (máximo 500 caracteres):');
-            if (!motivo || !motivo.trim() || motivo.trim().length > 500) {
-                alert('La baja requiere un motivo de hasta 500 caracteres.');
-                return;
-            }
+            if (!confirm('¿Eliminar esta maquinaria de forma permanente?')) return;
 
             try {
                 const respuesta = await fetch(apiBase + `maquinaria&id=${id}`, {
                     method: 'DELETE',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ motivo: motivo.trim() })
+                    body: JSON.stringify({ motivo: '' })
                 });
                 const resultado = await respuesta.json();
                 alert(resultado.message || 'Listo.');

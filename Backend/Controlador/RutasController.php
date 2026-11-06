@@ -11,7 +11,7 @@ class RutasController
 
     public function crear(PDO $pdo, array $datos): bool
     {
-        $ruta = $this->crearRutaDesdeDatos($datos);
+        $ruta = $this->crearRutaDesdeDatos($pdo, $datos);
         $cuadrillas = $this->leerCuadrillas($pdo, $datos);
         $contenedores = $this->leerContenedores($pdo, $datos);
 
@@ -38,7 +38,7 @@ class RutasController
             throw new InvalidArgumentException('ID de ruta obligatorio.');
         }
 
-        $ruta = $this->crearRutaDesdeDatos($datos);
+        $ruta = $this->crearRutaDesdeDatos($pdo, $datos);
         $cuadrillas = $this->leerCuadrillas($pdo, $datos);
         $contenedores = $this->leerContenedores($pdo, $datos, $idRuta);
 
@@ -207,7 +207,7 @@ class RutasController
         return Rutas::eliminar($pdo, $idRuta);
     }
 
-    private function crearRutaDesdeDatos(array $datos): Rutas
+    private function crearRutaDesdeDatos(PDO $pdo, array $datos): Rutas
     {
         $recorrido = trim((string) ($datos['Recorrido'] ?? $datos['recorrido'] ?? ''));
         $horaInicio = substr(trim((string) ($datos['Horario_Inicio'] ?? '')), 0, 5);
@@ -215,7 +215,12 @@ class RutasController
         $frecuencia = trim((string) ($datos['Frecuencia'] ?? ''));
         $distancia = (float) ($datos['Distancia'] ?? 0);
         $estado = trim((string) ($datos['Estado'] ?? ''));
-        $idMunicipio = (int) ($datos['Id_Municipio'] ?? $datos['id_municipio'] ?? 0);
+        $municipioDestino = $pdo->prepare(
+            'SELECT Id_Municipio FROM centro_acopio WHERE Nombre = :nombre AND Id_Municipio IS NOT NULL AND Estado <> "inactivo" ORDER BY Id_Centro LIMIT 1'
+        );
+        $municipioDestino->execute([':nombre' => $recorrido]);
+        $idMunicipioDestino = (int) ($municipioDestino->fetchColumn() ?: 0);
+        $idMunicipio = $idMunicipioDestino ?: (int) ($datos['Id_Municipio'] ?? $datos['id_municipio'] ?? 0);
 
         $frecuenciasValidas = [
             '1 vez por semana',
@@ -233,7 +238,8 @@ class RutasController
 
         if ($recorrido === '' || !$horariosValidos || $horaInicio === $horaFin ||
             (!in_array($frecuencia, $frecuenciasValidas, true) && !$frecuenciaEspecificaValida) ||
-            $distancia < 0 || !is_finite($distancia) || !in_array($estado, ['activa', 'inactiva'], true) || $idMunicipio <= 0) {
+            $distancia < 0 || !is_finite($distancia) || !in_array($estado, ['activa', 'inactiva'], true) || $idMunicipio <= 0 ||
+            $idMunicipioDestino <= 0) {
             throw new InvalidArgumentException('Datos de ruta inválidos.');
         }
 

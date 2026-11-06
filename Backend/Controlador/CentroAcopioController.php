@@ -33,6 +33,7 @@ class CentroAcopioController
         $ubicacion = trim((string) ($datos['ubicacion'] ?? ''));
         $capacidad = (float) ($datos['capacidad'] ?? 0);
         $almacenado = (float) ($datos['cantidad_almacenada'] ?? 0);
+        $tiposPermitidos = ['orgánico', 'biodegradable', 'doméstico', 'peligroso', 'industrial', 'reciclables secos'];
         $tipos = trim((string) ($datos['tipos_residuo'] ?? ''));
         $idMunicipio = (int) ($datos['id_municipio'] ?? 0);
 
@@ -52,7 +53,19 @@ class CentroAcopioController
             }
         }
 
-        if (mb_strlen($tipos) > 255) {
+        $tiposSeleccionados = array_values(array_unique(array_filter(
+            array_map(fn($tipo) => mb_strtolower(trim($tipo), 'UTF-8'), explode(',', $tipos)),
+            fn($tipo) => $tipo !== ''
+        )));
+        if (count($tiposSeleccionados) === 0) {
+            throw new InvalidArgumentException('Seleccioná al menos un tipo de residuo.');
+        }
+        foreach ($tiposSeleccionados as $tipoResiduo) {
+            if (!in_array($tipoResiduo, $tiposPermitidos, true)) {
+                throw new InvalidArgumentException('Seleccioná solo tipos de residuo válidos.');
+            }
+        }
+        if (mb_strlen(implode(', ', $tiposSeleccionados)) > 255) {
             throw new InvalidArgumentException('La lista de tipos de residuo es demasiado larga.');
         }
 
@@ -63,7 +76,7 @@ class CentroAcopioController
             'ubicacion' => $ubicacion,
             'capacidad' => $capacidad,
             'cantidad_almacenada' => $almacenado,
-            'tipos_residuo' => $tipos === '' ? null : $tipos,
+            'tipos_residuo' => implode(', ', $tiposSeleccionados),
             'id_municipio' => $idMunicipio > 0 ? $idMunicipio : null
         ];
     }

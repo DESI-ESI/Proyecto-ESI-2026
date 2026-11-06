@@ -182,7 +182,7 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
                 $numeroIncidencia = (int) ($incidenciaAdicional['numero_contenedor'] ?? 0);
                 $tipoIncidencia = trim((string) ($incidenciaAdicional['tipo'] ?? ''));
                 $descripcionIncidencia = trim((string) ($incidenciaAdicional['descripcion'] ?? ''));
-                if ($numeroIncidencia <= 0 || !in_array($tipoIncidencia, ['rotura', 'desborde', 'falta de recolección'], true)
+                if ($numeroIncidencia <= 0 || !in_array($tipoIncidencia, ['incompleto'], true)
                     || $descripcionIncidencia === '' || mb_strlen($descripcionIncidencia, 'UTF-8') > 1000) {
                     respond(['status' => 'error', 'message' => 'Para agregar un inconveniente, indicá un contenedor, un tipo de problema y una descripción válida.'], 400);
                 }
@@ -219,7 +219,7 @@ if ($resource === 'miruta' && in_array($method, ['GET', 'POST'], true)) {
             $numero = (int) ($data['numero_contenedor'] ?? 0);
             $tipo = trim((string) ($data['tipo'] ?? ''));
             $descripcion = trim((string) ($data['descripcion'] ?? ''));
-            if (!in_array($tipo, ['rotura', 'desborde', 'falta de recolección'], true) || $descripcion === '' || mb_strlen($descripcion, 'UTF-8') > 1000) {
+            if (!in_array($tipo, ['incompleto'], true) || $descripcion === '' || mb_strlen($descripcion, 'UTF-8') > 1000) {
                 respond(['status' => 'error', 'message' => 'Elegí un tipo e indicá una descripción.'], 400);
             }
             $enRuta = $pdo->prepare('SELECT 1 FROM existe x JOIN contenedor c ON c.Id_Contenedor = x.Id_Contenedor WHERE x.Id_Ruta = :ruta AND c.Numero_Contenedor = :numero');
@@ -1015,7 +1015,7 @@ try {
             $top = $pdo->prepare(
                 "SELECT i.Numero_Contenedor, c.Ubicacion, COUNT(*) AS Cantidad
                  FROM incidencia i JOIN contenedor c ON c.Numero_Contenedor = i.Numero_Contenedor
-                 WHERE i.Tipo = 'desborde' AND i.Fecha >= :desde AND i.Fecha < :hasta
+                 WHERE i.Tipo = 'incompleto' AND i.Fecha >= :desde AND i.Fecha < :hasta
                  GROUP BY i.Numero_Contenedor, c.Ubicacion
                  ORDER BY Cantidad DESC, i.Numero_Contenedor ASC LIMIT 10"
             );
@@ -1031,7 +1031,7 @@ try {
                 'mes' => $mes,
                 'totales' => $totales,
                 'incidencias' => $incidencias,
-                'top_desbordados' => $top->fetchAll(PDO::FETCH_ASSOC),
+                'top_incompletos' => $top->fetchAll(PDO::FETCH_ASSOC),
                 'incidencias_por_tipo' => $porTipo->fetchAll(PDO::FETCH_ASSOC),
             ]]);
 
@@ -1087,8 +1087,9 @@ try {
                     'numero_contenedor' => numeroContenedor($pdo, $data, $containerId)
                 ];
 
-                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
-                    || !in_array(strtolower($updateData['estado']), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
+                $tiposPermitidos = ['orgánico', 'biodegradable', 'doméstico', 'peligroso', 'industrial', 'reciclables secos'];
+                if (!in_array(mb_strtolower($updateData['tipo_residuo'], 'UTF-8'), $tiposPermitidos, true) || $updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
+                    || !in_array(strtolower($updateData['estado']), ['activo', 'inactivo', 'reserva'], true)) {
                     respond(['status' => 'error', 'message' => 'Datos de contenedor inválidos.'], 400);
                 }
 
@@ -1103,13 +1104,13 @@ try {
                 }
 
                 $motivo = trim((string) ($data['motivo'] ?? ''));
-                if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
-                    respond(['status' => 'error', 'message' => 'Indicá un motivo de baja de hasta 500 caracteres.'], 400);
+                if (mb_strlen($motivo, 'UTF-8') > 500) {
+                    respond(['status' => 'error', 'message' => 'El motivo de baja no puede superar los 500 caracteres.'], 400);
                 }
                 $updated = $controller->darBaja($pdo, $containerId, $motivo);
                 respond([
                     'status' => $updated ? 'success' : 'error',
-                    'message' => $updated ? 'Contenedor dado de baja; su historial se conservó.' : 'No se encontró un contenedor activo con ese ID.'
+                    'message' => $updated ? 'Contenedor eliminado correctamente.' : 'No se encontró el contenedor con ese ID.'
                 ], $updated ? 200 : 404);
             }
 
@@ -1154,8 +1155,9 @@ try {
                     'numero_contenedor' => numeroContenedor($pdo, $data, $containerId)
                 ];
 
-                if ($updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
-                    || !in_array(strtolower($updateData['estado']), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
+                $tiposPermitidos = ['orgánico', 'biodegradable', 'doméstico', 'peligroso', 'industrial', 'reciclables secos'];
+                if (!in_array(mb_strtolower($updateData['tipo_residuo'], 'UTF-8'), $tiposPermitidos, true) || $updateData['tipo_residuo'] === '' || $updateData['ubicacion'] === '' || $updateData['estado'] === '' || $updateData['capacidad'] <= 0 || $updateData['id_municipio'] <= 0
+                    || !in_array(strtolower($updateData['estado']), ['activo', 'inactivo', 'reserva'], true)) {
                     respond(['status' => 'error', 'message' => 'Datos de contenedor inválidos.'], 400);
                 }
 
@@ -1170,13 +1172,13 @@ try {
                 }
 
                 $motivo = trim((string) ($data['motivo'] ?? ''));
-                if ($motivo === '' || mb_strlen($motivo, 'UTF-8') > 500) {
-                    respond(['status' => 'error', 'message' => 'Indicá un motivo de baja de hasta 500 caracteres.'], 400);
+                if (mb_strlen($motivo, 'UTF-8') > 500) {
+                    respond(['status' => 'error', 'message' => 'El motivo de baja no puede superar los 500 caracteres.'], 400);
                 }
                 $updated = $controller->darBaja($pdo, $containerId, $motivo);
                 respond([
                     'status' => $updated ? 'success' : 'error',
-                    'message' => $updated ? 'Contenedor dado de baja; su historial se conservó.' : 'No se encontró un contenedor activo con ese ID.'
+                    'message' => $updated ? 'Contenedor eliminado correctamente.' : 'No se encontró el contenedor con ese ID.'
                 ], $updated ? 200 : 404);
             }
 
@@ -1300,10 +1302,10 @@ try {
 
             if ($method === 'DELETE') {
                 if (!esAdministrador()) {
-                    respond(['status' => 'error', 'message' => 'Solo administración puede dar de baja maquinaria.'], 403);
+                    respond(['status' => 'error', 'message' => 'Solo administración puede eliminar maquinaria.'], 403);
                 }
                 $deleted = $controller->eliminar($pdo, (int) ($data['id'] ?? $resourceId ?? 0), (string) ($data['motivo'] ?? ''));
-                respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Maquinaria dada de baja; su historial se conservó.' : 'No se encontró maquinaria activa con ese ID.'], $deleted ? 200 : 404);
+                respond(['status' => $deleted ? 'success' : 'error', 'message' => $deleted ? 'Maquinaria eliminada correctamente.' : 'No se encontró la maquinaria con ese ID.'], $deleted ? 200 : 404);
             }
 
             respond(['status' => 'error', 'message' => 'Método no permitido.'], 405);
@@ -1346,32 +1348,6 @@ try {
                     $incidencias = $controller->listar($pdo);
                 }
                 respond(['status' => 'success', 'data' => $incidencias]);
-            }
-
-            if ($method === 'POST' && $action === 'aceptar') {
-                if (!esCuadrilla()) {
-                    respond(['status' => 'error', 'message' => 'Solo una cuadrilla puede aceptar incidencias.'], 403);
-                }
-
-                $id = (int) ($data['id'] ?? $resourceId ?? 0);
-                $cuadrillaActual = cuadrilla::buscarDeEmpleado($pdo, (int) $_SESSION['empleado_id']);
-                if (!$cuadrillaActual) {
-                    respond(['status' => 'error', 'message' => 'Tenés que pertenecer a una cuadrilla para aceptar incidencias.'], 400);
-                }
-                if ($cuadrillaActual['Id_Ruta'] === null) {
-                    respond(['status' => 'error', 'message' => 'Tu cuadrilla no tiene una ruta asignada.'], 400);
-                }
-
-                $accepted = $controller->aceptar(
-                    $pdo,
-                    $id,
-                    (int) $cuadrillaActual['Id_Cuadrilla'],
-                    (int) $cuadrillaActual['Id_Ruta']
-                );
-                respond([
-                    'status' => $accepted ? 'success' : 'error',
-                    'message' => $accepted ? 'Incidencia aceptada y asignada a tu cuadrilla.' : 'La incidencia no corresponde a tu ruta, ya fue aceptada o no existe.'
-                ], $accepted ? 200 : 409);
             }
 
             if ($method === 'POST' && $action === 'asignar') {
@@ -1561,6 +1537,36 @@ function registrarResultadoRecorrido(
                 ':ruta' => $idRuta,
                 ':cuadrilla' => $idCuadrilla
             ]);
+
+            $destino = $pdo->prepare(
+                'SELECT Id_Centro, Nombre, Capacidad, Cantidad_Almacenada, Estado
+                 FROM centro_acopio
+                 WHERE Nombre = :nombre AND Estado <> "inactivo"
+                 LIMIT 1 FOR UPDATE'
+            );
+            $destino->execute([':nombre' => trim((string) ($cuadrilla['Recorrido'] ?? ''))]);
+            $centro = $destino->fetch(PDO::FETCH_ASSOC);
+            if (!$centro) {
+                throw new InvalidArgumentException('No se encontró el centro de acopio o vertedero del destino final.');
+            }
+
+            $capacidad = (float) $centro['Capacidad'];
+            $almacenado = (float) ($centro['Cantidad_Almacenada'] ?? 0);
+            $disponible = $capacidad - $almacenado;
+            if ($volumen > $disponible) {
+                throw new InvalidArgumentException(
+                    'El volumen supera la capacidad disponible del destino (' . number_format($disponible, 2, '.', '') . ' kg).'
+                );
+            }
+
+            $pdo->prepare(
+                'UPDATE centro_acopio
+                 SET Cantidad_Almacenada = Cantidad_Almacenada + :volumen
+                 WHERE Id_Centro = :id_centro'
+            )->execute([
+                ':volumen' => $volumen,
+                ':id_centro' => (int) $centro['Id_Centro']
+            ]);
         }
 
         $pdo->prepare(
@@ -1622,8 +1628,10 @@ function numeroContenedor(PDO $pdo, array $data, int $idActual): int
 
 function validateContainer(Contenedores $container, int $municipioId): void
 {
+    $tiposPermitidos = ['orgánico', 'biodegradable', 'doméstico', 'peligroso', 'industrial', 'reciclables secos'];
     if ($municipioId <= 0 || $container->getTipoResiduo() === '' || $container->getUbicacion() === '' || $container->getCapacidad() <= 0
-        || !in_array(strtolower($container->getEstado()), ['funcional', 'roto', 'desbordado', 'activo', 'inactivo', 'reserva'], true)) {
+        || !in_array(mb_strtolower($container->getTipoResiduo(), 'UTF-8'), $tiposPermitidos, true)
+        || !in_array(strtolower($container->getEstado()), ['activo', 'inactivo', 'reserva'], true)) {
         throw new InvalidArgumentException('Datos de contenedor inválidos.');
     }
 }

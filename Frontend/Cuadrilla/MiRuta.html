@@ -147,9 +147,7 @@
                             <div class="search">
                                 <select id="notdone-type">
                                     <option value="">Tipo de problema (opcional)...</option>
-                                    <option value="rotura">Rotura</option>
-                                    <option value="desborde">Desborde</option>
-                                    <option value="falta de recolección">Falta de recolección</option>
+                                    <option value="incompleto">Incompleto</option>
                                 </select>
                             </div>
                         </div>
@@ -162,9 +160,7 @@
                             <div class="search">
                                 <select id="report-tipo" required>
                                     <option value="" disabled selected>Tipo de problema...</option>
-                                    <option value="rotura">Rotura</option>
-                                    <option value="desborde">Desborde</option>
-                                    <option value="falta de recolección">Falta de recolección</option>
+                                    <option value="incompleto">Incompleto</option>
                                 </select>
                             </div>
                         </div>
@@ -245,7 +241,7 @@
                 });
                 document.getElementById('complete-form').addEventListener('submit', async event => {
                     event.preventDefault();
-                    if (!confirm('¿Marcar el recorrido de hoy como completado? Se generará un informe, la ruta dejará de estar asignada a tu cuadrilla y sus incidencias se marcarán como resueltas.')) return;
+                    if (!confirm('¿Marcar el recorrido de hoy como completado? El volumen se sumará al almacenamiento del destino final, se generará un informe, la ruta dejará de estar asignada a tu cuadrilla y sus incidencias se marcarán como resueltas.')) return;
                     try {
                         const resp = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=miruta&accion=completar', {
                             method: 'POST',

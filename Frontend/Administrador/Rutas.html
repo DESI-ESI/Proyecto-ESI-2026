@@ -59,6 +59,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -97,11 +98,6 @@
                 <div class="search">
                     <select id="Recorrido" required>
                         <option value="" disabled selected>Destino final...</option>
-                        <option value="Felipe Cardoso">Felipe Cardoso</option>
-                        <option value="La Paloma">La Paloma</option>
-                        <option value="Durán">Durán</option>
-                        <option value="Géminis">Géminis</option>
-                        <option value="Burgues">Burgues</option>
                     </select>
                 </div>
                 
@@ -141,7 +137,7 @@
                     <option value="inactiva">Inactiva</option>
                 </select>
 
-                <select id="id_municipio" required>
+                <select id="id_municipio" required disabled>
                      <option value="" disabled selected>Municipio...</option>
                 </select>
 
@@ -213,15 +209,18 @@
     <script>
         const rutasApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=rutas';
         const contenedoresApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=contenedores';
+        const centrosApi = '../../Backend/apis/gestion/ApiGestion.php?recurso=centros';
         const municipiosApi = '../../Backend/get_municipios.php';
         let rutasOriginales = [];
         let contenedoresDisponibles = [];
         let municipiosPorId = {};
+        let municipiosPorDestino = {};
         let camionesDisponibles = [];
         let modoEdicion = false;
         let rutaEditando = null;
 
         document.getElementById('Frecuencia').addEventListener('change', actualizarFrecuencia);
+        document.getElementById('Recorrido').addEventListener('change', event => identificarMunicipioDestino(event.target.value));
 
         function actualizarFrecuencia() {
             const frecuencia = document.getElementById('Frecuencia').value;
@@ -368,6 +367,7 @@
             document.getElementById('Id_Ruta').value = '';
             document.getElementById('add-route-btn').textContent = '+ Nueva ruta';
             actualizarFrecuencia();
+            cargarDestinosFinales();
         }
 
         function prepararEdicion(idRuta, recorrido, horarioInicio, horarioFin, frecuencia, distancia, estado, idMunicipio, camion, cuadrillas, contenedoresAsignados) {
@@ -391,7 +391,7 @@
             marcarCuadrillas(cuadrillas ? cuadrillas.split(',') : []);
             marcarContenedores(contenedoresAsignados ? contenedoresAsignados.split(',') : []);
             document.getElementById('Id_Ruta').value = idRuta;
-            document.getElementById('Recorrido').value = recorrido;
+            cargarDestinosFinales(recorrido);
             document.getElementById('Horario_Inicio').value = horarioInicio;
             document.getElementById('Horario_Fin').value = horarioFin;
             document.getElementById('Frecuencia').value = frecuencia.includes('Días específicos:') ? 'especifica' : frecuencia;
@@ -429,6 +429,49 @@
                 }
             })
             .catch(error => alert(error.message));
+        }
+
+        async function cargarDestinosFinales(recorridoActual = '') {
+            const select = document.getElementById('Recorrido');
+            select.innerHTML = '<option value="" disabled selected>Destino final...</option>';
+            try {
+                const respuesta = await solicitarJson(centrosApi);
+                const instalaciones = (Array.isArray(respuesta.data) ? respuesta.data : [])
+                    .filter(instalacion => String(instalacion.Estado || '').toLowerCase() !== 'inactivo');
+                municipiosPorDestino = {};
+                instalaciones.forEach(instalacion => {
+                    const nombre = String(instalacion.Nombre || '').trim();
+                    const idMunicipio = instalacion.Id_Municipio ?? instalacion.id_municipio ?? '';
+                    if (nombre && idMunicipio !== '') {
+                        municipiosPorDestino[nombre] = String(idMunicipio);
+                    }
+                });
+                const instalacionesUnicas = Array.from(
+                    new Map(instalaciones.map(instalacion => [String(instalacion.Nombre || '').trim(), instalacion])).values()
+                ).filter(instalacion => String(instalacion.Nombre || '').trim() !== '');
+
+                select.innerHTML += instalacionesUnicas.map(instalacion => {
+                    const tipo = instalacion.Tipo === 'vertedero' ? 'Vertedero' : 'Centro de acopio';
+                    return `<option value="${escaparHtml(instalacion.Nombre)}">${escaparHtml(instalacion.Nombre)} — ${tipo}</option>`;
+                }).join('');
+
+                if (recorridoActual && !Array.from(select.options).some(opcion => opcion.value === recorridoActual)) {
+                    select.innerHTML += `<option value="${escaparHtml(recorridoActual)}">${escaparHtml(recorridoActual)}</option>`;
+                }
+                select.value = recorridoActual || '';
+                identificarMunicipioDestino(recorridoActual);
+            } catch (error) {
+                select.innerHTML += '<option value="">No se pudieron cargar los destinos</option>';
+                console.error(error);
+            }
+        }
+
+        function identificarMunicipioDestino(destino) {
+            const municipio = document.getElementById('id_municipio');
+            const idMunicipio = municipiosPorDestino[String(destino || '').trim()] || '';
+            municipio.value = idMunicipio;
+            municipio.disabled = true;
+            municipio.required = true;
         }
 
         function cargarMunicipios() {
@@ -587,7 +630,7 @@
             })
             .catch(error => alert(error.message));
         });
-
+        cargarMunicipios();
         cargarMunicipios();
         cargarCuadrillas();
         cargarCamiones();

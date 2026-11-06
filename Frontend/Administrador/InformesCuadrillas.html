@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informes de cuadrillas - SIGERU</title>
+    <link rel="stylesheet" href="../css/admin-paneles.css?v=10">
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">SIGERU</div>
+        <div class="topbar-title">Panel admin</div>
+        <div class="admin-info">
+            <span id="admin-name">Administrador</span>
+            <a class="employee-panel-link" href="../index.php#seleccionar-panel-empleado">Elegir panel</a>
+            <button id="logout-btn">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <a href="panel.html"><span>▣</span>Panel principal</a>
+                <a href="Empleados.html"><span>♙</span>Empleados</a>
+                <a href="rutas.html"><span>♧</span>Rutas</a>
+                <a href="cuadrillas.html"><span>▤</span>Cuadrillas</a>
+                <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
+                <a href="Camiones.html"><span>▱</span>Camiones</a>
+                <a href="contenedores.html"><span>♢</span>Contenedores</a>
+                <a href="Incidencias.html"><span>!</span>Incidencias</a>
+                <a href="Centros.html?tipo=centro_acopio"><span>▦</span>Centro de acopio</a>
+                <a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
+                <a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+                <a href="InformesCuadrillas.html" class="active"><span>✉</span>Informes de cuadrillas</a>
+                <a href="Informes.html"><span>▤</span>Estadísticas</a>
+                <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Informes de cuadrillas</h1>
+                    <p>Informes enviados por las cuadrillas al administrador.</p>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="search">
+                    <input type="search" id="buscar-informe" placeholder="Buscar informe...">
+                </div>
+                <select id="filtro-cuadrilla">
+                    <option value="">Todas las cuadrillas</option>
+                </select>
+                <label>Desde <input type="date" id="desde"></label>
+                <label>Hasta <input type="date" id="hasta"></label>
+            </div>
+
+            <section class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cuadrilla</th>
+                            <th>Ruta</th>
+                            <th>Informe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="informes-body">
+                        <tr><td colspan="5">Cargando informes...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const api = '../../Backend/apis/gestion/ApiGestion.php?recurso=informes';
+        let informes = [];
+
+        function esc(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function filtrar() {
+            const busqueda = document.getElementById('buscar-informe').value.trim().toLowerCase();
+            const cuadrilla = document.getElementById('filtro-cuadrilla').value;
+            const desde = document.getElementById('desde').value;
+            const hasta = document.getElementById('hasta').value;
+            const cuerpo = document.getElementById('informes-body');
+
+            const filtrados = informes.filter(informe => {
+                const fecha = String(informe.Fecha || '').slice(0, 10);
+                const texto = `${informe.Id_Informe} ${informe.Fecha} ${informe.Id_Cuadrilla} ${informe.Id_Ruta} ${informe.Descripcion || ''}`.toLowerCase();
+                return (!busqueda || texto.includes(busqueda))
+                    && (!cuadrilla || String(informe.Id_Cuadrilla) === cuadrilla)
+                    && (!desde || fecha >= desde)
+                    && (!hasta || fecha <= hasta);
+            });
+
+            cuerpo.innerHTML = filtrados.length ? filtrados.map(informe => `
+                <tr>
+                    <td>${esc(informe.Id_Informe)}</td>
+                    <td>${esc(informe.Fecha)}</td>
+                    <td>#${esc(informe.Id_Cuadrilla)}</td>
+                    <td>#${esc(informe.Id_Ruta)}</td>
+                    <td>${esc(informe.Descripcion || '-')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="5">No hay informes que coincidan con los filtros.</td></tr>';
+        }
+
+        async function cargarInformes() {
+            const cuerpo = document.getElementById('informes-body');
+            try {
+                const respuesta = await fetch(api, { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudieron cargar los informes.');
+                }
+                informes = Array.isArray(resultado.data.informes) ? resultado.data.informes : [];
+
+                const ids = [...new Set(informes.map(informe => String(informe.Id_Cuadrilla || '')).filter(Boolean))]
+                    .sort((a, b) => Number(a) - Number(b));
+                document.getElementById('filtro-cuadrilla').innerHTML =
+                    '<option value="">Todas las cuadrillas</option>' +
+                    ids.map(id => `<option value="${esc(id)}">Cuadrilla #${esc(id)}</option>`).join('');
+                filtrar();
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('buscar-informe').addEventListener('input', filtrar);
+            document.getElementById('filtro-cuadrilla').addEventListener('change', filtrar);
+            document.getElementById('desde').addEventListener('change', filtrar);
+            document.getElementById('hasta').addEventListener('change', filtrar);
+            cargarInformes();
+        });
+    </script>
+    <script src="../js/admin-auth.js?v=32" defer></script>
+</body>
+</html>

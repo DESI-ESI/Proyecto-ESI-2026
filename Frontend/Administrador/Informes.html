@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estadísticas - SIGERU</title>
+    <title>Informes y estadísticas - SIGERU</title>
     <link rel="stylesheet" href="../css/admin-paneles.css?v=9">
     <style>
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 18px; }
@@ -58,6 +58,7 @@
 				<a href="Centros.html?tipo=vertedero"><span>▤</span>Vertedero</a>
 				<a href="Maquinaria.html"><span>⚙</span>Maquinaria</a>
 				<a href="Mantenimientos.html"><span>✚</span>Mantenimientos</a>
+				<a href="InformesCuadrillas.html"><span>✉</span>Informes de cuadrillas</a>
 				<a href="Informes.html" class="active"><span>▤</span>Estadísticas</a>
 				<a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 			</nav>
@@ -67,10 +68,38 @@
 
             <div class="page-header">
                 <div>
-                    <h1>Estadísticas</h1>
+                    <h1>Informes y estadísticas</h1>
                     <p>Panel de control del sistema.</p>
                 </div>
             </div>
+
+            <h2 class="section-title">Informes recibidos de cuadrillas</h2>
+            <div class="filters" style="margin-top: 12px;">
+                <div class="search">
+                    <input type="search" id="informes-cuadrillas-busqueda" placeholder="Buscar informe...">
+                </div>
+                <select id="informes-cuadrillas-filtro">
+                    <option value="">Todas las cuadrillas</option>
+                </select>
+                <label>Desde <input type="date" id="informes-cuadrillas-desde"></label>
+                <label>Hasta <input type="date" id="informes-cuadrillas-hasta"></label>
+            </div>
+            <section class="data-table" style="margin-top: 12px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cuadrilla</th>
+                            <th>Ruta</th>
+                            <th>Informe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="informes-cuadrillas-body">
+                        <tr><td colspan="5">Cargando informes...</td></tr>
+                    </tbody>
+                </table>
+            </section>
 
             <div class="stats-grid" id="totales"></div>
 
@@ -83,8 +112,8 @@
 
             <div class="two-cols">
                 <div class="box">
-                    <h2>Top de contenedores desbordados del mes</h2>
-                    <div id="top-desbordados"></div>
+                    <h2>Top de contenedores incompletos del mes</h2>
+                    <div id="top-incompletos"></div>
                 </div>
                 <div class="box">
                     <h2>Incidencias del mes por tipo</h2>
@@ -147,9 +176,7 @@
                 </select>
                 <select id="incidencias-tipo">
                     <option value="">Todos los tipos</option>
-                    <option value="rotura">Rotura</option>
-                    <option value="desborde">Desborde</option>
-                    <option value="falta de recolección">Falta de recolección</option>
+                    <option value="incompleto">Incompleto</option>
                 </select>
                 <input type="search" id="incidencias-zona" placeholder="Zona o ubicación">
                 <input type="number" id="incidencias-contenedor" min="1" placeholder="N.º de contenedor">
@@ -203,9 +230,65 @@
         function esc(valor) {
             return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
+        let informesCuadrillas = [];
+
+        async function cargarInformesCuadrillas() {
+            const cuerpo = document.getElementById('informes-cuadrillas-body');
+            try {
+                const respuesta = await fetch(`${API}?recurso=informes`, { credentials: 'same-origin' });
+                const resultado = await respuesta.json();
+                if (!respuesta.ok || resultado.status !== 'success') {
+                    throw new Error(resultado.message || 'No se pudieron cargar los informes.');
+                }
+
+                informesCuadrillas = Array.isArray(resultado.data.informes) ? resultado.data.informes : [];
+                const filtro = document.getElementById('informes-cuadrillas-filtro');
+                const cuadrillas = [...new Set(informesCuadrillas.map(informe => String(informe.Id_Cuadrilla || '')).filter(Boolean))]
+                    .sort((a, b) => Number(a) - Number(b));
+                filtro.innerHTML = '<option value="">Todas las cuadrillas</option>' + cuadrillas.map(id =>
+                    `<option value="${esc(id)}">Cuadrilla #${esc(id)}</option>`
+                ).join('');
+                filtrarInformesCuadrillas();
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="5">${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        function filtrarInformesCuadrillas() {
+            const cuerpo = document.getElementById('informes-cuadrillas-body');
+            const busqueda = document.getElementById('informes-cuadrillas-busqueda').value.trim().toLowerCase();
+            const cuadrilla = document.getElementById('informes-cuadrillas-filtro').value;
+            const desde = document.getElementById('informes-cuadrillas-desde').value;
+            const hasta = document.getElementById('informes-cuadrillas-hasta').value;
+
+            const filtrados = informesCuadrillas.filter(informe => {
+                const fecha = String(informe.Fecha || '').slice(0, 10);
+                const coincideCuadrilla = !cuadrilla || String(informe.Id_Cuadrilla) === cuadrilla;
+                const coincideDesde = !desde || fecha >= desde;
+                const coincideHasta = !hasta || fecha <= hasta;
+                const coincideBusqueda = !busqueda || `${informe.Id_Informe} ${informe.Fecha} ${informe.Id_Ruta} ${informe.Id_Cuadrilla} ${informe.Autor || ''} ${informe.Descripcion || ''}`
+                    .toLowerCase().includes(busqueda);
+                return coincideCuadrilla && coincideDesde && coincideHasta && coincideBusqueda;
+            });
+
+            cuerpo.innerHTML = filtrados.length ? filtrados.map(informe => `
+                <tr>
+                    <td>${esc(informe.Id_Informe)}</td>
+                    <td>${esc(informe.Fecha)}</td>
+                    <td>#${esc(informe.Id_Cuadrilla)}</td>
+                    <td>#${esc(informe.Id_Ruta)}</td>
+                    <td>${esc(informe.Descripcion || '-')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="5">No hay informes que coincidan con los filtros.</td></tr>';
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             const hoy = new Date();
+            document.getElementById('informes-cuadrillas-busqueda').addEventListener('input', filtrarInformesCuadrillas);
+            document.getElementById('informes-cuadrillas-filtro').addEventListener('change', filtrarInformesCuadrillas);
+            document.getElementById('informes-cuadrillas-desde').addEventListener('change', filtrarInformesCuadrillas);
+            document.getElementById('informes-cuadrillas-hasta').addEventListener('change', filtrarInformesCuadrillas);
+            cargarInformesCuadrillas();
             document.getElementById('mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
             document.getElementById('mes').addEventListener('change', cargar);
             document.getElementById('recolecciones-filtros').addEventListener('submit', event => {
@@ -245,10 +328,10 @@
                     }
                     const d = res.data;
                     renderTotales(d.totales);
-                    renderBarras('top-desbordados', d.top_desbordados.map(x => ({
+                    renderBarras('top-incompletos', d.top_incompletos.map(x => ({
                         etiqueta: `N° ${x.Numero_Contenedor} - ${x.Ubicacion || ''}`,
                         valor: Number(x.Cantidad)
-                    })), 'No hubo desbordes este mes.');
+                    })), 'No hubo contenedores incompletos este mes.');
                     renderBarras('por-tipo', d.incidencias_por_tipo.map(x => ({
                         etiqueta: x.Tipo,
                         valor: Number(x.Cantidad)
