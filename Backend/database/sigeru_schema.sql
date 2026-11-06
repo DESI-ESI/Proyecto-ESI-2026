@@ -117,6 +117,7 @@ CREATE TABLE `empleado` (
   `rol` varchar(20) DEFAULT NULL,
   `turno` varchar(20) NOT NULL DEFAULT 'Manana',
   `cedula` varchar(20) NOT NULL,
+  `Id_Centro` int(11) DEFAULT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),

@@ -53,7 +53,7 @@
                     Maquinaria
                 </a>
                 <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
-                <a href="Operario.html?tipo=vertedero" id="vertedero-link">
+                <a href="Operario.html?tipo=vertedero" id="vertedero-link" style="display: none;">
                     <span>▤</span>
                     Vertedero
                 </a>
@@ -108,7 +108,7 @@
         const tiposBase = ['Orgánico', 'Reciclable', 'Plástico', 'Vidrio', 'Papel y cartón', 'Metal', 'Peligroso', 'Voluminoso', 'Escombros'];
         const nombresTipo = { centro_acopio: 'Centro de acopio', vertedero: 'Vertedero' };
         const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        const tipoVista = new URLSearchParams(window.location.search).get('tipo') === 'vertedero' ? 'vertedero' : 'centro_acopio';
+        let tipoVista = new URLSearchParams(window.location.search).get('tipo') === 'vertedero' ? 'vertedero' : 'centro_acopio';
 
         if (tipoVista === 'vertedero') {
             document.querySelector('.page-header h1').textContent = 'Vertedero';
@@ -148,8 +148,40 @@
 
         function dibujar(data) {
             centros = data.centros;
-            centros = centros.filter(centro => tipoVista === 'centro_acopio' ? centro.Tipo !== 'vertedero' : centro.Tipo === 'vertedero');
+            if (data.asignado) {
+                tipoVista = String(data.asignado.Tipo || '').toLowerCase() === 'vertedero' ? 'vertedero' : 'centro_acopio';
+                centros = centros.filter(centro => String(centro.Id_Centro) === String(data.asignado.Id_Centro));
+            } else {
+                centros = centros.filter(centro => tipoVista === 'centro_acopio' ? centro.Tipo !== 'vertedero' : centro.Tipo === 'vertedero');
+            }
             const idsCentros = new Set(centros.map(centro => String(centro.Id_Centro)));
+
+            const esVertedero = tipoVista === 'vertedero';
+            const nombreInstalacion = esVertedero ? 'Vertedero' : 'Centro de acopio';
+            document.querySelector('.page-header h1').textContent = data.asignado
+                ? `${nombreInstalacion}: ${data.asignado.Nombre}`
+                : nombreInstalacion;
+            document.querySelector('.page-header p').textContent = esVertedero
+                ? `Registrá ingresos y consultá la capacidad disponible de ${data.asignado ? data.asignado.Nombre : 'los vertederos asignados'}`
+                : `Registrá ingresos y consultá la capacidad disponible de ${data.asignado ? data.asignado.Nombre : 'los centros de acopio asignados'}`;
+
+            const enlaceOperario = document.getElementById('operario-link');
+            const enlaceVertedero = document.getElementById('vertedero-link');
+            if (data.asignado) {
+                if (esVertedero) {
+                    enlaceVertedero.style.display = '';
+                    enlaceVertedero.classList.add('active');
+                    enlaceVertedero.textContent = '';
+                    enlaceVertedero.insertAdjacentHTML('afterbegin', '<span>▤</span> Vertedero');
+                    enlaceOperario.style.display = 'none';
+                } else {
+                    enlaceOperario.style.display = '';
+                    enlaceOperario.classList.add('active');
+                    enlaceOperario.textContent = '';
+                    enlaceOperario.insertAdjacentHTML('afterbegin', '<span>▦</span> Centro de acopio');
+                    enlaceVertedero.style.display = 'none';
+                }
+            }
 
             document.getElementById('centers-body').innerHTML = centros.length ? centros.map(c => `
                 <tr><td><strong>${escapar(c.Nombre)}</strong><br><small>${escapar(c.Ubicacion || '')}</small></td>
@@ -259,6 +291,7 @@
         cargar();
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>
+    <script src="../js/operario-instalacion.js?v=1" defer></script>
     <script src="../js/admin-auth.js?v=33" defer></script>
 </body>
 </html>

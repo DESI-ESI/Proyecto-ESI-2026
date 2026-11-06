@@ -37,7 +37,7 @@
                     Panel de operario
                 </a>
 
-                <a href="Operario.html">
+                <a href="Operario.html" id="sidebar-instalacion" style="display: none;">
                     <span>▦</span>
                     Centro de acopio
                 </a>
@@ -62,7 +62,7 @@
                     Maquinaria
                 </a>
                 <a href="Asignaciones.html"><span>⇄</span>Asignaciones</a>
-                <a href="Operario.html?tipo=vertedero"><span>▤</span>Vertedero</a>
+                <a href="Operario.html?tipo=vertedero" id="sidebar-vertedero" style="display: none;"><span>▤</span>Vertedero</a>
                 <a href="MapaInteractivo.html"><span>♧</span>Mapa interactivo</a>
 
             </nav>
@@ -83,10 +83,10 @@
 
             <section class="stats">
 
-                <a href="Operario.html" class="stat-card">
+                <a href="Operario.html" class="stat-card" id="tarjeta-instalacion" style="display: none;">
                     <div class="stat-icon">▦</div>
                     <div>
-                        <h3>Centro de acopio</h3>
+                        <h3 id="tarjeta-instalacion-nombre">Centro de acopio</h3>
                         <span>Registrar ingresos, clasificar residuos y consultar capacidad</span>
                     </div>
                 </a>
@@ -131,7 +131,7 @@
                     </div>
                 </a>
 
-                <a href="Operario.html?tipo=vertedero" class="stat-card">
+                <a href="Operario.html?tipo=vertedero" class="stat-card" id="tarjeta-vertedero" style="display: none;">
                     <div class="stat-icon">▤</div>
                     <div>
                         <h3>Vertedero</h3>
@@ -147,6 +147,37 @@
                     </div>
                 </a>
 
+            </section>
+
+            <section class="stats" id="estadisticas-instalacion" style="margin-bottom: 18px;">
+                <div class="stat-card">
+                    <div class="stat-icon" id="estadistica-icono">▦</div>
+                    <div>
+                        <h3 id="estadistica-nombre">Mi instalación</h3>
+                        <span id="estadistica-tipo">Cargando asignación...</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">▤</div>
+                    <div>
+                        <h3 id="estadistica-almacenado">- kg</h3>
+                        <span>Volumen almacenado</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">↗</div>
+                    <div>
+                        <h3 id="estadistica-disponible">- kg</h3>
+                        <span>Capacidad disponible</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">%</div>
+                    <div>
+                        <h3 id="estadistica-ocupacion">-%</h3>
+                        <span>Ocupación de la instalación</span>
+                    </div>
+                </div>
             </section>
 
             <section class="dashboard-grid">
@@ -168,10 +199,10 @@
 
                     <div class="quick-actions">
 
-                        <a href="Operario.html" class="action">
+                        <a href="Operario.html" class="action" id="accion-instalacion">
                             <span>+</span>
                             <div>
-                                <strong>Registrar ingreso en el centro de acopio</strong>
+                                <strong id="accion-instalacion-nombre">Registrar ingreso en el centro de acopio</strong>
                                 <small>Clasificar residuos y actualizar la capacidad</small>
                             </div>
                         </a>
@@ -193,6 +224,82 @@
         </main>
 
     </div>
+    <script>
+        async function cargarEstadisticasOperario() {
+            try {
+                const respuesta = await fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=operario', { credentials: 'same-origin' });
+                const datos = await respuesta.json();
+                if (!respuesta.ok || datos.status === 'error') throw new Error(datos.message || 'No se pudieron cargar las estadísticas.');
+
+                const asignado = datos.data?.asignado;
+                const nombre = document.getElementById('estadistica-nombre');
+                const tipo = document.getElementById('estadistica-tipo');
+                const almacenado = document.getElementById('estadistica-almacenado');
+                const disponible = document.getElementById('estadistica-disponible');
+                const ocupacion = document.getElementById('estadistica-ocupacion');
+                const icono = document.getElementById('estadistica-icono');
+                const enlaceCentro = document.getElementById('sidebar-instalacion');
+                const enlaceVertedero = document.getElementById('sidebar-vertedero');
+                const tarjetaInstalacion = document.getElementById('tarjeta-instalacion');
+                const tarjetaInstalacionNombre = document.getElementById('tarjeta-instalacion-nombre');
+                const tarjetaVertedero = document.getElementById('tarjeta-vertedero');
+                const accionInstalacion = document.getElementById('accion-instalacion');
+                const accionInstalacionNombre = document.getElementById('accion-instalacion-nombre');
+
+                if (!asignado) {
+                    nombre.textContent = 'Sin instalación asignada';
+                    tipo.textContent = 'Contactá al administrador';
+                    almacenado.textContent = '- kg';
+                    disponible.textContent = '- kg';
+                    ocupacion.textContent = '-%';
+                    return;
+                }
+
+                const esVertedero = String(asignado.Tipo || '').toLowerCase() === 'vertedero';
+                const etiqueta = esVertedero ? 'Vertedero' : 'Centro de acopio';
+                const capacidad = Number(asignado.Capacidad || 0);
+                const cantidad = Number(asignado.Cantidad_Almacenada || 0);
+                const disponibleNumero = Number(asignado.Disponible);
+                const porcentaje = capacidad > 0 ? (cantidad / capacidad) * 100 : 0;
+
+                nombre.textContent = asignado.Nombre;
+                tipo.textContent = etiqueta;
+                almacenado.textContent = `${cantidad.toFixed(2)} kg`;
+                disponible.textContent = `${(Number.isFinite(disponibleNumero) ? disponibleNumero : capacidad - cantidad).toFixed(2)} kg`;
+                ocupacion.textContent = `${porcentaje.toFixed(1)}%`;
+                icono.textContent = esVertedero ? '▤' : '▦';
+
+                if (esVertedero) {
+                    enlaceVertedero.style.display = '';
+                    enlaceVertedero.classList.add('active');
+                    enlaceCentro.style.display = 'none';
+                    enlaceVertedero.innerHTML = '<span>▤</span> Vertedero';
+                    tarjetaInstalacion.style.display = 'none';
+                    tarjetaVertedero.style.display = '';
+                    tarjetaVertedero.href = 'Operario.html?tipo=vertedero';
+                    accionInstalacion.href = 'Operario.html?tipo=vertedero';
+                    accionInstalacionNombre.textContent = 'Registrar ingreso en el vertedero';
+                } else {
+                    enlaceCentro.style.display = '';
+                    enlaceCentro.classList.add('active');
+                    enlaceCentro.innerHTML = '<span>▦</span> Centro de acopio';
+                    enlaceVertedero.style.display = 'none';
+                    tarjetaInstalacion.style.display = '';
+                    tarjetaInstalacion.href = 'Operario.html';
+                    tarjetaInstalacionNombre.textContent = 'Centro de acopio';
+                    tarjetaVertedero.style.display = 'none';
+                    accionInstalacion.href = 'Operario.html';
+                    accionInstalacionNombre.textContent = 'Registrar ingreso en el centro de acopio';
+                }
+            } catch (error) {
+                document.getElementById('estadistica-nombre').textContent = 'No disponible';
+                document.getElementById('estadistica-tipo').textContent = error.message;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarEstadisticasOperario);
+    </script>
+    <script src="../js/operario-instalacion.js?v=1" defer></script>
     <script src="../js/admin-auth.js?v=33" defer></script>
 </body>
 

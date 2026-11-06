@@ -33,7 +33,7 @@ class Empleado {
     public function getTurno(): string { return $this->turno; }
     public function debeCambiarContrasena(): bool { return $this->debeCambiarContrasena; }
 
-    public function registrarse(PDO $pdo, string $password, ?string $area = null, ?string $turno = null, ?int $idMunicipio = null, string $estadoCuenta = 'activa'): bool
+    public function registrarse(PDO $pdo, string $password, ?string $area = null, ?string $turno = null, ?int $idMunicipio = null, string $estadoCuenta = 'activa', ?int $idCentro = null): bool
     {
         try {
             $pdo->beginTransaction();
@@ -41,12 +41,13 @@ class Empleado {
             $this->password = password_hash($password, PASSWORD_DEFAULT);
             $this->turno = $turno ?? ($this->turno !== '' ? $this->turno : 'mañana');
 
-            $sql = 'INSERT INTO empleado (cedula, Nombre, Apellido, Email, password, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena)
-                    VALUES (:cedula, :nombre, :apellido, :email, :password, :rol, :turno, :estado_cuenta, 1)';
+            $sql = 'INSERT INTO empleado (cedula, Id_Centro, Nombre, Apellido, Email, password, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena)
+                    VALUES (:cedula, :id_centro, :nombre, :apellido, :email, :password, :rol, :turno, :estado_cuenta, 1)';
             $stmt = $pdo->prepare($sql);
             
             $stmt->execute([
                 ':cedula' => $this->cedula,
+                ':id_centro' => $idCentro,
                 ':nombre' => $this->nombre,
                 ':apellido' => $this->apellido,
                 ':email' => $this->email,
@@ -72,9 +73,18 @@ class Empleado {
                     ':id_municipio' => $idMunicipio
                 ]);
             } elseif (in_array($rolLimpio, ['chofer', 'limpiador', 'operario'])) {
-                $sqlRol = "INSERT INTO {$rolLimpio} (Id) VALUES (:id)";
-                $stmtRol = $pdo->prepare($sqlRol);
-                $stmtRol->execute([':id' => $empleadoId]);
+                if ($rolLimpio === 'operario') {
+                    $sqlRol = "INSERT INTO operario (Id, Id_Centro) VALUES (:id, :id_centro)";
+                    $stmtRol = $pdo->prepare($sqlRol);
+                    $stmtRol->execute([
+                        ':id' => $empleadoId,
+                        ':id_centro' => $idCentro
+                    ]);
+                } else {
+                    $sqlRol = "INSERT INTO {$rolLimpio} (Id) VALUES (:id)";
+                    $stmtRol = $pdo->prepare($sqlRol);
+                    $stmtRol->execute([':id' => $empleadoId]);
+                }
             }
 
             $pdo->commit();
@@ -118,11 +128,24 @@ class Empleado {
     public static function listar(PDO $pdo, ?string $rol = null): array
     {
         if ($rol === null || trim($rol) === '' || strtolower($rol) === 'todos') {
-            $stmt = $pdo->query('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado');
+            $stmt = $pdo->query(
+                'SELECT e.Id, e.cedula, e.Id_Centro, e.Nombre, e.Apellido, e.Email, e.Rol, e.turno,
+                        e.Estado_Cuenta, e.Debe_Cambiar_Contrasena,
+                        c.Nombre AS Centro_Nombre, c.Tipo AS Centro_Tipo
+                 FROM empleado e
+                 LEFT JOIN centro_acopio c ON c.Id_Centro = e.Id_Centro'
+            );
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        $stmt = $pdo->prepare('SELECT Id, cedula, Nombre, Apellido, Email, Rol, turno, Estado_Cuenta, Debe_Cambiar_Contrasena FROM empleado WHERE Rol = :rol');
+        $stmt = $pdo->prepare(
+            'SELECT e.Id, e.cedula, e.Id_Centro, e.Nombre, e.Apellido, e.Email, e.Rol, e.turno,
+                    e.Estado_Cuenta, e.Debe_Cambiar_Contrasena,
+                    c.Nombre AS Centro_Nombre, c.Tipo AS Centro_Tipo
+             FROM empleado e
+             LEFT JOIN centro_acopio c ON c.Id_Centro = e.Id_Centro
+             WHERE e.Rol = :rol'
+        );
         $stmt->execute([':rol' => $rol]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -148,11 +171,12 @@ class Empleado {
                 ':email' => trim((string) ($datos['email'] ?? '')),
                 ':turno' => trim((string) ($datos['turno'] ?? 'mañana')),
                 ':estado_cuenta' => trim((string) ($datos['estado_cuenta'] ?? 'activa')),
+                ':id_centro' => (int) ($datos['id_centro'] ?? 0),
                 ':id' => $id
             ];
 
             $sql = 'UPDATE empleado SET Nombre = :nombre, Apellido = :apellido,
-                    Email = :email, turno = :turno, Rol = :rol, Estado_Cuenta = :estado_cuenta';
+                    Email = :email, turno = :turno, Rol = :rol, Estado_Cuenta = :estado_cuenta, Id_Centro = :id_centro';
             $valores[':rol'] = $rolNuevo;
 
             if (!empty($datos['password'])) {
@@ -188,11 +212,27 @@ class Empleado {
                         ]);
                     } else {
                         $insertarRol = $rolNuevo === 'operario'
-                            ? $pdo->prepare('INSERT INTO operario (Id, Id_Centro) VALUES (:id, NULL)')
+                            ? $pdo->prepare('INSERT INTO operario (Id, Id_Centro) VALUES (:id, :id_centro)')
                             : $pdo->prepare('INSERT INTO ' . $tablasRol[$rolNuevo] . ' (Id) VALUES (:id)');
-                        $insertarRol->execute([':id' => $id]);
+                        if ($rolNuevo === 'operario') {
+                            $insertarRol->execute([
+                                ':id' => $id,
+                                ':id_centro' => (int) ($datos['id_centro'] ?? 0)
+                            ]);
+                        } else {
+                            $insertarRol->execute([':id' => $id]);
+                        }
                     }
                 }
+            } elseif ($rolNuevo === 'operario') {
+                $actualizarOperario = $pdo->prepare(
+                    'INSERT INTO operario (Id, Id_Centro) VALUES (:id, :id_centro)
+                     ON DUPLICATE KEY UPDATE Id_Centro = VALUES(Id_Centro)'
+                );
+                $actualizarOperario->execute([
+                    ':id' => $id,
+                    ':id_centro' => (int) ($datos['id_centro'] ?? 0)
+                ]);
             } elseif ($rolNuevo === 'admi_municipal') {
                 $actualizarMunicipio = $pdo->prepare(
                     'INSERT INTO admi_municipal (Id, Id_Municipio) VALUES (:id, :id_municipio)

@@ -38,8 +38,21 @@ class EmpleadoController
             throw new InvalidArgumentException('Ya existe otro empleado con este email.');
         }
 
-        if ($rol === 'admi_municipal' && (int) ($datos['id_municipio'] ?? 0) <= 0) {
-            throw new InvalidArgumentException('Debes seleccionar un municipio para el administrador municipal.');
+        $idCentro = (int) ($datos['id_centro'] ?? 0);
+        if ($idCentro <= 0) {
+            throw new InvalidArgumentException('Debes seleccionar un centro de acopio o vertedero.');
+        }
+        $centro = $pdo->prepare('SELECT Id_Centro, Id_Municipio, Estado FROM centro_acopio WHERE Id_Centro = :id LIMIT 1');
+        $centro->execute([':id' => $idCentro]);
+        $centroFila = $centro->fetch(PDO::FETCH_ASSOC);
+        if (!$centroFila || strtolower((string) ($centroFila['Estado'] ?? '')) === 'inactivo') {
+            throw new InvalidArgumentException('El centro de acopio o vertedero seleccionado no existe o está inactivo.');
+        }
+        if ($rol === 'admi_municipal') {
+            $datos['id_municipio'] = (int) ($centroFila['Id_Municipio'] ?? 0);
+            if ((int) $datos['id_municipio'] <= 0) {
+                throw new InvalidArgumentException('El centro seleccionado no tiene un municipio asociado.');
+            }
         }
         $estadoCuenta = strtolower(trim((string) ($datos['estado_cuenta'] ?? 'activa')));
         if (!in_array($estadoCuenta, ['activa', 'inactiva'], true)) {
@@ -85,6 +98,7 @@ class EmpleadoController
             ];
             $turno = $turnosPermitidos[$turnoIngresado] ?? '';
             $idMunicipio = !empty($datos['id_municipio']) ? (int)$datos['id_municipio'] : null;
+            $idCentro = !empty($datos['id_centro']) ? (int)$datos['id_centro'] : 0;
 
             if (!preg_match('/^[0-9]{7,8}$/', $cedula)
                 || !preg_match('/^.{1,30}$/us', $nombre)
@@ -106,15 +120,20 @@ class EmpleadoController
                 return ['status' => 'error', 'message' => 'El rol seleccionado no puede gestionarse desde este formulario.'];
             }
 
-            if ($rol === 'admi_municipal' && $idMunicipio === null) {
-                return ['status' => 'error', 'message' => 'Debes seleccionar un municipio.'];
+            if ($idCentro <= 0) {
+                return ['status' => 'error', 'message' => 'Debes seleccionar un centro de acopio o vertedero.'];
             }
 
-            if ($idMunicipio !== null) {
-                $municipio = $pdo->prepare('SELECT 1 FROM municipio WHERE Id_Municipio = :id');
-                $municipio->execute([':id' => $idMunicipio]);
-                if (!$municipio->fetchColumn()) {
-                    return ['status' => 'error', 'message' => 'El municipio seleccionado no existe.'];
+            $centro = $pdo->prepare('SELECT Id_Centro, Id_Municipio, Estado FROM centro_acopio WHERE Id_Centro = :id LIMIT 1');
+            $centro->execute([':id' => $idCentro]);
+            $centroFila = $centro->fetch(PDO::FETCH_ASSOC);
+            if (!$centroFila || strtolower((string) ($centroFila['Estado'] ?? '')) === 'inactivo') {
+                return ['status' => 'error', 'message' => 'El centro de acopio o vertedero seleccionado no existe o está inactivo.'];
+            }
+            if ($rol === 'admi_municipal') {
+                $idMunicipio = (int) ($centroFila['Id_Municipio'] ?? 0);
+                if ($idMunicipio <= 0) {
+                    return ['status' => 'error', 'message' => 'El centro seleccionado no tiene un municipio asociado.'];
                 }
             }
 
@@ -147,7 +166,7 @@ class EmpleadoController
 
             try {
                 $empleado = new Empleado(0, $cedula, $nombre, $apellido, $email, $telefono, $rol, $turno);
-                $exito = $empleado->registrarse($pdo, $password, null, $turno, $idMunicipio, $estadoCuenta);
+                $exito = $empleado->registrarse($pdo, $password, null, $turno, $idMunicipio, $estadoCuenta, $idCentro);
 
                 if ($exito) {
                     return ['status' => 'success', 'message' => '¡Empleado registrado correctamente en el sistema y en su tabla de rol!'];

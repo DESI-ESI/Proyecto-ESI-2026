@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 06-11-2026 a las 02:40:37
+-- Tiempo de generación: 06-11-2026 a las 03:06:21
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -139,8 +139,7 @@ CREATE TABLE `chofer` (
 --
 
 INSERT INTO `chofer` (`Id`, `idCuadrilla`) VALUES
-(58, 13),
-(62, 13);
+(58, 13);
 
 -- --------------------------------------------------------
 
@@ -206,6 +205,7 @@ CREATE TABLE `empleado` (
   `rol` varchar(20) DEFAULT NULL,
   `turno` varchar(20) NOT NULL DEFAULT 'Manana',
   `cedula` varchar(20) NOT NULL,
+  `Id_Centro` int(11) DEFAULT NULL,
   `Estado_Cuenta` varchar(10) NOT NULL DEFAULT 'activa',
   `Debe_Cambiar_Contrasena` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -214,12 +214,12 @@ CREATE TABLE `empleado` (
 -- Volcado de datos para la tabla `empleado`
 --
 
-INSERT INTO `empleado` (`Id`, `Nombre`, `Apellido`, `Email`, `password`, `Area`, `rol`, `turno`, `cedula`, `Estado_Cuenta`, `Debe_Cambiar_Contrasena`) VALUES
-(56, 'miguel', 'radi', 'miguelradi2008@gmail.com', '$2y$10$nl/0WG2iaOkHQifQksUkuexmTUDB2Bp3OeABk3IGt.CA1k1dXAa.m', '2', 'admi_municipal', 'mañana', '57301063', 'activa', 0),
-(58, 'jorge', 'alvarez', 'jaab@gmail.com', '$2y$10$X661.kdRyUqHYTZbbYpg.eKrnjZnrp2ba5HXVKiQJDzz/g9da3BLK', 'afuera', 'chofer', 'Manana', '18589830', 'activa', 0),
-(60, 'pepato', 'potra', 'yuyuhu@gmil.com', '$2y$10$qhpS0gPSQt/cmyf8G6R4nupt/gYxt2i/e4cYTFP4uIIqJWlfOg5Nu', NULL, 'admi_municipal', 'mañana', '64052146', 'activa', 0),
-(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$3LQ67vgOmH83lTO0v48BhOe0a6AfhVRfy0RM4P5Zdqd5JmtcM8h1W', NULL, 'chofer', 'Manana', '57003225', 'activa', 0),
-(63, 'Durán', 'a', 'duran@gmail.com', '$2y$10$olIvbxYe6W4vCGSDxTD7IO58BX3WkJN5rgCDaYtAYsHyKeKXxtw3m', NULL, 'limpiador', 'Manana', '12345678', 'activa', 0);
+INSERT INTO `empleado` (`Id`, `Nombre`, `Apellido`, `Email`, `password`, `Area`, `rol`, `turno`, `cedula`, `Id_Centro`, `Estado_Cuenta`, `Debe_Cambiar_Contrasena`) VALUES
+(56, 'miguel', 'radi', 'miguelradi2008@gmail.com', '$2y$10$nl/0WG2iaOkHQifQksUkuexmTUDB2Bp3OeABk3IGt.CA1k1dXAa.m', '2', 'admi_municipal', 'mañana', '57301063', NULL, 'activa', 0),
+(58, 'jorge', 'alvarez', 'jaab@gmail.com', '$2y$10$X661.kdRyUqHYTZbbYpg.eKrnjZnrp2ba5HXVKiQJDzz/g9da3BLK', 'afuera', 'chofer', 'Manana', '18589830', NULL, 'activa', 0),
+(60, 'pepato', 'potra', 'yuyuhu@gmil.com', '$2y$10$qhpS0gPSQt/cmyf8G6R4nupt/gYxt2i/e4cYTFP4uIIqJWlfOg5Nu', NULL, 'admi_municipal', 'mañana', '64052146', NULL, 'activa', 0),
+(62, 'Timoteo', 'Massaro', 'Timoteomassaro48@gmail.com', '$2y$10$3LQ67vgOmH83lTO0v48BhOe0a6AfhVRfy0RM4P5Zdqd5JmtcM8h1W', NULL, 'operario', 'Manana', '57003225', 1, 'activa', 0),
+(63, 'Durán', 'a', 'duran@gmail.com', '$2y$10$olIvbxYe6W4vCGSDxTD7IO58BX3WkJN5rgCDaYtAYsHyKeKXxtw3m', NULL, 'operario', 'Manana', '12345678', 2, 'activa', 0);
 
 -- --------------------------------------------------------
 
@@ -324,13 +324,6 @@ CREATE TABLE `limpiador` (
   `Id` int(11) NOT NULL,
   `idCuadrilla` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `limpiador`
---
-
-INSERT INTO `limpiador` (`Id`, `idCuadrilla`) VALUES
-(63, 14);
 
 -- --------------------------------------------------------
 
@@ -501,7 +494,9 @@ INSERT INTO `notificacion` (`Id_Notificacion`, `Panel_Origen`, `Recurso`, `Accio
 (85, 'empleado', 'miruta', 'completó', 'Durán completó el recorrido de su ruta', 63, 'Durán', '2026-11-06 01:31:20'),
 (86, 'admin', 'rutas', 'modificó', 'miguel modificó una ruta (Burgues)', 56, 'miguel', '2026-11-06 01:37:07'),
 (87, 'empleado', 'informes', 'eliminó', 'Durán eliminó un informe', 63, 'Durán', '2026-11-06 01:37:38'),
-(88, 'empleado', 'miruta', 'completó', 'Durán completó el recorrido de su ruta', 63, 'Durán', '2026-11-06 01:37:44');
+(88, 'empleado', 'miruta', 'completó', 'Durán completó el recorrido de su ruta', 63, 'Durán', '2026-11-06 01:37:44'),
+(89, 'admin', 'empleados', 'modificó', 'miguel modificó un empleado (Durán)', 56, 'miguel', '2026-11-06 01:48:19'),
+(90, 'admin', 'empleados', 'modificó', 'miguel modificó un empleado (Timoteo)', 56, 'miguel', '2026-11-06 01:56:38');
 
 -- --------------------------------------------------------
 
@@ -534,6 +529,14 @@ CREATE TABLE `operario` (
   `Id` int(11) NOT NULL,
   `Id_Centro` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `operario`
+--
+
+INSERT INTO `operario` (`Id`, `Id_Centro`) VALUES
+(62, 1),
+(63, 2);
 
 -- --------------------------------------------------------
 
@@ -694,7 +697,8 @@ ALTER TABLE `cuadrilla`
 --
 ALTER TABLE `empleado`
   ADD PRIMARY KEY (`Id`),
-  ADD UNIQUE KEY `Email` (`Email`);
+  ADD UNIQUE KEY `Email` (`Email`),
+  ADD KEY `idx_empleado_centro` (`Id_Centro`);
 
 --
 -- Indices de la tabla `existe`
@@ -897,7 +901,7 @@ ALTER TABLE `municipio`
 -- AUTO_INCREMENT de la tabla `notificacion`
 --
 ALTER TABLE `notificacion`
-  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=89;
+  MODIFY `Id_Notificacion` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=91;
 
 --
 -- AUTO_INCREMENT de la tabla `recoleccion`
@@ -954,6 +958,12 @@ ALTER TABLE `centro_acopio`
 --
 ALTER TABLE `chofer`
   ADD CONSTRAINT `fk_chofer_empleado` FOREIGN KEY (`Id`) REFERENCES `empleado` (`Id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `empleado`
+--
+ALTER TABLE `empleado`
+  ADD CONSTRAINT `fk_empleado_centro` FOREIGN KEY (`Id_Centro`) REFERENCES `centro_acopio` (`Id_Centro`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `incidencia`

@@ -105,9 +105,9 @@
                     <option value="inactiva">Cuenta inactiva</option>
                 </select>
 
-                <div class="search" id="grupo-municipio"> 
-                    <select id="Id_Municipio" required>
-                        <option value="" disabled selected>Municipio...</option>
+                <div class="search" id="grupo-centro"> 
+                    <select id="Id_Centro" required>
+                        <option value="" disabled selected>Centro de acopio / Vertedero...</option>
                     </select>
                 </div>
 
@@ -167,6 +167,7 @@
                             <th>Email</th>
                             <th>Rol</th>
                             <th>Turno</th>
+                            <th>Centro / Vertedero</th>
                             <th>Estado de cuenta</th>
                             <th>Acciones</th>
                         </tr>
@@ -186,7 +187,7 @@
         let empleadoEditando = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            cargarMunicipios();
+            cargarCentros();
 
             const btnTodos = document.querySelector('[data-rol="todos"]');
             if (btnTodos) {
@@ -229,9 +230,9 @@
 
         function actualizarCamposFormulario(rol) {
             const rolSelect = document.getElementById('rolSelect');
-            const grupoMunicipio = document.getElementById('grupo-municipio');
+            const grupoCentro = document.getElementById('grupo-centro');
             const turnoSelect = document.getElementById('turnoSelect');
-            const muniInput = document.getElementById('Id_Municipio');
+            const centroInput = document.getElementById('Id_Centro');
 
             rolSelect.disabled = false;
             rolSelect.style.opacity = '1';
@@ -248,12 +249,8 @@
             }
 
             const rolFormulario = rol === 'todos' ? rolSelect.value : rol;
-            const esAdminMunicipal = rolFormulario === 'admi_municipal';
-
-            const pedirMunicipio = esAdminMunicipal;
-            grupoMunicipio.style.display = pedirMunicipio ? '' : 'none';
-            muniInput.required = pedirMunicipio;
-            if (!pedirMunicipio) muniInput.value = '';
+            grupoCentro.style.display = '';
+            centroInput.required = true;
             turnoSelect.style.display = '';
             turnoSelect.required = true;
         }
@@ -265,7 +262,7 @@
             const turnoFiltro = document.getElementById('filter-turno')?.value || 'todos';
 
             const filtrados = empleadosOriginales.filter(user => {
-                const nombreCompleto = normalizarTexto(`${user.Nombre || user.nombre || ''} ${user.Apellido || user.apellido || ''} ${user.cedula || ''} ${user.Email || user.email || ''} ${user.Rol || user.rol || ''} ${user.turno || ''} ${user.Estado_Cuenta || 'activa'}`);
+                const nombreCompleto = normalizarTexto(`${user.Nombre || user.nombre || ''} ${user.Apellido || user.apellido || ''} ${user.cedula || ''} ${user.Email || user.email || ''} ${user.Rol || user.rol || ''} ${user.turno || ''} ${user.Centro_Nombre || ''} ${user.Centro_Tipo || ''} ${user.Estado_Cuenta || 'activa'}`);
                 const coincideTexto = terminos.every(termino => nombreCompleto.includes(termino));
                 const coincideRol = rolFiltro === 'todos' || String(user.Rol || user.rol || '').toLowerCase() === rolFiltro;
                 const coincideTurno = turnoFiltro === 'todos' || normalizarTexto(user.turno || '') === normalizarTexto(turnoFiltro);
@@ -321,7 +318,7 @@
                                     : rolSeleccionado === 'chofer' ? 'Choferes'
                                     : rolSeleccionado === 'limpiador' ? 'Limpiadores'
                                     : 'Empleados';
-                contenedor.innerHTML = `<tr><td colspan="9" class="empty-table-message">No se encontraron ${rolNombre}</td></tr>`;
+                contenedor.innerHTML = `<tr><td colspan="10" class="empty-table-message">No se encontraron ${rolNombre}</td></tr>`;
                 return;
             }
             
@@ -338,6 +335,9 @@
                     user.Email || user.email || '-',
                     rol,
                     user.turno || '-',
+                    user.Centro_Nombre
+                        ? `${user.Centro_Nombre} (${String(user.Centro_Tipo || 'centro_acopio').toLowerCase() === 'vertedero' ? 'Vertedero' : 'Centro de acopio'})`
+                        : 'Sin asignar',
                     user.Estado_Cuenta || 'activa'
                 ].forEach(valor => {
                     const celda = document.createElement('td');
@@ -362,7 +362,7 @@
                         user.Email || user.email || '',
                         rol,
                         user.turno || '',
-                        user.Id_Municipio || '',
+                        user.Id_Centro || '',
                         user.Estado_Cuenta || 'activa'
                     ));
                 }
@@ -396,7 +396,7 @@
                 confirm_password: document.getElementById('confirm_password').value,
                 rol: document.getElementById('rolSelect').value,
                 turno: document.getElementById('turnoSelect').value,
-                id_municipio: document.getElementById('Id_Municipio').value,
+                id_centro: document.getElementById('Id_Centro').value,
                 estado_cuenta: document.getElementById('estadoCuentaSelect').value
             };
 
@@ -413,7 +413,7 @@
                     String(empleadoEditando.email || '') === String(datos.email || '') &&
                     String(empleadoEditando.rol || '') === String(datos.rol || '') &&
                     String(empleadoEditando.turno || '') === String(datos.turno || '') &&
-                    String(empleadoEditando.id_municipio || '') === String(datos.id_municipio || '') &&
+                    String(empleadoEditando.id_centro || '') === String(datos.id_centro || '') &&
                     String(empleadoEditando.estado_cuenta || 'activa') === String(datos.estado_cuenta || 'activa') &&
                     (datos.password === '' || datos.password === undefined);
 
@@ -451,7 +451,7 @@
             .catch(err => console.error('Error de conexión:', err));
         }
 
-        function prepararEdicion(id, cedula, nombre, apellido, email, rol, turno, idMunicipio, estadoCuenta) {
+        function prepararEdicion(id, cedula, nombre, apellido, email, rol, turno, idCentro, estadoCuenta) {
             empleadoEditando = {
                 id,
                 cedula,
@@ -460,7 +460,7 @@
                 email,
                 rol,
                 turno,
-                id_municipio: idMunicipio || '',
+                id_centro: idCentro || '',
                 estado_cuenta: estadoCuenta || 'activa'
             };
 
@@ -483,7 +483,7 @@
                 tarde: 'Tarde',
                 noche: 'Noche'
             })[turnoNormalizado] || '';
-            document.getElementById('Id_Municipio').value = idMunicipio || '';
+            document.getElementById('Id_Centro').value = idCentro || '';
             document.getElementById('estadoCuentaSelect').value = estadoCuenta || 'activa';
             
             document.getElementById('password').required = false;
@@ -549,22 +549,25 @@
             .catch(err => console.error('Error:', err));
         }
         
-        function cargarMunicipios() {
-            fetch('../../Backend/get_municipios.php')
+        function cargarCentros() {
+            fetch('../../Backend/apis/gestion/ApiGestion.php?recurso=centros')
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
-                        const selectMunicipio = document.getElementById('Id_Municipio');
-                        selectMunicipio.innerHTML = '<option value="" disabled selected>Municipio...</option>';
-                        
-                        res.data.forEach(muni => {
-                            selectMunicipio.add(new Option(muni.nombre, muni.id_municipio));
+                        const selectCentro = document.getElementById('Id_Centro');
+                        selectCentro.innerHTML = '<option value="" disabled selected>Centro de acopio / Vertedero...</option>';
+
+                        res.data.forEach(centro => {
+                            if (String(centro.Estado || '').toLowerCase() !== 'inactivo') {
+                                const tipo = centro.Tipo === 'vertedero' ? 'Vertedero' : 'Centro de acopio';
+                                selectCentro.add(new Option(`${centro.Nombre} (${tipo})`, centro.Id_Centro));
+                            }
                         });
                     } else {
-                        console.error('Error al cargar municipios:', res.message);
+                        console.error('Error al cargar centros:', res.message);
                     }
                 })
-                .catch(err => console.error('Error de red al cargar municipios:', err));
+                .catch(err => console.error('Error de red al cargar centros:', err));
         }
     </script>
     <script src="../js/row-selection.js?v=4" defer></script>

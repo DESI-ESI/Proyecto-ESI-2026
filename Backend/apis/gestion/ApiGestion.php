@@ -407,20 +407,70 @@ if ($resource === 'operario') {
 
     try {
         if ($method === 'GET') {
-            $centros = $pdo->query(
+            $idAsignado = null;
+            if (esOperario()) {
+                $asignacion = $pdo->prepare(
+                    'SELECT COALESCE(e.Id_Centro, o.Id_Centro) AS Id_Centro
+                     FROM empleado e
+                     LEFT JOIN operario o ON o.Id = e.Id
+                     WHERE e.Id = :id
+                     LIMIT 1'
+                );
+                $asignacion->execute([':id' => (int) $_SESSION['empleado_id']]);
+                $filaAsignacion = $asignacion->fetch(PDO::FETCH_ASSOC);
+                $idAsignado = $filaAsignacion ? (int) $filaAsignacion['Id_Centro'] : 0;
+            }
+
+            if ($idAsignado !== null) {
+                if ($idAsignado <= 0) {
+                    respond(['status' => 'error', 'message' => 'No tenés un centro de acopio o vertedero asignado.'], 409);
+                }
+                $centrosStmt = $pdo->prepare(
+                    'SELECT Id_Centro, Nombre, Tipo, Ubicacion, Capacidad, Cantidad_Almacenada, Estado, Tipos_Residuo,
+                            (Capacidad - COALESCE(Cantidad_Almacenada, 0)) AS Disponible
+                     FROM centro_acopio
+                     WHERE Id_Centro = :id
+                     ORDER BY Nombre'
+                );
+                $centrosStmt->execute([':id' => $idAsignado]);
+            } else {
+                $centrosStmt = $pdo->query(
                 'SELECT Id_Centro, Nombre, Tipo, Ubicacion, Capacidad, Cantidad_Almacenada, Estado, Tipos_Residuo,
                         (Capacidad - COALESCE(Cantidad_Almacenada, 0)) AS Disponible
                  FROM centro_acopio ORDER BY Nombre'
-            )->fetchAll(PDO::FETCH_ASSOC);
-            $ingresos = $pdo->query(
+                );
+            }
+            $centros = $centrosStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($idAsignado !== null) {
+                $ingresosStmt = $pdo->prepare(
+                    'SELECT i.Id_Ingreso, i.Id_Centro, c.Nombre AS Centro, i.Cantidad, i.Tipo_Residuo, i.Fecha,
+                            CONCAT(e.Nombre, " ", e.Apellido) AS Operario
+                     FROM ingreso_acopio i
+                     JOIN centro_acopio c ON c.Id_Centro = i.Id_Centro
+                     LEFT JOIN empleado e ON e.Id = i.Id_Empleado
+                     WHERE i.Id_Centro = :id
+                     ORDER BY i.Fecha DESC, i.Id_Ingreso DESC LIMIT 100'
+                );
+                $ingresosStmt->execute([':id' => $idAsignado]);
+            } else {
+                $ingresosStmt = $pdo->query(
                 'SELECT i.Id_Ingreso, i.Id_Centro, c.Nombre AS Centro, i.Cantidad, i.Tipo_Residuo, i.Fecha,
                         CONCAT(e.Nombre, " ", e.Apellido) AS Operario
                  FROM ingreso_acopio i
                  JOIN centro_acopio c ON c.Id_Centro = i.Id_Centro
                 LEFT JOIN empleado e ON e.Id = i.Id_Empleado
                  ORDER BY i.Fecha DESC, i.Id_Ingreso DESC LIMIT 100'
-            )->fetchAll(PDO::FETCH_ASSOC);
-            respond(['status' => 'success', 'data' => ['centros' => $centros, 'ingresos' => $ingresos]]);
+                );
+            }
+            $ingresos = $ingresosStmt->fetchAll(PDO::FETCH_ASSOC);
+            $asignado = $centros[0] ?? null;
+            respond(['status' => 'success', 'data' => [
+                'centros' => $centros,
+                'ingresos' => $ingresos,
+                'asignado' => $asignado,
+                'id_centro_asignado' => $idAsignado
+            ]]);
         }
 
         if ($method === 'POST') {
@@ -429,6 +479,9 @@ if ($resource === 'operario') {
             $tipoResiduo = trim((string) ($data['tipo_residuo'] ?? ''));
             if ($idCentro <= 0 || $cantidad <= 0 || mb_strlen($tipoResiduo, 'UTF-8') > 50) {
                 respond(['status' => 'error', 'message' => 'Indicá una instalación y una cantidad mayor a cero.'], 400);
+            }
+            if (!validarCentroAsignadoOperario($pdo, $idCentro)) {
+                respond(['status' => 'error', 'message' => 'No podés registrar ingresos en una instalación distinta a la tuya.'], 403);
             }
 
             $pdo->beginTransaction();
@@ -477,6 +530,9 @@ if ($resource === 'operario') {
             if ($idIngreso <= 0 || $idCentro <= 0 || $cantidad <= 0 || mb_strlen($tipoResiduo, 'UTF-8') > 50) {
                 respond(['status' => 'error', 'message' => 'Indicá una instalación y una cantidad mayor a cero.'], 400);
             }
+            if (!validarCentroAsignadoOperario($pdo, $idCentro)) {
+                respond(['status' => 'error', 'message' => 'No podés modificar ingresos de una instalación distinta a la tuya.'], 403);
+            }
 
             $pdo->beginTransaction();
             $consulta = $pdo->prepare('SELECT Id_Centro, Cantidad FROM ingreso_acopio WHERE Id_Ingreso = :id FOR UPDATE');
@@ -485,6 +541,10 @@ if ($resource === 'operario') {
             if (!$anterior) {
                 $pdo->rollBack();
                 respond(['status' => 'error', 'message' => 'No se encontró el ingreso.'], 404);
+            }
+            if (!validarCentroAsignadoOperario($pdo, (int) $anterior['Id_Centro'])) {
+                $pdo->rollBack();
+                respond(['status' => 'error', 'message' => 'No podés modificar ingresos de una instalación distinta a la tuya.'], 403);
             }
 
             $pdo->prepare('UPDATE centro_acopio SET Cantidad_Almacenada = GREATEST(COALESCE(Cantidad_Almacenada, 0) - :cantidad, 0) WHERE Id_Centro = :id')
@@ -535,6 +595,10 @@ if ($resource === 'operario') {
             if (!$ingreso) {
                 $pdo->rollBack();
                 respond(['status' => 'error', 'message' => 'No se encontró el ingreso.'], 404);
+            }
+            if (!validarCentroAsignadoOperario($pdo, (int) $ingreso['Id_Centro'])) {
+                $pdo->rollBack();
+                respond(['status' => 'error', 'message' => 'No podés eliminar ingresos de una instalación distinta a la tuya.'], 403);
             }
             $pdo->prepare('UPDATE centro_acopio SET Cantidad_Almacenada = GREATEST(COALESCE(Cantidad_Almacenada, 0) - :cantidad, 0) WHERE Id_Centro = :id')
                 ->execute([':cantidad' => $ingreso['Cantidad'], ':id' => $ingreso['Id_Centro']]);
@@ -1693,6 +1757,23 @@ function esAdministrador(): bool
 function esOperario(): bool
 {
     return !empty($_SESSION['empleado_id']) && strtolower(trim((string) ($_SESSION['rol'] ?? ''))) === 'operario';
+}
+
+function validarCentroAsignadoOperario(PDO $pdo, int $idCentro): bool
+{
+    if (!esOperario()) {
+        return true;
+    }
+
+    $asignacion = $pdo->prepare(
+        'SELECT COALESCE(e.Id_Centro, o.Id_Centro) AS Id_Centro
+         FROM empleado e
+         LEFT JOIN operario o ON o.Id = e.Id
+         WHERE e.Id = :id
+         LIMIT 1'
+    );
+    $asignacion->execute([':id' => (int) $_SESSION['empleado_id']]);
+    return (int) $asignacion->fetchColumn() === $idCentro;
 }
 
 function esCuadrilla(): bool
