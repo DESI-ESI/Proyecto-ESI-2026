@@ -1,0 +1,120 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-family: Arial, sans-serif;
+
+    background-image:
+        linear-gradient(
+            rgba(0, 0, 0, 0.55),
+            rgba(0, 0, 0, 0.55)
+        ),
+        url("img/Fondo.png");
+
+    background-size: cover;
+    background-position: center;
+}
+
+.contenedor {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.caja {
+    width: 100%;
+    max-width: 500px;
+
+    padding: 40px;
+
+    border-radius: 20px;
+
+    background: rgba(255,255,255,0.12);
+
+    backdrop-filter: blur(10px);
+
+    color: white;
+}
+
+.logo {
+    width: 120px;
+    display: block;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.grupo {
+    margin-bottom: 18px;
+}
+
+.grupo label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.grupo input {
+    width: 100%;
+
+    padding: 12px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    outline: none;
+}
+
+button {
+    width: 100%;
+
+    padding: 14px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background-color: #238653;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #17663e;
+}
+
+p {
+    margin-top: 15px;
+    text-align: center;
+}
+
+a {
+    color: #a9e6c4;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}

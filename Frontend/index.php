@@ -10,7 +10,7 @@
 
 <title>SIGERU | Gestión de Residuos Urbanos</title>
 
-<link rel="stylesheet" href="Css\index.css">
+<link rel="stylesheet" href="css/index.css">
 
 </head>
 
